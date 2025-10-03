@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+src/lib/firebase-admin.json
+*firebase-admin.json
+/seed
+
+src/lib/firebase-admin.json
+seed/seed_*.ts
