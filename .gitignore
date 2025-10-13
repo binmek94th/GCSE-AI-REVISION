@@ -46,3 +46,5 @@ src/lib/firebase-admin.json
 
 src/lib/firebase-admin.json
 seed/seed_*.ts
+
+src/lib/python scripts

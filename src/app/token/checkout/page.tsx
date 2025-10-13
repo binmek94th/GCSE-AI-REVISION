@@ -1,36 +1,26 @@
 "use client";
 
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import {
-    Elements,
-    CardElement,
-    useStripe,
-    useElements,
-} from "@stripe/react-stripe-js";
-import {useRouter, useSearchParams} from "next/navigation";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { CreditCard, Lock, CheckCircle2 } from "lucide-react";
-import {onAuthStateChanged} from "firebase/auth";
-import {auth} from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const CARD_ELEMENT_OPTIONS = {
     style: {
         base: {
-            color: '#0F172A',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            fontSize: '16px',
-            fontWeight: '400',
-            '::placeholder': {
-                color: '#475569',
-            },
+            color: "#0F172A",
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            fontSize: "16px",
+            fontWeight: "400",
+            "::placeholder": { color: "#475569" },
         },
-        invalid: {
-            color: '#EF4444',
-            iconColor: '#EF4444',
-        },
+        invalid: { color: "#EF4444", iconColor: "#EF4444" },
     },
     hidePostalCode: false,
 };
@@ -40,80 +30,73 @@ function InnerForm() {
     const elements = useElements();
     const searchParams = useSearchParams();
     const packageId = searchParams.get("packageId");
+    const billing = searchParams.get("billing") || "monthly";
     const [loading, setLoading] = useState(false);
-    const router = useRouter()
+    const router = useRouter();
     const [user, setUser] = useState<any>(null);
-    const redirectTo = searchParams.get("redirectTo") || '/dashboard';
+    const redirectTo = searchParams.get("redirectTo") || "/dashboard";
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-        });
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
         return () => unsubscribe();
     }, []);
-
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!stripe || !elements) return;
 
-        if (!packageId) {
-            toast.error("Package ID is missing.");
-            return;
-        }
+        if (!packageId) return toast.error("Package ID is missing.");
+        if (!user) return router.push("/auth/login");
 
         const idToken = await user.getIdToken();
-        if (!idToken) {
-            router.push('/auth/login');
-            return;
-        }
+        if (!idToken) return router.push("/auth/login");
+
         setLoading(true);
 
         try {
-            const res = await fetch("/api/create-token-payment-intent", {
+            const res = await fetch("/api/create-subscription", {
                 method: "POST",
-                headers: { "Content-Type": "application/json",  "Authorization": `Bearer ${idToken}` },
-                body: JSON.stringify({ packageId }),
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+                body: JSON.stringify({ packageId, billing }),
             });
 
             const data = await res.json();
+            if (data.error) return toast.error(data.error);
 
-            if (data.error) {
-                toast.error(data.error);
-                setLoading(false);
-                return;
-            }
+            const cardElement = elements.getElement(CardElement);
+            if (!cardElement) return toast.error("Card information is missing.");
 
             const clientSecret = data.clientSecret;
             if (!clientSecret) {
-                toast.error("Payment could not be initialized.");
-                setLoading(false);
+                toast.success("Subscription created! Payment method will be used for future invoices.");
+                setTimeout(() => router.push(redirectTo), 2000);
                 return;
             }
 
-            const cardElement = elements.getElement(CardElement);
-            if (!cardElement) {
-                toast.error("Card information is missing.");
-                setLoading(false);
-                return;
+            // Confirm the payment or setup intent depending on subscription type
+            let result;
+            if (data.subscriptionRequiresSetup) {
+                // SetupIntent flow for future payments
+                result = await stripe.confirmCardSetup(clientSecret, {
+                    payment_method: { card: cardElement },
+                });
+            } else {
+                // Immediate payment
+                result = await stripe.confirmCardPayment(clientSecret, {
+                    payment_method: { card: cardElement },
+                });
             }
-
-            const result = await stripe.confirmCardPayment(clientSecret, {
-                payment_method: { card: cardElement },
-            });
 
             if (result.error) {
                 toast.error(result.error.message);
-            } else if (result.paymentIntent?.status === "succeeded") {
-                toast.success("Payment successful! Redirecting...");
-                setTimeout(() => {
-                    if (redirectTo) router.push(redirectTo)
-                    router.push("/dashboard");
-                }, 3000)
+            } else {
+                toast.success("Subscription successful! Redirecting...");
+                if (redirectTo) setTimeout(() => router.push(redirectTo), 2000);
+                else setTimeout(() => router.push("/dashboard"), 2000);
             }
         } catch (err) {
             console.error(err);
-            toast.error("Payment failed. Please try again.");
+            toast.error("Subscription failed. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -123,14 +106,13 @@ function InnerForm() {
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 <div className="bg-card border border-border rounded-lg shadow-lg p-8">
-                    {/* Header */}
                     <div className="text-center mb-8">
                         <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
                             <CreditCard className="w-8 h-8 text-primary" />
                         </div>
-                        <h2 className="text-card-foreground mb-2">Complete Your Purchase</h2>
+                        <h2 className="text-card-foreground mb-2">Complete Your Subscription</h2>
                         <p className="text-muted-foreground text-sm">
-                            Secure payment powered by Stripe
+                            Secure subscription powered by Stripe
                         </p>
                     </div>
 
@@ -142,7 +124,6 @@ function InnerForm() {
                             </div>
                         </div>
 
-                        {/* Security Info */}
                         <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
                             <Lock className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
                             <div>
@@ -153,17 +134,17 @@ function InnerForm() {
                             </div>
                         </div>
 
-                        {/* Features */}
                         <div className="space-y-2">
-                            {["Instant token delivery", "No hidden fees", "24/7 customer support"].map((feature, idx) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                    <CheckCircle2 className="w-4 h-4 text-accent" />
-                                    <span className="text-sm text-muted-foreground">{feature}</span>
-                                </div>
-                            ))}
+                            {["Instant access to resources", "Auto-renewal subscription", "24/7 support"].map(
+                                (feature, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                        <CheckCircle2 className="w-4 h-4 text-accent" />
+                                        <span className="text-sm text-muted-foreground">{feature}</span>
+                                    </div>
+                                )
+                            )}
                         </div>
 
-                        {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={loading || !stripe}
@@ -179,17 +160,16 @@ function InnerForm() {
                   Processing...
                 </span>
                             ) : (
-                                "Complete Payment"
+                                "Subscribe Now"
                             )}
                         </button>
 
                         <p className="text-xs text-center text-muted-foreground">
-                            By completing this purchase, you agree to our Terms of Service
+                            By subscribing, you agree to our Terms of Service
                         </p>
                     </form>
                 </div>
 
-                {/* Trust Badges */}
                 <div className="mt-6 text-center">
                     <p className="text-xs text-muted-foreground mb-2">
                         Trusted by thousands of users worldwide

@@ -1,138 +1,100 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from '@/lib/firebase';
-import { Check } from 'lucide-react';
 import Spinner from "@/app/components/Spinner";
-import {useRouter, useSearchParams} from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Package {
     id: string;
     name: string;
-    tokens: number;
-    price: number;
-    popular: boolean;
-    features: string[];
+    monthly_price: number;
+    yearly_price: number;
 }
 
 export default function BuyTokenComponent() {
-    const [packages, setPackages] = useState<Package[]>([]);
-    const searchParams = useSearchParams();
+    const [pkg, setPkg] = useState<Package | null>(null);
     const [loading, setLoading] = useState(true);
+    const [billingCycle, setBillingCycle] = useState<'month' | 'year'>('month'); // monthly by default
     const router = useRouter();
-    const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+    const searchParams = useSearchParams();
     const redirectTo = searchParams.get("redirectTo");
 
     useEffect(() => {
-        const fetchPackages = async () => {
+        const fetchPackage = async () => {
             try {
-                const q = query(collection(db, 'packages'), orderBy('price', 'asc'));
-
-                const querySnapshot = await getDocs(q);
-                const data: Package[] = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                })) as Package[];
-
-                setPackages(data);
+                const q = query(
+                    collection(db, 'packages'),
+                    limit(1)
+                );
+                const snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const doc = snapshot.docs[0];
+                    setPkg({ id: doc.id, ...doc.data() } as Package);
+                }
             } catch (error) {
-                console.error('Error fetching packages:', error);
+                console.error("Error fetching package:", error);
             } finally {
                 setLoading(false);
             }
         };
-        fetchPackages();
 
+        fetchPackage();
     }, []);
 
-    const handleSelect = (packageId: string) => {
-        setSelectedPackage(packageId);
-    };
-
     const handlePurchase = () => {
-        if (selectedPackage) {
-            const pkg = packages.find(p => p.id === selectedPackage);
-            console.log(pkg)
-            router.push(`token/checkout?packageId=${pkg?.id}&redirectTo=${redirectTo}`);
+        if (pkg) {
+            router.push(`token/checkout?packageId=${pkg.id}&billing=${billingCycle}&redirectTo=${redirectTo}`);
         }
     };
 
-    if (loading) {
-        return <Spinner></Spinner>;
-    }
+    if (loading) return <Spinner />;
+
+    if (!pkg) return <p className="text-center mt-12 text-gray-600">No subscription plan available at the moment. Please check back later.</p>;
 
     return (
-        <div className="min-h-screen bg-background p-12">
-            <div className="max-w-6xl mx-auto">
-                <div className="text-center mb-12">
-                    <h1 className="text-foreground mb-3">Buy Token Packages</h1>
-                    <p className="text-muted-foreground text-lg">
-                        Choose the perfect package for your needs
-                    </p>
-                </div>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-6">
+            <div className="bg-white border-2 rounded-xl p-10 shadow-xl w-full max-w-lg text-center">
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">{pkg.name}</h2>
+                <p className="text-gray-700 mb-6">
+                    Unlock full access to your AI Study Assistant and premium resources.
+                    Enhance your learning experience, track your progress, and get instant help whenever you need it.
+                </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {packages.map((pkg) => (
-                        <div
-                            key={pkg.id}
-                            onClick={() => handleSelect(pkg.id)}
-                            className={`relative bg-card border-2 rounded-lg p-6 cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                                selectedPackage === pkg.id
-                                    ? 'border-primary scale-105 shadow-xl'
-                                    : 'border-border'
-                            }`}
-                        >
-                            {pkg.popular && (
-                                <div className="absolute -top-3 right-6 bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-medium">
-                                    Most Popular
-                                </div>
-                            )}
-
-                            <div className="mb-4">
-                                <h3 className="text-card-foreground mb-2">{pkg.name}</h3>
-                                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-semibold text-primary">
-                    ${pkg.price}
-                  </span>
-                                </div>
-                                <p className="text-muted-foreground text-sm mt-1">
-                                    {pkg.tokens.toLocaleString()} tokens
-                                </p>
-                            </div>
-
-                            <div className="border-t border-border pt-4 mt-4">
-                                {pkg.features.map((feature, idx) => (
-                                    <div key={idx} className="flex items-center gap-2 mb-3">
-                                        <Check size={16} className="text-accent flex-shrink-0" />
-                                        <span className="text-card-foreground text-sm">
-                      {feature}
+                <div className="mb-6">
+                    <span className="text-2xl font-extrabold text-primary">
+                        ${billingCycle === 'month' ? pkg.monthly_price : pkg.yearly_price}
                     </span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {selectedPackage === pkg.id && (
-                                <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                                    <Check size={16} className="text-primary-foreground" />
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                    <span className="text-gray-600 ml-2">
+                        / {billingCycle === 'month' ? 'month' : 'year'}
+                    </span>
                 </div>
 
-                <div className="flex justify-center gap-4">
+                <div className="flex justify-center gap-4 mb-8">
                     <button
-                        onClick={handlePurchase}
-                        disabled={!selectedPackage}
-                        className={`px-8 py-3 rounded-lg border-none font-medium text-base transition-all duration-200 ${
-                            selectedPackage
-                                ? 'bg-primary text-primary-foreground cursor-pointer hover:bg-primary-dark'
-                                : 'bg-muted text-muted-foreground cursor-not-allowed opacity-60'
-                        }`}
+                        onClick={() => setBillingCycle('month')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${billingCycle === 'month' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700'}`}
                     >
-                        Purchase Now
+                        Monthly
+                    </button>
+                    <button
+                        onClick={() => setBillingCycle('year')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${billingCycle === 'year' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700'}`}
+                    >
+                        Yearly
                     </button>
                 </div>
+
+                <ul className="text-left mb-8 space-y-2 text-gray-700">
+                    <li>Unlimited AI tutoring sessions</li>
+                </ul>
+
+                <button
+                    onClick={handlePurchase}
+                    className="px-8 py-4 rounded-lg bg-primary text-primary-foreground font-semibold text-lg hover:bg-primary-dark transition-all shadow-lg"
+                >
+                    Purchase Now & Start Learning
+                </button>
             </div>
         </div>
     );

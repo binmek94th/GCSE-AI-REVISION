@@ -86,51 +86,68 @@ export default function StudentAIChat() {
         if (!input.trim() || isTyping) return;
 
         const userMessage: RawMessage = {
-            role: 'user',
+            role: "user",
             content: input,
-            timestamp: new Date()
+            timestamp: new Date(),
         };
 
+        // Add user message to state
         setRawMessages(prev => [...prev, userMessage]);
-        setDisplayMessages(prev => [
-            ...prev,
-            { ...userMessage, content: <p>{input}</p> }
-        ]);
-        setInput('');
+        setDisplayMessages(prev => [...prev, { ...userMessage, content: <p>{input}</p> }]);
+        setInput("");
         setIsTyping(true);
 
-        if (!user){
-            router.push('/auth/login');
+        if (!user) {
+            router.push("/auth/login");
             return;
         }
+
         const idToken = await user.getIdToken();
         if (!idToken) {
-            router.push('/auth/login');
+            router.push("/auth/login");
             return;
         }
 
         try {
             const res = await fetch("/api/chat", {
                 method: "POST",
-                headers: { "Content-Type": "application/json",  "Authorization": `Bearer ${idToken}` },
-                body: JSON.stringify({ messages: [...rawMessages, userMessage] })
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ messages: [...rawMessages, userMessage] }),
             });
 
-            if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.error || "Unknown error");
-            }
             const data = await res.json();
 
-            if (data.content) {
+            if (!res.ok) {
+                throw new Error(data.error || "Unknown error");
+            }
+
+            if (data.allowed === false) {
+                setDisabled(true);
+                setDisplayMessages(prev => [
+                    ...prev,
+                    {
+                        role: "assistant",
+                        content: <p>{data.message || "You need a subscription to continue."}</p>,
+                        timestamp: new Date(),
+                    },
+                ]);
+
+                setTimeout(() => router.push("/token?redirectTo=/chat"), 3000);
+                return;
+            }
+
+            if (data.data?.content) {
                 const aiRaw: RawMessage = {
                     role: "assistant",
-                    content: data.content,
+                    content: data.data.content,
                     timestamp: new Date(),
                 };
                 const aiDisplay: DisplayMessage = {
                     role: "assistant",
-                    content: renderMessage(data.content),
+                    content: renderMessage(data.data.content),
                     timestamp: new Date(),
                 };
 
@@ -143,35 +160,20 @@ export default function StudentAIChat() {
                     ? error
                     : error?.message || "⚠️ Sorry, something went wrong. Please try again.";
 
-
             const errRaw: RawMessage = {
-                role: 'assistant',
+                role: "assistant",
                 content: errorMessage,
-                timestamp: new Date()
+                timestamp: new Date(),
             };
-
-            const errDisplay: DisplayMessage = {
-                ...errRaw,
-                content: <p>{errorMessage}</p>
-            };
+            const errDisplay: DisplayMessage = { ...errRaw, content: <p>{errorMessage}</p> };
 
             setRawMessages(prev => [...prev, errRaw]);
             setDisplayMessages(prev => [...prev, errDisplay]);
-
-            if (errorMessage.includes("Insufficient tokens")) {
-                setDisabled(true)
-                setDisplayMessages(prev => [...prev, {
-                    ...errRaw,
-                    content: <p>Redirecting to token top-up...</p>
-                }]);
-                setTimeout(() => {
-                    router.push("/token?redirectTo=/chat");
-                }, 3000)
-            }
         } finally {
             setIsTyping(false);
         }
     };
+
 
     const formatTime = (date: Date) =>
         new Date(date).toLocaleTimeString('en-US', {

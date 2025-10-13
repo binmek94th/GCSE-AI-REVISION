@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="WEB_MODULE" version="4">
+  <component name="FacetManager">
+    <facet type="Python" name="Python facet">
+      <configuration sdkName="Python 3.9 virtualenv at D:\Projects\Upwork\ai_tutor\gcse-ai-revision-app\src\lib\python scripts\.venv" />
+    </facet>
+  </component>
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.tmp" />
       <excludeFolder url="file://$MODULE_DIR$/temp" />
       <excludeFolder url="file://$MODULE_DIR$/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/src/lib/python scripts/.venv" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="Python 3.9 virtualenv at D:\Projects\Upwork\ai_tutor\gcse-ai-revision-app\src\lib\python scripts\.venv interpreter library" level="application" />
   </component>
 </module>

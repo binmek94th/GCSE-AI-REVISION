@@ -3,7 +3,7 @@ import {useEffect, useState} from 'react';
 import { Button } from './button';
 import { Sheet, SheetContent, SheetTrigger } from './sheet';
 import { Menu, BookOpen, User } from 'lucide-react';
-import {useRouter} from "next/navigation";
+import {usePathname, useRouter} from "next/navigation";
 import {onAuthStateChanged} from "firebase/auth";
 import {auth} from "@/lib/firebase";
 import { signOut } from "firebase/auth";
@@ -46,8 +46,11 @@ export function Navigation({ currentPage }: NavigationProps) {
             console.error("Logout failed:", error);
         }
     };
+    const pathname = usePathname();
 
-    // if (user) return null;
+    const showNavigation = ["/auth/login", "/auth/register", "/"].includes(pathname);
+
+    if (!showNavigation) return null;
 
     return (
         <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border/50">
@@ -64,7 +67,6 @@ export function Navigation({ currentPage }: NavigationProps) {
                         <span className="font-bold text-xl text-text-main hidden sm:block">GCSE AI Revision</span>
                     </button>
 
-                    {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center gap-2">
                         {navLinks.map((link) => (
                             <button
@@ -108,7 +110,6 @@ export function Navigation({ currentPage }: NavigationProps) {
                         }
                     </div>
 
-                    {/* Mobile Navigation */}
                     <div className="md:hidden flex items-center gap-2">
                         <Button
                             size="sm"
