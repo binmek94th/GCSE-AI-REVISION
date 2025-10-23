@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import admin from "@/lib/firebaseAdmin";
+import {doc, getDoc, updateDoc} from "@firebase/firestore";
+import {db} from "@/lib/firebase";
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -66,11 +68,44 @@ export async function POST(req: Request) {
                 transaction.update(userRef, { tokens: currentTokens - tokensUsed });
             });
         }
-
+        await checkAITutorBadges(uid)
         return NextResponse.json({ allowed: true, data: completion.choices[0].message });
 
     } catch (err: any) {
         console.error(err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
+}
+
+
+async function checkAITutorBadges(userId: string) {
+    const userRef = doc(db, "users", userId);
+    const userSnap = await getDoc(userRef);
+    const data = userSnap.data();
+
+    const badges = data?.badges?.tutor || [];
+    const aiStats = data?.stats?.aiInteractions || { total: 0, weekCount: 0, lastInteraction: null };
+    const newBadges = [...badges];
+
+    const now = new Date();
+    const lastInteraction = aiStats.lastInteraction ? new Date(aiStats.lastInteraction) : null;
+
+    const daysSinceLast = lastInteraction
+        ? Math.floor((now.getTime() - lastInteraction.getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+    const weekCount = daysSinceLast !== null && daysSinceLast <= 7 ? aiStats.weekCount + 1 : 1;
+
+    if (weekCount >= 10 && !badges.includes("Tutor Whisperer")) {
+        newBadges.push("Tutor Whisperer");
+    }
+
+    await updateDoc(userRef, {
+        "stats.aiInteractions": {
+            total: (aiStats.total || 0) + 1,
+            weekCount,
+            lastInteraction: now.toISOString(),
+        },
+        ...(newBadges.length > badges.length && { "badges.tutor": newBadges }),
+    });
 }

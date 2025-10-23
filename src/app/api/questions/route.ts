@@ -19,6 +19,15 @@ const questionConverter = {
     },
 };
 
+function shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -29,6 +38,7 @@ export async function POST(req: Request) {
         }
 
         const allQuestions: Question[] = [];
+        const QUESTIONS_PER_SUBJECT = 15;
 
         for (const subj of selection.subjects) {
             let query: FirebaseFirestore.Query<Question, FirebaseFirestore.DocumentData> =
@@ -41,10 +51,21 @@ export async function POST(req: Request) {
 
             const snapshot = await query.get();
             const questions = snapshot.docs.map((doc) => doc.data());
-            allQuestions.push(...questions);
+
+            const shuffledQuestions = shuffleArray(questions);
+
+            const selectedQuestions = shuffledQuestions.slice(0, QUESTIONS_PER_SUBJECT);
+
+            allQuestions.push(...selectedQuestions);
         }
 
-        return NextResponse.json({ questions: allQuestions });
+        const finalQuestions = shuffleArray(allQuestions);
+
+        return NextResponse.json({
+            questions: finalQuestions,
+            totalQuestions: finalQuestions.length,
+            questionsPerSubject: QUESTIONS_PER_SUBJECT
+        });
     } catch (err) {
         console.error("Error fetching questions:", err);
         return NextResponse.json({ error: "Failed to fetch questions" }, { status: 500 });

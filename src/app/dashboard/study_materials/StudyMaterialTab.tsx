@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import {FileText, Loader2, AlertCircle, BookOpen, ArrowLeft, ChevronRight, ChevronLeft} from 'lucide-react';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {auth} from "@/lib/firebase";
+import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
+import {useDashboard} from "@/contexts/DashboardContext";
 
 interface Material {
     id: string;
@@ -24,6 +26,7 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
     const [error, setError] = useState<null | string>(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const { incrementStreak } = useDashboard();
 
 
     useEffect(() => {
@@ -105,6 +108,12 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
         if (!auth.currentUser) return;
         const idToken = await auth.currentUser.getIdToken();
         const currentIndex = materials.findIndex((m) => m.id === materialId);
+        setMaterials(prevState =>
+            prevState.map(m =>
+                m.id === materialId ? { ...m, done: true } : m
+            )
+        );
+
 
         if (currentIndex !== -1 && currentIndex + 1 < materials.length) {
             setSelectedMaterial(materials[currentIndex + 1]);
@@ -123,9 +132,9 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
         } catch (error) {
             console.error("Error marking material done:", error);
         }
+        incrementStreak()
     };
 
-    console.log(materials)
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -134,16 +143,15 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
                     <div className="p-6 border-b flex justify-between border-gray-200 bg-gradient-to-r from-indigo-500 to-purple-500">
                         <div className="flex items-center gap-3 text-white">
                             <BookOpen className="w-6 h-6" />
-                            <h2 className="text-xl font-semibold">{materials[0].subject}</h2>
+                            <h2 className="text-xl font-semibold">{materials[0]?.subject || 'Study Pack'}</h2>
                         </div>
                         <button
-                            className="cursor-pointer text-white flex items-center gap-2 px-3 py-1 rounded-lg  hover:bg-indigo-700 hover:shadow-md transition-all duration-200"
+                            className="cursor-pointer text-white flex items-center gap-2 px-3 py-1 rounded-lg hover:bg-indigo-700 hover:shadow-md transition-all duration-200"
                             onClick={() => setPackId(null)}
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Back
                         </button>
-
                     </div>
 
                     {materials.length === 0 ? (
@@ -163,7 +171,6 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
                                             : "bg-gray-50 text-gray-900 hover:bg-gray-100 hover:shadow-sm"
                                     }`}
                                 >
-                                    {/* Radio/Tick Indicator */}
                                     <div className="flex-shrink-0 mt-1">
                                         {material.done ? (
                                             <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
@@ -189,11 +196,10 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
                                         )}
                                     </div>
 
-                                    {/* Material Info */}
                                     <div className="flex-1 min-w-0">
-      <span className="font-medium text-sm block line-clamp-2">
-        {material.title}
-      </span>
+                                        <span className="font-medium text-sm block line-clamp-2">
+                                            {material.title}
+                                        </span>
                                         <span
                                             className={`text-xs mt-1 block ${
                                                 selectedMaterial?.id === material.id
@@ -201,8 +207,8 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
                                                     : "text-gray-500"
                                             }`}
                                         >
-        {material.subject}
-      </span>
+                                            {material.subject}
+                                        </span>
                                     </div>
                                 </button>
                             ))}
@@ -232,90 +238,18 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
                 <div className="flex-1 overflow-y-auto">
                     {selectedMaterial ? (
                         <div className="p-8 max-w-5xl mx-auto">
-                            <div>
-                            </div>
                             <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-lg">
-                                <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
-                                    {selectedMaterial.content.split('\n').map((line, index) => {
-                                        if (line.startsWith('## ')) {
-                                            return (
-                                                <h2 key={index} className="text-2xl font-bold text-gray-900 mt-6 mb-4 pb-2 border-b-2 border-indigo-200">
-                                                    {line.replace('## ', '')}
-                                                </h2>
-                                            );
-                                        }
-
-                                        if (line.startsWith('# ')) {
-                                            return (
-                                                <h1 key={index} className="text-3xl font-bold text-gray-900 mt-4 mb-2">
-                                                    {line.replace('# ', '')}
-                                                </h1>
-                                            );
-                                        }
-
-                                        if (line.includes('**')) {
-                                            const boldPattern = /\*\*(.*?)\*\*/g;
-                                            const parts = line.split(boldPattern);
-                                            return (
-                                                <p key={index} className="mb-3 text-gray-700">
-                                                    {parts.map((part, i) =>
-                                                        i % 2 === 1 ? <strong key={i} className="font-semibold text-gray-900">{part}</strong> : part
-                                                    )}
-                                                </p>
-                                            );
-                                        }
-
-                                        if (line.trim().startsWith('- ')) {
-                                            return (
-                                                <li key={index} className="ml-6 mb-2 text-gray-700 list-disc">
-                                                    {line.trim().replace('- ', '')}
-                                                </li>
-                                            );
-                                        }
-
-                                        // Handle bold text (**text**)
-                                        const boldPattern = /\*\*(.*?)\*\*/g;
-                                        if (boldPattern.test(line)) {
-                                            const parts = line.split(boldPattern);
-                                            return (
-                                                <p key={index} className="mb-3 text-gray-700">
-                                                    {parts.map((part, i) =>
-                                                        i % 2 === 1 ? <strong key={i} className="font-semibold text-gray-900">{part}</strong> : part
-                                                    )}
-                                                </p>
-                                            );
-                                        }
-
-                                        if (line.includes('**')) {
-                                            const boldPattern = /\*\*(.*?)\*\*/g;
-                                            const parts = line.split(boldPattern);
-                                            return (
-                                                <p key={index} className="mb-3 text-gray-700">
-                                                    {parts.map((part, i) =>
-                                                        i % 2 === 1 ? <strong key={i} className="font-semibold text-gray-900">{part}</strong> : part
-                                                    )}
-                                                </p>
-                                            );
-                                        }
-
-                                        // Handle empty lines
-                                        if (line.trim() === '') {
-                                            return <div key={index} className="h-2" />;
-                                        }
-
-                                        // Regular paragraph
-                                        return (
-                                            <p key={index} className="mb-3 text-gray-700">
-                                                {line}
-                                            </p>
-                                        );
-                                    })}
-                                </div>
+                                <MarkdownContent content={selectedMaterial.content} />
                             </div>
                             <div className="flex justify-end mt-4">
                                 <button
                                     onClick={() => handleDone(selectedMaterial.id)}
-                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2"
+                                    disabled={selectedMaterial.done}
+                                    className={`px-4 py-2 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2 ${
+                                        selectedMaterial.done
+                                            ? 'bg-gray-400 cursor-not-allowed'
+                                            : 'bg-green-600 hover:bg-green-700'
+                                    }`}
                                 >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -327,10 +261,9 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
                                     >
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
-                                    Done
+                                    {selectedMaterial.done ? 'Completed' : 'Mark as Done'}
                                 </button>
                             </div>
-
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-full">

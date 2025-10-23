@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/generate-study-plans",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}

@@ -84,11 +84,19 @@ const handleStudyPackPurchase = async (session: Stripe.Checkout.Session) => {
         const uid = session.metadata?.userId;
         const packId = session.metadata?.packId;
 
-        console.log("Handling study pack purchase for session:", session.id, "User ID:", uid, "Pack ID:", packId);
+
         if (!uid || !packId) {
             console.warn("Checkout session missing userId or packId in metadata");
             return;
         }
+
+        const packDoc = await admin.firestore()
+            .collection("study_packs")
+            .doc(packId)
+            .get();
+
+        const packData = packDoc.exists ? packDoc.data() : {};
+        const subject = packData?.subject || packData?.title || "Unknown";
 
         await admin.firestore()
             .collection("users")
@@ -97,10 +105,12 @@ const handleStudyPackPurchase = async (session: Stripe.Checkout.Session) => {
             .doc(packId)
             .set({
                 boughtAt: admin.firestore.FieldValue.serverTimestamp(),
+                subject,
             });
 
-        console.log(`User ${uid} bought pack ${packId}`);
+        console.log(`User ${uid} bought pack ${packId} (subject: ${subject})`);
     } catch (err) {
         console.error("Failed to add bought study pack:", err);
     }
 };
+

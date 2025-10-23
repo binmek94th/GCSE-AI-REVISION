@@ -1,0 +1,262 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { auth } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
+import * as Dialog from '@radix-ui/react-dialog';
+import { X } from 'lucide-react';
+import {ScrollArea} from "@radix-ui/react-scroll-area";
+
+interface Break {
+    after: string;
+    duration: string;
+    type: string;
+}
+
+interface Session {
+    difficulty: string;
+    duration: string;
+    focusArea: string;
+    materialId: string;
+    materialTitle: string;
+    objectives: string[];
+    packId: string;
+    subject: string;
+    timeSlot: string;
+    material?: {
+        id: string;
+        title: string;
+        content: string;
+    };
+}
+
+interface Plan {
+    breaks: Break[];
+    dailyGoal: string;
+    sessions: Session[];
+    tips: string[];
+    totalStudyTime: string;
+}
+
+interface Preferences {
+    hoursPerWeek: string;
+    targetGrade: string;
+}
+
+interface StudyPlan {
+    id: string;
+    createdAt: string;
+    date: string;
+    plan: Plan;
+    preferences: Preferences;
+    status: string;
+}
+
+export default function StudyPlan() {
+    const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [authChecked, setAuthChecked] = useState(false);
+    const [selectedMaterial, setSelectedMaterial] = useState<any>()
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            setAuthChecked(true);
+
+            if (!user) {
+                setError('Please sign in to view your study plan');
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const idToken = await user.getIdToken();
+
+                const response = await fetch('/api/study-plan', {
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to fetch study plan');
+                }
+
+                const data = await response.json();
+                setStudyPlan(data);
+                setError(null);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'An error occurred');
+                setStudyPlan(null);
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZoneName: 'short'
+        });
+    };
+
+    if (!authChecked || loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                    <p className="text-lg text-gray-600">Loading your study plan...</p>
+                </div>
+            </div>
+        );
+    }
+
+    console.log(selectedMaterial)
+
+    if (error) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+                    <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to Load Study Plan</h2>
+                    <p className="text-gray-600 mb-6">{error}</p>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!studyPlan) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+                    <div className="text-gray-400 text-5xl mb-4">📚</div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">No Study Plan Found</h2>
+                    <p className="text-gray-600">No study plan is available for today.</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50 py-4 px-4">
+            <div className="max-w-5xl mx-auto">
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                        <h2 className="font-semibold text-blue-900 mb-1">Daily Goal</h2>
+                        <p className="text-blue-800">{studyPlan.plan.dailyGoal}</p>
+                    </div>
+
+                </div>
+
+                <div className="space-y-6">
+                    {studyPlan.plan.sessions.map((session, index) => (
+                        <div key={index} onClick={() => setSelectedMaterial(session.material)}>
+                            <div className="bg-white rounded-lg shadow-md p-6">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 className="text-xl font-bold text-gray-900">
+                                            Session {index + 1}: {session.subject}
+                                        </h3>
+                                        <p className="text-gray-600">{session.materialTitle}</p>
+                                    </div>
+                                    <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold">
+                    {session.timeSlot}
+                  </span>
+
+                                </div>
+
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase">Duration</p>
+                                        <p className="text-sm font-semibold text-gray-900">{session.duration}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase">Difficulty</p>
+                                        <p className="text-sm font-semibold text-gray-900">{session.difficulty}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase">Focus Area</p>
+                                        <p className="text-sm font-semibold text-gray-900">
+                                            {session.focusArea.replace('_', ' ')}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <h4 className="font-semibold text-gray-700 mb-2">Objectives:</h4>
+                                    <ul className="space-y-1">
+                                        {session.objectives.map((objective, objIndex) => (
+                                            <li key={objIndex} className="flex items-start">
+                                                <span className="text-blue-500 mr-2">•</span>
+                                                <span className="text-gray-700">{objective}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                            </div>
+
+                            {studyPlan.plan.breaks[index] && (
+                                <div className="flex items-center justify-center my-4">
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
+                                        <p className="text-sm font-semibold text-yellow-800">
+                                            ☕ Break ({studyPlan.plan.breaks[index].duration})
+                                        </p>
+                                        <p className="text-xs text-yellow-600">
+                                            After {studyPlan.plan.breaks[index].after}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <Dialog.Root open={!!selectedMaterial} onOpenChange={(open) => !open && setSelectedMaterial(null)}>
+                <Dialog.Portal>
+                    {/* Overlay */}
+                    <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm data-[state=open]:animate-fadeIn" />
+
+                    {/* Dialog Content */}
+                    <Dialog.Content
+                        className="fixed top-[50%] left-[50%] w-full max-w-3xl h-[80vh] -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg focus:outline-none flex flex-col"
+                    >
+                        {/* Header */}
+                        <div className="flex justify-between items-center border-b p-4">
+                            <h2 className="text-lg font-semibold">{selectedMaterial?.title || 'Material'}</h2>
+                            <Dialog.Close asChild>
+                                <button className="p-2 hover:bg-gray-100 rounded-full">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </Dialog.Close>
+                        </div>
+
+                        <ScrollArea className="flex-1 p-6 overflow-y-auto">
+                            {selectedMaterial?.content ? (
+                                <MarkdownContent content={selectedMaterial.content} />
+                            ) : (
+                                <p className="text-gray-500 italic">No content available.</p>
+                            )}
+                        </ScrollArea>
+                    </Dialog.Content>
+                </Dialog.Portal>
+            </Dialog.Root>
+
+        </div>
+    );
+}
