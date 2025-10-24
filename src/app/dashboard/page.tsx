@@ -17,6 +17,7 @@ import { MoodChecker } from "@/app/dashboard/MoodChecker";
 import { useDashboard } from "@/contexts/DashboardContext";
 import UserBadges from "@/app/dashboard/challenges/UserBadges";
 import {Button} from "@/app/components/button";
+import FriendsPage from "@/app/dashboard/friends/page";
 
 
 function Dashboard() {
@@ -164,7 +165,7 @@ function Dashboard() {
                 )}
                 {!showMoodChecker &&
                     <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-                        <TabsList className="grid w-full grid-cols-5 bg-white rounded-xl shadow-sm border border-gray-200">
+                        <TabsList className="flex w-full  bg-white rounded-xl shadow-sm border border-gray-200">
                             <TabsTrigger
                                 value="plan"
                                 className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
@@ -195,6 +196,12 @@ function Dashboard() {
                             >
                                 <Trophy className="w-4 h-4" /> Challenges
                             </TabsTrigger>
+                            <TabsTrigger
+                                value="friends"
+                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                            >
+                                <Trophy className="w-4 h-4" /> Friends
+                            </TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="plan">
@@ -217,6 +224,9 @@ function Dashboard() {
 
                         <TabsContent value="challenges">
                             <UserBadges></UserBadges>
+                        </TabsContent>
+                        <TabsContent value="friends">
+                            <FriendsPage></FriendsPage>
                         </TabsContent>
                     </Tabs>
                 }
