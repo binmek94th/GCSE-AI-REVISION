@@ -55,7 +55,6 @@ export async function GET(req: NextRequest) {
         const doc = querySnapshot.docs[0];
         const data = doc.data();
 
-        // ---- Adjust Plan Based on Mood ----
         const moodMultiplierMap: Record<string, number> = {
             great: 1.0,
             good: 0.8,

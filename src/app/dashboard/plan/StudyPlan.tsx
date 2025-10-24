@@ -5,7 +5,7 @@ import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
 import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { X, CheckCircle } from 'lucide-react';
 import {ScrollArea} from "@radix-ui/react-scroll-area";
 import { Button } from "@/app/components/button";
 import {useDashboard} from "@/contexts/DashboardContext";
@@ -26,6 +26,7 @@ interface Session {
     packId: string;
     subject: string;
     timeSlot: string;
+    completed?: boolean;
     material?: {
         id: string;
         title: string;
@@ -136,15 +137,55 @@ export default function StudyPlan() {
         try {
             const idToken = await auth.currentUser.getIdToken();
             setLoading(true);
+
+            // Mark the study material as done
             await fetch("/api/study_materials", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${idToken}`,
                 },
-                body: JSON.stringify({packId: selectedMaterial.study_pack_id, materialId: selectedMaterial.id, done: true }),
+                body: JSON.stringify({
+                    packId: selectedMaterial.study_pack_id,
+                    materialId: selectedMaterial.id,
+                    done: true
+                }),
             });
-            setSelectedMaterial(null)
+
+            // Mark the session as completed in the study plan
+            await fetch("/api/study-plan/mark-completed", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({
+                    materialId: selectedMaterial.id
+                }),
+            });
+
+            setStudyPlan((prevPlan: any) => {
+                if (!prevPlan) return prevPlan;
+
+                return {
+                    ...prevPlan,
+                    plan: {
+                        ...prevPlan.plan,
+                        sessions: prevPlan.plan.sessions.map((session: any) => {
+                            if (session.material?.id === selectedMaterial.id) {
+                                return {
+                                    ...session,
+                                    completed: true
+                                };
+                            }
+                            return session;
+                        })
+                    }
+                };
+            });
+
+            setSelectedMaterial(null);
+            incrementStreak();
 
         } catch (error) {
             console.error("Error marking material done:", error);
@@ -152,7 +193,6 @@ export default function StudyPlan() {
         finally {
             setLoading(false);
         }
-        incrementStreak()
     }
 
     if (!studyPlan) {
@@ -180,67 +220,90 @@ export default function StudyPlan() {
                 </div>
 
                 <div className="space-y-6">
-                    {studyPlan.plan.sessions.map((session, index) => (
-                        <div key={index} onClick={() => setSelectedMaterial(session.material)}>
-                            <div className="bg-white rounded-lg shadow-md p-6">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-gray-900">
-                                            Session {index + 1}: {session.subject}
-                                        </h3>
-                                        <p className="text-gray-600">{session.materialTitle}</p>
+                    {studyPlan.plan.sessions.map((session, index) => {
+                        const isCompleted = session.completed === true;
+
+                        return (
+                            <div key={index} onClick={() => setSelectedMaterial(session.material)}>
+                                <div className={`bg-white rounded-lg shadow-md p-6 relative ${isCompleted ? 'opacity-75 border-2 border-green-500' : ''}`}>
+                                    {/* Completed Badge */}
+                                    {isCompleted && (
+                                        <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+                                            <CheckCircle className="w-4 h-4" />
+                                            Completed
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h3 className={`text-xl font-bold ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                                                Session {index + 1}: {session.subject}
+                                            </h3>
+                                            <p className={`${isCompleted ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                {session.materialTitle}
+                                            </p>
+                                        </div>
+                                        <span className={`px-3 py-1 ${isCompleted ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-800'} rounded-full text-sm font-semibold`}>
+                                            {session.timeSlot}
+                                        </span>
                                     </div>
-                                    <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold">
-                    {session.timeSlot}
-                  </span>
+
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                        <div>
+                                            <p className="text-xs text-gray-500 uppercase">Duration</p>
+                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
+                                                {session.duration}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-500 uppercase">Difficulty</p>
+                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
+                                                {session.difficulty}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-500 uppercase">Focus Area</p>
+                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
+                                                {session.focusArea.replace('_', ' ')}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <h4 className={`font-semibold mb-2 ${isCompleted ? 'text-gray-500' : 'text-gray-700'}`}>
+                                            Objectives:
+                                        </h4>
+                                        <ul className="space-y-1">
+                                            {session.objectives.map((objective, objIndex) => (
+                                                <li key={objIndex} className="flex items-start">
+                                                    <span className={`mr-2 ${isCompleted ? 'text-green-500' : 'text-blue-500'}`}>
+                                                        {isCompleted ? '✓' : '•'}
+                                                    </span>
+                                                    <span className={`${isCompleted ? 'text-gray-500 line-through' : 'text-gray-700'}`}>
+                                                        {objective}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
 
                                 </div>
 
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                    <div>
-                                        <p className="text-xs text-gray-500 uppercase">Duration</p>
-                                        <p className="text-sm font-semibold text-gray-900">{session.duration}</p>
+                                {studyPlan.plan.breaks[index] && (
+                                    <div className="flex items-center justify-center my-4">
+                                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
+                                            <p className="text-sm font-semibold text-yellow-800">
+                                                ☕ Break ({studyPlan.plan.breaks[index].duration})
+                                            </p>
+                                            <p className="text-xs text-yellow-600">
+                                                After {studyPlan.plan.breaks[index].after}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-gray-500 uppercase">Difficulty</p>
-                                        <p className="text-sm font-semibold text-gray-900">{session.difficulty}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-500 uppercase">Focus Area</p>
-                                        <p className="text-sm font-semibold text-gray-900">
-                                            {session.focusArea.replace('_', ' ')}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="mb-4">
-                                    <h4 className="font-semibold text-gray-700 mb-2">Objectives:</h4>
-                                    <ul className="space-y-1">
-                                        {session.objectives.map((objective, objIndex) => (
-                                            <li key={objIndex} className="flex items-start">
-                                                <span className="text-blue-500 mr-2">•</span>
-                                                <span className="text-gray-700">{objective}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-
+                                )}
                             </div>
-
-                            {studyPlan.plan.breaks[index] && (
-                                <div className="flex items-center justify-center my-4">
-                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
-                                        <p className="text-sm font-semibold text-yellow-800">
-                                            ☕ Break ({studyPlan.plan.breaks[index].duration})
-                                        </p>
-                                        <p className="text-xs text-yellow-600">
-                                            After {studyPlan.plan.breaks[index].after}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
             <Dialog.Root open={!!selectedMaterial} onOpenChange={(open) => !open && setSelectedMaterial(null)}>

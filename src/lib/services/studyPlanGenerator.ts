@@ -286,12 +286,9 @@ async function generateStudyPlanWithAI(
         const [minHours, maxHours] = hoursPerWeek.split('-').map((h) => parseInt(h));
         const avgDailyHours = ((minHours + maxHours) / 2) / 7;
 
-        // Calculate minimum sessions needed (20 min per material, minimum 8 materials)
         const minSessions = 8;
         const sessionDuration = 20; // minutes per material
-        const minTotalMinutes = minSessions * sessionDuration; // 160 minutes minimum
 
-        // Build context for AI
         const packsContext = packAnalyses.map((pack) => ({
             packId: pack.packId,
             subject: pack.subject,
