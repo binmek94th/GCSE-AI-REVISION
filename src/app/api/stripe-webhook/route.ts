@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import admin from "@/lib/firebaseAdmin";
+import {generateStudyPlanForUser} from "@/lib/services/studyPlanGenerator";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-08-27.basil",
@@ -65,15 +66,20 @@ export async function POST(req: Request) {
 
         case "checkout.session.completed":
             const session = event.data.object as Stripe.Checkout.Session;
+
+            if (session.mode === "subscription") {
+                const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+                await handleSubscriptionCreatedOrUpdated(subscription);
+            }
             if (session.mode === "payment") {
                 await handleStudyPackPurchase(session);
             }
             break;
 
+
         default:
             console.log(`Unhandled event type ${event.type}`);
     }
-
 
     return NextResponse.json({ received: true });
 }
@@ -107,6 +113,7 @@ const handleStudyPackPurchase = async (session: Stripe.Checkout.Session) => {
                 boughtAt: admin.firestore.FieldValue.serverTimestamp(),
                 subject,
             });
+        await generateStudyPlanForUser(uid)
 
         console.log(`User ${uid} bought pack ${packId} (subject: ${subject})`);
     } catch (err) {

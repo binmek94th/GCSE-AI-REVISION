@@ -58,7 +58,7 @@ export default function BuyTokenComponent() {
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">{pkg.name}</h2>
                 <p className="text-gray-700 mb-6">
                     Unlock full access to your AI Study Assistant and premium resources.
-                    Enhance your learning experience, track your progress, and get instant help whenever you need it.
+                    Enhance your learning experience, and get instant help whenever you need it.
                 </p>
 
                 <div className="mb-6">

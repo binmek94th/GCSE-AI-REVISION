@@ -12,14 +12,14 @@ export const BADGE_CATEGORIES = {
     ],
     tutor: [
         { name: "Tutor Whisperer", icon: "💬", description: "Ask 10 questions to the AI Tutor in one week." },
-        { name: "Curious Cat", icon: "🐱", description: "Tap 'Explain why' on 10 AI answers." },
+        // { name: "Curious Cat", icon: "🐱", description: "Tap 'Explain why' on 10 AI answers." },
         { name: "Feedback Follower", icon: "🔁", description: "Correct an error after AI feedback three times." },
     ],
     fun: [
         { name: "Badge Collector", icon: "🎖️", description: "Unlock 10 badges overall." },
     ],
     milestone: [
-        { name: "First Steps", icon: "👣", description: "Complete your first revision session." },
-        { name: "Exam-Ready Legend", icon: "🎓", description: "Finish the full 12-week plan!" },
+        { name: "First Steps", icon: "👣", description: "Complete your first session." },
+        { name: "Exam-Ready Legend", icon: "🎓", description: "Finish the full a study plan!" },
     ],
 };

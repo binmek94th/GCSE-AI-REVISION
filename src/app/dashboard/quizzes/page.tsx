@@ -7,6 +7,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { QuizComponent } from './QuizComponent';
 import {formatDate} from "@/lib/formatDate";
+import {useRouter} from "next/navigation";
 
 interface Quiz {
     packId: string;
@@ -32,9 +33,10 @@ interface Question {
 
 interface QuizzesTabProps {
     initialPacks?: StudyPack[];
+    studyPack: number;
 }
 
-export function QuizzesTab({ initialPacks }: QuizzesTabProps) {
+export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
     const [loading, setLoading] = useState(false);
     const [loadingResults, setLoadingResults] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -44,6 +46,7 @@ export function QuizzesTab({ initialPacks }: QuizzesTabProps) {
     const [user, setUser] = useState<any>(null);
     const [quizQuestions, setQuizQuestions] = useState<Question[] | null>(null);
     const [isQuizActive, setIsQuizActive] = useState(false);
+    const router = useRouter();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
@@ -96,12 +99,26 @@ export function QuizzesTab({ initialPacks }: QuizzesTabProps) {
         }
     };
 
+    const handleClick = () => {
+        router.push(`/dashboard?tab=studypack`);
+    }
     useEffect(() => {
         if (user) {
             fetchAvailablePacks();
             fetchRecentQuizzes();
         }
     }, [user]);
+
+    if (studyPack === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full space-y-4">
+                <p className="text-gray-600">No subjects found. Please add study packs to see your progress.</p>
+                <Button onClick={handleClick}>
+                    Browse Study Packs
+                </Button>
+            </div>
+        );
+    }
 
     const startQuiz = async () => {
         if (!user) {

@@ -5,6 +5,7 @@ import { Send, BookOpen, Sparkles, Trash2 } from 'lucide-react';
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
+import {string} from "zod";
 
 interface RawMessage {
     role: "user" | "assistant";
@@ -17,7 +18,6 @@ interface DisplayMessage {
     content: React.ReactNode;
     timestamp: Date;
 }
-
 
 export function StudentAIChat(){
     const [rawMessages, setRawMessages] = useState<RawMessage[]>([
@@ -111,16 +111,17 @@ export function StudentAIChat(){
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Unknown error");
+            if (!res.ok) {
+                if (data.allowed === false) {
+                    setDisabled(true);
 
-            if (data.allowed === false) {
-                setDisabled(true);
-                setDisplayMessages(prev => [
-                    ...prev,
-                    { role: "assistant", content: <p>{data.message || "You need a subscription to continue."}</p>, timestamp: new Date() },
-                ]);
-                setTimeout(() => router.push("/token?redirectTo=/chat"), 3000);
-                return;
+                    setDisplayMessages(prev => [
+                        ...prev,
+                        { role: "assistant", content: <p>{"You need a subscription to continue, you will be redirected to the payment tab."}</p>, timestamp: new Date() },
+                    ]);
+                    setTimeout(() => router.push("/token?redirectTo=/dashboard?tab=tutor"), 3000);
+                    return;
+                }
             }
 
             if (data.data?.content) {
@@ -131,6 +132,7 @@ export function StudentAIChat(){
                 setDisplayMessages(prev => [...prev, aiDisplay]);
             }
         } catch (error: any) {
+
             const errorMessage = typeof error === "string" ? error : error?.message || "⚠️ Sorry, something went wrong. Please try again.";
             const errRaw: RawMessage = { role: "assistant", content: errorMessage, timestamp: new Date() };
             const errDisplay: DisplayMessage = { ...errRaw, content: <p>{errorMessage}</p> };
@@ -138,6 +140,14 @@ export function StudentAIChat(){
             setDisplayMessages(prev => [...prev, errDisplay]);
         } finally {
             setIsTyping(false);
+        }
+    };
+
+
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit();
         }
     };
 
@@ -154,7 +164,7 @@ export function StudentAIChat(){
     };
 
     return (
-        <div className="flex flex-col h-[70vh]">
+        <div className="flex flex-col h-[69vh]">
             <div className="flex-1 overflow-y-auto px-4 py-4">
                 {displayMessages.map((message, index) => (
                     <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-2`}>
@@ -190,11 +200,12 @@ export function StudentAIChat(){
                 <div ref={messagesEndRef} />
             </div>
 
-            <div className="border-t border-gray-200 p-4 flex gap-3">
+            <div className="border-t border-gray-200 p-2 flex gap-3">
                 <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
                     placeholder="Ask me anything about your studies..."
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 placeholder-gray-400"
                     disabled={isTyping || disabled}

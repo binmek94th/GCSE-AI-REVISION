@@ -22,7 +22,7 @@ export function PlanTab({ subjects, studyPack }: PlanTabProps) {
     const router = useRouter()
 
     const handleClick = () => {
-        router.push(`/studypack/${studyPack}`);
+        router.push(`/dashboard?tab=studypack`);
     }
 
     if (studyPack === 0) {

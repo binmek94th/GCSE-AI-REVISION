@@ -28,7 +28,7 @@ export function Navigation({ currentPage }: NavigationProps) {
     const navLinks = [
         { label: 'Free Planner', href: '/onboarding' },
         { label: 'Subjects', href: '/subjects' },
-        { label: 'Pricing', href: '/pricing' }
+        // { label: 'Pricing', href: '/pricing' }
     ];
 
     const handleNavigate = (href: string) => {
@@ -46,11 +46,17 @@ export function Navigation({ currentPage }: NavigationProps) {
             console.error("Logout failed:", error);
         }
     };
+
+    const navigateTo = (href: string) => {
+        router.push(href);
+    }
+
     const pathname = usePathname();
 
-    const showNavigation = ["/auth/login", "/auth/register", "/"].includes(pathname);
+    const showNavigation = ["/auth/login", "/auth/register", '/onboarding', "/subjects", "/"].includes(pathname);
 
     if (!showNavigation) return null;
+
 
     return (
         <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border/50">
@@ -99,14 +105,19 @@ export function Navigation({ currentPage }: NavigationProps) {
                                 Get Started
                             </Button>
                         </div> :
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleLogout}
-                                className="text-red-500 hover:text-red-600"
-                            >
-                                Logout
-                            </Button>
+                            <div className={"flex gap-3"}>
+                                <Button onClick={() => handleNavigate("/dashboard")} variant={"default"}>
+                                    Dashboard
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleLogout}
+                                    className="text-red-500 hover:text-red-600"
+                                >
+                                    Logout
+                                </Button>
+                            </div>
                         }
                     </div>
 

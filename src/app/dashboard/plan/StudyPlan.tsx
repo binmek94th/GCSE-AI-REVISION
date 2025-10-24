@@ -7,6 +7,8 @@ import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import {ScrollArea} from "@radix-ui/react-scroll-area";
+import { Button } from "@/app/components/button";
+import {useDashboard} from "@/contexts/DashboardContext";
 
 interface Break {
     after: string;
@@ -59,6 +61,7 @@ export default function StudyPlan() {
     const [error, setError] = useState<string | null>(null);
     const [authChecked, setAuthChecked] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState<any>()
+    const { incrementStreak } = useDashboard();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -98,17 +101,6 @@ export default function StudyPlan() {
         return () => unsubscribe();
     }, []);
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZoneName: 'short'
-        });
-    };
-
     if (!authChecked || loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -119,8 +111,6 @@ export default function StudyPlan() {
             </div>
         );
     }
-
-    console.log(selectedMaterial)
 
     if (error) {
         return (
@@ -140,6 +130,31 @@ export default function StudyPlan() {
         );
     }
 
+
+    const handleMarkAsDone = async () => {
+        if (!selectedMaterial.id || !auth.currentUser) return
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            setLoading(true);
+            await fetch("/api/study_materials", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({packId: selectedMaterial.study_pack_id, materialId: selectedMaterial.id, done: true }),
+            });
+            setSelectedMaterial(null)
+
+        } catch (error) {
+            console.error("Error marking material done:", error);
+        }
+        finally {
+            setLoading(false);
+        }
+        incrementStreak()
+    }
+
     if (!studyPlan) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -151,6 +166,7 @@ export default function StudyPlan() {
             </div>
         );
     }
+
 
     return (
         <div className="min-h-screen bg-gray-50 py-4 px-4">
@@ -248,7 +264,12 @@ export default function StudyPlan() {
 
                         <ScrollArea className="flex-1 p-6 overflow-y-auto">
                             {selectedMaterial?.content ? (
-                                <MarkdownContent content={selectedMaterial.content} />
+                                <div>
+                                    <MarkdownContent content={selectedMaterial.content} />
+                                    <div onClick={handleMarkAsDone} className={"flex justify-end"}>
+                                        <Button>Mark as Finished</Button>
+                                    </div>
+                                </div>
                             ) : (
                                 <p className="text-gray-500 italic">No content available.</p>
                             )}

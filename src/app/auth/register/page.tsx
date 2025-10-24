@@ -10,18 +10,12 @@ import { useRouter } from 'next/navigation';
 import {Input} from "@/app/components/input";
 import {Button} from "@/app/components/button";
 import {doc, setDoc} from "@firebase/firestore";
-import {SelectValue,
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,} from "@/app/components/select";
 
 const registerSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email(),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirm_password: z.string().min(8, "Confirm Password must be at least 8 characters"),
-    userType: z.enum(["student", "teacher", "parent"]),
 }).refine((data) => data.password === data.confirm_password, {
     message: "Passwords do not match",
 });
@@ -35,7 +29,6 @@ export default function RegisterPage() {
     const {
         register,
         handleSubmit,
-        setValue,
         formState: { isSubmitting },
     } = useForm<RegisterForm>({
         resolver: zodResolver(registerSchema),
@@ -53,7 +46,7 @@ export default function RegisterPage() {
             await setDoc(doc(db, "users", userCred.user.uid), {
                 name: data.name,
                 email: data.email,
-                userType: data.userType,
+                userType: "student",
                 createdAt: new Date(),
                 tokens: 1000,
             });
@@ -98,16 +91,16 @@ export default function RegisterPage() {
                         {...register("confirm_password")}
                         className="w-full bg-input-background"
                     />
-                    <Select onValueChange={(val) => setValue("userType", val as "student" | "parent" | "teacher")}>
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select user type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="student">Student</SelectItem>
-                            <SelectItem value="parent">Parent</SelectItem>
-                            <SelectItem value="teacher">Teacher</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    {/*<Select onValueChange={(val) => setValue("userType", val as "student" | "parent" | "teacher")}>*/}
+                    {/*    <SelectTrigger className="w-full">*/}
+                    {/*        <SelectValue placeholder="Select user type" />*/}
+                    {/*    </SelectTrigger>*/}
+                    {/*    <SelectContent>*/}
+                    {/*        <SelectItem value="student">Student</SelectItem>*/}
+                    {/*        <SelectItem value="parent">Parent</SelectItem>*/}
+                    {/*        <SelectItem value="teacher">Teacher</SelectItem>*/}
+                    {/*    </SelectContent>*/}
+                    {/*</Select>*/}
 
 
 

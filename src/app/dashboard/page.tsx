@@ -2,20 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/tabs";
-import { Calendar, Package, Brain, MessageCircle, Trophy } from 'lucide-react';
+import {Calendar, Package, Brain, MessageCircle, Trophy, LogOut} from 'lucide-react';
 import { PlanTab } from "@/app/dashboard/plan/page";
 import { StudyPackTab } from "@/app/dashboard/studyPack/page";
 import { QuizzesTab } from "@/app/dashboard/quizzes/page";
 import { StudentAIChat } from "@/app/dashboard/chat/page";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ProgressData } from "@/hooks/useProgress";
-import { onAuthStateChanged } from "firebase/auth";
+import {onAuthStateChanged, signOut} from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import Spinner from "@/app/components/Spinner";
 import { useMoodChecker } from "@/hooks/useMoodChecker";
 import { MoodChecker } from "@/app/dashboard/MoodChecker";
 import { useDashboard } from "@/contexts/DashboardContext";
 import UserBadges from "@/app/dashboard/challenges/UserBadges";
+import {Button} from "@/app/components/button";
 
 
 function Dashboard() {
@@ -27,9 +28,8 @@ function Dashboard() {
     const [data, setData] = useState<ProgressData | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const { dashboardData, loading: dashboardLoading, incrementStreak } = useDashboard();
+    const { dashboardData, loading: dashboardLoading } = useDashboard();
     const { shouldShow: showMoodChecker, loading: moodLoading, submitMood, closeMoodChecker } = useMoodChecker(idToken || null);
-
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -37,6 +37,11 @@ function Dashboard() {
                 router.push("/auth/login");
                 return;
             }
+            // TODO: uncomment this before deployment
+            // if (!currentUser.emailVerified){
+            //     router.push("/verify-email");
+            //     return;
+            // }
 
             const token = await currentUser.getIdToken();
             setIdToken(token);
@@ -85,18 +90,29 @@ function Dashboard() {
         }
     }, [searchParams]);
 
+    useEffect(() => {
+        if (dashboardData?.studyPacks.length === 0) {
+            setActiveTab("studypack");
+        }
+    }, [dashboardData]);
+
     const handleTabChange = (value: string) => {
         setActiveTab(value);
         const newUrl = `/dashboard?tab=${value}`;
         router.replace(newUrl);
     };
 
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            router.push("auth/login");
+        } catch (error) {
+            console.error("Logout failed:", error);
+        }
+    };
+
     if (loading || moodLoading || dashboardLoading) {
         return <Spinner />;
-    }
-
-    if (dashboardData?.studyPacks.length === 0) {
-        setActiveTab("studypack");
     }
 
     return (
@@ -122,10 +138,22 @@ function Dashboard() {
                                     <div className="text-sm font-semibold text-gray-900">
                                         {dashboardData.streak.currentStreak} Day Streak
                                     </div>
-                                    <div className="text-xs text-gray-500">Keep it up!</div>
+                                    {dashboardData.streak.currentStreak > 2 &&
+                                        <div className="text-xs text-gray-500">Keep it up!</div>
+                                    }
                                 </div>
                             </div>
                         )}
+
+                        <Button
+                            onClick={handleLogout}
+                            variant="destructive"
+                            size="icon"
+                            className="rounded-full hover:bg-red-100 hover:text-red-600 transition-all"
+                            title="Logout"
+                        >
+                            <LogOut className="w-5 h-5" />
+                        </Button>
                     </div>
                 </div>
 
@@ -137,19 +165,34 @@ function Dashboard() {
                 {!showMoodChecker &&
                     <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
                         <TabsList className="grid w-full grid-cols-5 bg-white rounded-xl shadow-sm border border-gray-200">
-                            <TabsTrigger value="plan">
+                            <TabsTrigger
+                                value="plan"
+                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                            >
                                 <Calendar className="w-4 h-4" /> My Plan
                             </TabsTrigger>
-                            <TabsTrigger value="studypack">
+                            <TabsTrigger
+                                value="studypack"
+                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                            >
                                 <Package className="w-4 h-4" /> Study Pack
                             </TabsTrigger>
-                            <TabsTrigger value="quizzes">
+                            <TabsTrigger
+                                value="quizzes"
+                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                            >
                                 <Brain className="w-4 h-4" /> Quizzes
                             </TabsTrigger>
-                            <TabsTrigger value="tutor">
+                            <TabsTrigger
+                                value="tutor"
+                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                            >
                                 <MessageCircle className="w-4 h-4" /> AI Tutor
                             </TabsTrigger>
-                            <TabsTrigger value="challenges">
+                            <TabsTrigger
+                                value="challenges"
+                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                            >
                                 <Trophy className="w-4 h-4" /> Challenges
                             </TabsTrigger>
                         </TabsList>
@@ -163,7 +206,7 @@ function Dashboard() {
                         </TabsContent>
 
                         <TabsContent value="quizzes">
-                            <QuizzesTab />
+                            <QuizzesTab studyPack={dashboardData?.studyPacks.length || 0}/>
                         </TabsContent>
 
                         <TabsContent value="tutor">

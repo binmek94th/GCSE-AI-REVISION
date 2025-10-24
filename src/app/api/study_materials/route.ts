@@ -117,6 +117,7 @@ export async function POST(req: Request) {
 
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
+        const userRef = admin.firestore().collection("users").doc(userId);
 
         const progressDocRef = admin
             .firestore()
@@ -129,6 +130,30 @@ export async function POST(req: Request) {
             { [materialId]: done ?? true },
             { merge: true }
         );
+        const userSnap = await userRef.get();
+        const userData = userSnap.data() || {};
+
+        const currentBadges = userData.badges?.milestone || [];
+
+        // ✅ Step 3: Count total finished materials across all packs
+        const progressDocs = await userRef.collection("progress").get();
+        let totalCompleted = 0;
+
+        progressDocs.forEach((doc) => {
+            const data = doc.data();
+            totalCompleted += Object.values(data).filter((v) => v === true).length;
+        });
+
+        const newBadges = [...currentBadges];
+        if (totalCompleted > 1 && !currentBadges.includes("First Steps")) {
+            newBadges.push("First Steps");
+
+            await userRef.update({
+                "badges.milestone": newBadges,
+            });
+
+            console.log(`🎉 User ${userId} earned the "First Steps" badge`);
+        }
 
         return NextResponse.json({ message: "Progress updated" }, { status: 200 });
     } catch (error) {
