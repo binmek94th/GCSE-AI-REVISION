@@ -1,10 +1,8 @@
-// app/api/streak/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import admin from "firebase-admin";
 import {doc, getDoc, updateDoc} from "@firebase/firestore";
 import {db} from "@/lib/firebase";
 
-// GET - Fetch user's current streak
 export async function GET(request: NextRequest) {
     try {
         const idToken = request.headers.get("Authorization")?.split("Bearer ")[1];
@@ -148,7 +146,7 @@ function calculateStreakFromDates(dates: string[]): number {
 
     const mostRecentDate = sortedDates[0];
     if (mostRecentDate !== todayString && mostRecentDate !== yesterdayString) {
-        return 0; // Streak is broken
+        return 0;
     }
 
     let streak = 1;
@@ -163,7 +161,7 @@ function calculateStreakFromDates(dates: string[]): number {
             streak++;
             currentDate = new Date(sortedDates[i]);
         } else {
-            break; // Streak is broken
+            break;
         }
     }
 

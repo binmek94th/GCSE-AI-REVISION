@@ -6,6 +6,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import {string} from "zod";
+import {useDashboard} from "@/contexts/DashboardContext";
 
 interface RawMessage {
     role: "user" | "assistant";
@@ -38,7 +39,8 @@ export function StudentAIChat(){
     const [isTyping, setIsTyping] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [disabled, setDisabled] = useState(false);
-
+    const { incrementStreak } = useDashboard();
+    const [incrementStreakCalled, setIncrementStreakCalled] = useState(false)
     const router = useRouter();
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -81,6 +83,11 @@ export function StudentAIChat(){
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         if (!input.trim() || isTyping) return;
+
+        if (!incrementStreakCalled) {
+            incrementStreak()
+            setIncrementStreakCalled(true)
+        }
 
         const userMessage: RawMessage = { role: "user", content: input, timestamp: new Date() };
 
