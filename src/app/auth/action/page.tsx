@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import {Suspense, useEffect, useState} from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
     applyActionCode,
@@ -11,7 +11,7 @@ import { Input } from '@/app/components/input';
 import { Button } from '@/app/components/button';
 import {auth} from "@/lib/firebase";
 
-export default function AuthActionPage() {
+function AuthActionInner() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [status, setStatus] = useState<string>('Processing...');
@@ -89,5 +89,13 @@ export default function AuthActionPage() {
                 )}
             </div>
         </main>
+    );
+}
+
+export default function AuthActionPage() {
+    return (
+        <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
+            <AuthActionInner />
+        </Suspense>
     );
 }

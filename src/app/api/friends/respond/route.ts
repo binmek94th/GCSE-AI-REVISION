@@ -67,8 +67,6 @@ export async function POST(request: NextRequest) {
                 sentFriendRequests: admin.firestore.FieldValue.arrayRemove(userId)
             });
 
-            // Create notification for requester
-            const requesterDoc = await db.collection('users').doc(requesterId).get();
             await db.collection('notifications').add({
                 userId: requesterId,
                 type: 'friend_request_accepted',

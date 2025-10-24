@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from "react";
+import {Suspense, useEffect, useState} from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/tabs";
 import {Calendar, Package, Brain, MessageCircle, Trophy, LogOut} from 'lucide-react';
 import { PlanTab } from "@/app/dashboard/plan/page";
@@ -235,4 +235,10 @@ function Dashboard() {
     );
 }
 
-export default Dashboard;
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
+            <Dashboard />
+        </Suspense>
+    );
+}

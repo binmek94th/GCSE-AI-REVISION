@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { auth } from '@/lib/firebase';
-import { Users, UserX, Loader2, MessageCircle } from 'lucide-react';
+import { Users, UserX, Loader2 } from 'lucide-react';
 import { Button } from '@/app/components/button';
 import {toast} from "sonner";
 
@@ -90,7 +90,7 @@ export default function FriendsListComponent() {
                 <h2 className="text-xl font-bold text-gray-900 mb-4">My Friends</h2>
                 <div className="text-center py-8 text-gray-500">
                     <Users className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                    <p className="mb-2">You don't have any friends yet</p>
+                    <p className="mb-2">You don&#39;t have any friends yet</p>
                     <p className="text-sm">Start by searching for users to add as friends!</p>
                 </div>
             </div>

@@ -240,7 +240,6 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
         const studyPlan = await generateStudyPlanWithAI(
             preferences,
             activePacks,
-            userData
         );
 
         const today = new Date();
@@ -278,7 +277,6 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
 async function generateStudyPlanWithAI(
     preferences: UserPreferences,
     packAnalyses: PackAnalysis[],
-    userData: any
 ): Promise<StudyPlan> {
     try {
         // Calculate daily study hours

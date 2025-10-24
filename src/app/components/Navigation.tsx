@@ -47,10 +47,6 @@ export function Navigation({ currentPage }: NavigationProps) {
         }
     };
 
-    const navigateTo = (href: string) => {
-        router.push(href);
-    }
-
     const pathname = usePathname();
 
     const showNavigation = ["/auth/login", "/auth/register", '/onboarding', "/subjects", "/"].includes(pathname);

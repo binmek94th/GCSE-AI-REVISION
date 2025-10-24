@@ -23,8 +23,32 @@ export default function UserSearchComponent() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [message, setMessage] = useState('');
 
-    // Debounced search
+
+    
     useEffect(() => {
+        const searchUsers = async () => {
+            if (!auth.currentUser) return;
+
+            setLoading(true);
+            try {
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch(`/api/friends/search?q=${encodeURIComponent(searchQuery)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`,
+                    },
+                });
+
+                const data = await response.json();
+                setUsers(data.users || []);
+                setMessage(data.message || '');
+            } catch (error) {
+                console.error('Error searching users:', error);
+                setMessage('Failed to search users');
+            } finally {
+                setLoading(false);
+            }
+        };
+
         if (searchTimeout) {
             clearTimeout(searchTimeout);
         }
@@ -44,30 +68,7 @@ export default function UserSearchComponent() {
         return () => {
             if (timeout) clearTimeout(timeout);
         };
-    }, [searchQuery]);
-
-    const searchUsers = async () => {
-        if (!auth.currentUser) return;
-
-        setLoading(true);
-        try {
-            const idToken = await auth.currentUser.getIdToken();
-            const response = await fetch(`/api/friends/search?q=${encodeURIComponent(searchQuery)}`, {
-                headers: {
-                    'Authorization': `Bearer ${idToken}`,
-                },
-            });
-
-            const data = await response.json();
-            setUsers(data.users || []);
-            setMessage(data.message || '');
-        } catch (error) {
-            console.error('Error searching users:', error);
-            setMessage('Failed to search users');
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [searchQuery, searchTimeout]);
 
     const sendFriendRequest = async (userId: string) => {
         if (!auth.currentUser) return;
@@ -285,7 +286,7 @@ export default function UserSearchComponent() {
                 <div className="space-y-3">
                     {users.length === 0 && searchQuery.length >= 2 && !loading && (
                         <div className="text-center py-8 text-gray-500">
-                            <p>No users found matching "{searchQuery}"</p>
+                            <p>No users found matching &#34;{searchQuery}&#34;</p>
                         </div>
                     )}
 

@@ -89,7 +89,7 @@ export default function RegisterPage() {
         return () => {
             if (timeout) clearTimeout(timeout);
         };
-    }, [username]);
+    }, [checkTimeout, username]);
 
     const onSubmit = async (data: RegisterForm) => {
         // Final check before submission

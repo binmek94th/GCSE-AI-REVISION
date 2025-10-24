@@ -38,7 +38,7 @@ export async function GET(req: Request) {
                     .collection("study_packs")
                     .doc(packId)
                     .get();
-                const packData = packDoc.exists ? packDoc.data() : {};
+                // const packData = packDoc.exists ? packDoc.data() : {};
                 return {
                     id: packId,
                 };

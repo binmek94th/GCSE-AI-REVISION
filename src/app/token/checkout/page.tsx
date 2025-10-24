@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {Suspense, useEffect, useState} from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -187,8 +187,10 @@ function InnerForm() {
 
 export default function CheckoutForm() {
     return (
-        <Elements stripe={stripePromise}>
-            <InnerForm />
-        </Elements>
+        <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
+            <Elements stripe={stripePromise}>
+                <InnerForm />
+            </Elements>
+        </Suspense>
     );
 }

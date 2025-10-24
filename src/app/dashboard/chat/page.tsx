@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, BookOpen, Sparkles, Trash2 } from 'lucide-react';
+import { Send, Sparkles } from 'lucide-react';
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
-import {string} from "zod";
 import {useDashboard} from "@/contexts/DashboardContext";
 
 interface RawMessage {
@@ -160,15 +159,15 @@ export function StudentAIChat(){
 
     const formatTime = (date: Date) => new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    const clearChat = () => {
-        const starter: RawMessage = {
-            role: 'assistant',
-            content: "Hi there! 👋 I'm your AI study buddy. Ask me anything about your homework, concepts you're learning, or any topic you'd like to explore!",
-            timestamp: new Date()
-        };
-        setRawMessages([starter]);
-        setDisplayMessages([{ ...starter, content: <p>{starter.content}</p> }]);
-    };
+    // const clearChat = () => {
+    //     const starter: RawMessage = {
+    //         role: 'assistant',
+    //         content: "Hi there! 👋 I'm your AI study buddy. Ask me anything about your homework, concepts you're learning, or any topic you'd like to explore!",
+    //         timestamp: new Date()
+    //     };
+    //     setRawMessages([starter]);
+    //     setDisplayMessages([{ ...starter, content: <p>{starter.content}</p> }]);
+    // };
 
     return (
         <div className="flex flex-col h-[69vh]">
@@ -229,4 +228,4 @@ export function StudentAIChat(){
             </div>
         </div>
     );
-};
+}

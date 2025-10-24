@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react';
+import {useState, useEffect, Suspense} from 'react';
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from '@/lib/firebase';
 import Spinner from "@/app/components/Spinner";
@@ -12,7 +12,7 @@ interface Package {
     yearly_price: number;
 }
 
-export default function BuyTokenComponent() {
+function BuyTokenComponent() {
     const [pkg, setPkg] = useState<Package | null>(null);
     const [loading, setLoading] = useState(true);
     const [billingCycle, setBillingCycle] = useState<'month' | 'year'>('month'); // monthly by default
@@ -97,5 +97,13 @@ export default function BuyTokenComponent() {
                 </button>
             </div>
         </div>
+    );
+}
+
+export default function BuyTokenPage() {
+    return (
+        <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
+            <BuyTokenComponent />
+        </Suspense>
     );
 }

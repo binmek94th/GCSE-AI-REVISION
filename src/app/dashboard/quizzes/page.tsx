@@ -53,29 +53,6 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         return () => unsubscribe();
     }, []);
 
-    const fetchAvailablePacks = async () => {
-        if (!user || initialPacks) return;
-
-        try {
-            const idToken = await user.getIdToken();
-            const response = await fetch('/api/user/packs', {
-                headers: {
-                    'Authorization': `Bearer ${idToken}`,
-                },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setAvailablePacks(data.packs || []);
-                if (data.packs && data.packs.length > 0) {
-                    setSelectedPackId(data.packs[0].id);
-                }
-            }
-        } catch (err) {
-            console.error('Error fetching packs:', err);
-        }
-    };
-
     const fetchRecentQuizzes = async () => {
         if (!user) return;
 
@@ -103,11 +80,57 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         router.push(`/dashboard?tab=studypack`);
     }
     useEffect(() => {
+        const fetchAvailablePacks = async () => {
+            if (!user || initialPacks) return;
+
+            try {
+                const idToken = await user.getIdToken();
+                const response = await fetch('/api/user/packs', {
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`,
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setAvailablePacks(data.packs || []);
+                    if (data.packs && data.packs.length > 0) {
+                        setSelectedPackId(data.packs[0].id);
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching packs:', err);
+            }
+        };
+
+        const fetchRecentQuizzes = async () => {
+            if (!user) return;
+
+            setLoadingResults(true);
+            try {
+                const idToken = await user.getIdToken();
+                const response = await fetch('/api/quiz-results?limit=5', {
+                    headers: {
+                        'Authorization': `Bearer ${idToken}`,
+                    },
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    setRecentQuizzes(data.quizResults || []);
+                }
+            } catch (err) {
+                console.error('Error fetching quiz results:', err);
+            } finally {
+                setLoadingResults(false);
+            }
+        };
+
         if (user) {
             fetchAvailablePacks();
             fetchRecentQuizzes();
         }
-    }, [user]);
+    }, [initialPacks, user]);
 
     if (studyPack === 0) {
         return (
