@@ -64,9 +64,6 @@ interface StudyPlan {
 }
 
 // Initialize OpenAI
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY!,
-});
 
 /**
  * Main function to generate study plans for all users
@@ -278,6 +275,10 @@ async function generateStudyPlanWithAI(
     preferences: UserPreferences,
     packAnalyses: PackAnalysis[],
 ): Promise<StudyPlan> {
+    const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY!,
+    });
+
     try {
         // Calculate daily study hours
         const hoursPerWeek = preferences.hoursPerWeek || '10-15';
