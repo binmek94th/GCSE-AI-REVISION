@@ -4,11 +4,12 @@ import admin from "@/lib/firebaseAdmin";
 import {doc, getDoc, updateDoc} from "@firebase/firestore";
 import {db} from "@/lib/firebase";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function POST(req: Request) {
+    const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+    });
+
     try {
         const { messages } = await req.json();
 

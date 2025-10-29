@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import admin from "firebase-admin";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
 
 interface QuizAnswer {
     questionId: string;
@@ -30,6 +27,10 @@ interface StudyMaterial {
 }
 
 export async function POST(req: NextRequest) {
+    const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+    });
+
     try {
         const body = await req.json();
         const { answers, selectedSubjects } = body as {

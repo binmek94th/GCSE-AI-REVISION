@@ -1,8 +1,12 @@
 import {NextResponse} from "next/server";
 import admin from "../../../lib/firebaseAdmin";
-import {stripe} from "@/app/api/create-subscription/route";
+import Stripe from "stripe";
 
 export async function POST(req: Request) {
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+        apiVersion: "2025-08-27.basil",
+    });
+
     try {
         const idToken = req.headers.get("Authorization")?.split("Bearer ")[1];
         if (!idToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
