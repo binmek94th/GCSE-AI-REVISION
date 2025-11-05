@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { auth } from '@/lib/firebase';
-import { Users, UserX, Loader2 } from 'lucide-react';
+import { Users, UserX, Loader2, Eye } from 'lucide-react';
 import { Button } from '@/app/components/button';
-import {toast} from "sonner";
+import { toast } from "sonner";
 
 interface Friend {
     id: string;
@@ -13,7 +13,11 @@ interface Friend {
     userType: string;
 }
 
-export default function FriendsListComponent() {
+interface FriendsListComponentProps {
+    onViewFriend?: (friend: Friend) => void;
+}
+
+export default function FriendsListComponent({ onViewFriend }: FriendsListComponentProps) {
     const [friends, setFriends] = useState<Friend[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -43,7 +47,10 @@ export default function FriendsListComponent() {
         }
     };
 
-    const unfriend = async (userId: string, username: string) => {
+    const unfriend = async (userId: string, username: string, e: React.MouseEvent) => {
+        // Prevent triggering the card click event
+        e.stopPropagation();
+
         if (!auth.currentUser) return;
         if (!confirm(`Are you sure you want to unfriend ${username}?`)) return;
 
@@ -64,6 +71,7 @@ export default function FriendsListComponent() {
                 setFriends(prevFriends =>
                     prevFriends.filter(friend => friend.id !== userId)
                 );
+                toast.success(`Unfriended ${username}`);
             } else {
                 const data = await response.json();
                 toast.error(data.error || 'Failed to unfriend user');
@@ -107,7 +115,8 @@ export default function FriendsListComponent() {
                 {friends.map((friend) => (
                     <div
                         key={friend.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                        onClick={() => onViewFriend?.(friend)}
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer"
                     >
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
@@ -116,22 +125,19 @@ export default function FriendsListComponent() {
                             <div>
                                 <h3 className="font-semibold text-gray-900">{friend.username}</h3>
                                 <p className="text-sm text-gray-600">{friend.name}</p>
-                                <p className="text-xs text-gray-500 capitalize">{friend.userType}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-xs text-gray-500 capitalize">{friend.userType}</p>
+                                    <span className="text-xs text-blue-600 flex items-center gap-1">
+                                        <Eye className="w-3 h-3" />
+                                        View Profile
+                                    </span>
+                                </div>
                             </div>
                         </div>
 
                         <div className="flex gap-2">
-                            {/* Optional: Add message button if you have messaging feature */}
-                            {/* <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex items-center gap-2"
-                            >
-                                <MessageCircle className="w-4 h-4" />
-                            </Button> */}
-
                             <Button
-                                onClick={() => unfriend(friend.id, friend.username)}
+                                onClick={(e) => unfriend(friend.id, friend.username, e)}
                                 disabled={actionLoading === friend.id}
                                 variant="outline"
                                 size="sm"

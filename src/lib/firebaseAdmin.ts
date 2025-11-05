@@ -1,5 +1,7 @@
 import 'server-only';
 import admin from "firebase-admin";
+import fs from "fs";
+import path from "path";
 
 interface FirebaseServiceAccountJSON {
     type: string;
@@ -15,30 +17,34 @@ interface FirebaseServiceAccountJSON {
 }
 
 if (!admin.apps.length) {
-    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    let serviceAccount: FirebaseServiceAccountJSON | null = null;
 
-    if (!serviceAccountKey) {
-        throw new Error(
-            'FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. ' +
-            'Please add it to your .env.local file.'
-        );
+    if (process.env.NODE_ENV === "development") {
+        const filePath = path.join(process.cwd(), "src", "lib", "firebase-admin.json");
+        console.log(`Firebase admin service account: ${filePath}`);
+        if (!fs.existsSync(filePath)) {
+            throw new Error(
+                `Missing firebase-admin.json at ${filePath}. Please add your service account file.`
+            );
+        }
+
+        serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        console.log("🔥 Using local firebase-admin.json for Firebase Admin");
     }
+    else {
+        const key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (!key) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY is not set in environment variables.");
+        }
 
-    let serviceAccount: FirebaseServiceAccountJSON;
-    try {
-        serviceAccount = JSON.parse(serviceAccountKey);
-    } catch (error) {
-        throw new Error(
-            'Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY. ' +
-            'Make sure it\'s valid JSON.'
-        );
-    }
-
-    if (!serviceAccount.project_id) {
-        throw new Error(
-            'FIREBASE_SERVICE_ACCOUNT_KEY is missing project_id. ' +
-            'Make sure you copied the entire service account JSON.'
-        );
+        try {
+            // Replace escaped \n with real newlines
+            serviceAccount = JSON.parse(key.replace(/\\n/g, "\n"));
+            console.log("🚀 Using FIREBASE_SERVICE_ACCOUNT_KEY from environment");
+        } catch (error) {
+            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", error);
+            throw new Error("Invalid FIREBASE_SERVICE_ACCOUNT_KEY JSON.");
+        }
     }
 
     admin.initializeApp({
