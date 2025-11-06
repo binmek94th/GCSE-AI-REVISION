@@ -107,9 +107,9 @@ export async function GET(req: Request) {
                     correctCount: scoreData.correctCount,
                     totalCount: scoreData.totalCount,
                     date: scoreData.lastAnsweredAt
-                        ? new Date(scoreData.lastAnsweredAt._seconds * 1000).toLocaleDateString()
+                        ? new Date((scoreData.lastAnsweredAt as any)._seconds * 1000).toLocaleDateString()
                         : "N/A",
-                    timestamp: scoreData.lastAnsweredAt?._seconds || 0,
+                    timestamp: (scoreData.lastAnsweredAt as any)?._seconds || 0,
                 });
             }
         }

@@ -18,8 +18,6 @@ export async function GET(
         const currentUserUid = decodedToken.uid;
 
         const { friendUid } = params;
-        console.log("Current user:", currentUserUid);
-        console.log("Friend UID:", friendUid);
 
         // Check if they are friends
         const friendshipsSnapshot = await admin
