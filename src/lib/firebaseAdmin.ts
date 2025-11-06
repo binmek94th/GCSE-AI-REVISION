@@ -30,26 +30,19 @@ if (!admin.apps.length) {
     //
     //     serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
     //     console.log("🔥 Using local firebase-admin.json for Firebase Admin");
+    //     admin.initializeApp({
+    //         credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+    // });
     // }
     // else {
-        const key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (!key) {
-            throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY is not set in environment variables.");
-        }
-
-        try {
-            // Replace escaped \n with real newlines
-            serviceAccount = JSON.parse(key.replace(/\\n/g, "\n"));
-            console.log("🚀 Using FIREBASE_SERVICE_ACCOUNT_KEY from environment");
-        } catch (error) {
-            console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", error);
-            throw new Error("Invalid FIREBASE_SERVICE_ACCOUNT_KEY JSON.");
-        }
-    // }
+    serviceAccount = JSON.parse(
+        process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'
+    );
 
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
     });
 }
+    // }
 
 export default admin;
