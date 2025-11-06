@@ -19,29 +19,30 @@ interface FirebaseServiceAccountJSON {
 if (!admin.apps.length) {
     let serviceAccount: FirebaseServiceAccountJSON | null = null;
 
-    // if (process.env.NODE_ENV === "development") {
-    //     const filePath = path.join(process.cwd(), "src", "lib", "firebase-admin.json");
-    //     console.log(`Firebase admin service account: ${filePath}`);
-    //     if (!fs.existsSync(filePath)) {
-    //         throw new Error(
-    //             `Missing firebase-admin.json at ${filePath}. Please add your service account file.`
-    //         );
-    //     }
-    //
-    //     serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
-    //     console.log("🔥 Using local firebase-admin.json for Firebase Admin");
-    //     admin.initializeApp({
-    //         credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-    // });
-    // }
-    // else {
-    serviceAccount = JSON.parse(
-        process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'
-    );
+    if (process.env.NODE_ENV === "development") {
+        const filePath = path.join(process.cwd(), "src", "lib", "firebase-admin.json");
+        console.log(`Firebase admin service account: ${filePath}`);
+        if (!fs.existsSync(filePath)) {
+            throw new Error(
+                `Missing firebase-admin.json at ${filePath}. Please add your service account file.`
+            );
+        }
 
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+        serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        console.log("🔥 Using local firebase-admin.json for Firebase Admin");
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
     });
+    }
+    else {
+        serviceAccount = JSON.parse(
+            process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'
+        );
+
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+        });
+    }
 }
     // }
 
