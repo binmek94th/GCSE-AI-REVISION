@@ -23,6 +23,7 @@ jobs:
       # 👇 Build and export your Next.js app with environment variables
       - name: Build Next.js app
         env:
+          NODE_ENV: production
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}

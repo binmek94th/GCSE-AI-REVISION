@@ -19,19 +19,19 @@ interface FirebaseServiceAccountJSON {
 if (!admin.apps.length) {
     let serviceAccount: FirebaseServiceAccountJSON | null = null;
 
-    if (process.env.NODE_ENV === "development") {
-        const filePath = path.join(process.cwd(), "src", "lib", "firebase-admin.json");
-        console.log(`Firebase admin service account: ${filePath}`);
-        if (!fs.existsSync(filePath)) {
-            throw new Error(
-                `Missing firebase-admin.json at ${filePath}. Please add your service account file.`
-            );
-        }
-
-        serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
-        console.log("🔥 Using local firebase-admin.json for Firebase Admin");
-    }
-    else {
+    // if (process.env.NODE_ENV === "development") {
+    //     const filePath = path.join(process.cwd(), "src", "lib", "firebase-admin.json");
+    //     console.log(`Firebase admin service account: ${filePath}`);
+    //     if (!fs.existsSync(filePath)) {
+    //         throw new Error(
+    //             `Missing firebase-admin.json at ${filePath}. Please add your service account file.`
+    //         );
+    //     }
+    //
+    //     serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    //     console.log("🔥 Using local firebase-admin.json for Firebase Admin");
+    // }
+    // else {
         const key = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
         if (!key) {
             throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY is not set in environment variables.");
@@ -45,7 +45,7 @@ if (!admin.apps.length) {
             console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:", error);
             throw new Error("Invalid FIREBASE_SERVICE_ACCOUNT_KEY JSON.");
         }
-    }
+    // }
 
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
