@@ -76,7 +76,6 @@ function InnerForm() {
             // Confirm the payment or setup intent depending on subscription type
             let result;
             if (data.subscriptionRequiresSetup) {
-                // SetupIntent flow for future payments
                 result = await stripe.confirmCardSetup(clientSecret, {
                     payment_method: { card: cardElement },
                 });

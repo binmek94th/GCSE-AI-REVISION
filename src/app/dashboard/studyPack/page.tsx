@@ -4,7 +4,7 @@ import { Button } from "@/app/components/button";
 import { BookOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {useRouter} from "next/navigation";
-import {onAuthStateChanged} from "firebase/auth";
+import {getAuth, onAuthStateChanged} from "firebase/auth";
 import {auth} from "@/lib/firebase";
 import Spinner from "@/app/components/Spinner";
 import {loadStripe} from "@stripe/stripe-js";
@@ -80,30 +80,64 @@ export function StudyPackTab() {
     };
 
     const handleCheckout = async () => {
-        if (!selectedPack) return;
-        setProcessingPayment(true);
+        const auth = getAuth();
+        const user = auth.currentUser;
+
+        if (!user) {
+            router.push("/auth/login");
+            return;
+        }
+
+        const idToken = await user.getIdToken();
+        if (!idToken) {
+            router.push("/auth/login");
+            return;
+        }
 
         try {
-            const idToken = await auth.currentUser?.getIdToken();
-            const res = await fetch("/api/checkout-study-pack", {
+
+            console.log("🛒 Creating checkout for:", {
+                userId: user.uid,
+                packId: selectedPack.id,
+                subject: selectedPack.subject
+            });
+
+            const response = await fetch("/api/checkout-study-pack", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${idToken}`,
+                    "Authorization": `Bearer ${idToken}`,
                 },
-                body: JSON.stringify({ packId: selectedPack.id }),
+                body: JSON.stringify({
+                    userId: user.uid,
+                    packId: selectedPack.id,
+                    subject: selectedPack.subject,
+                }),
             });
 
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Checkout failed");
+            const data = await response.json();
 
-            const stripe = await stripePromise;
-            await stripe?.redirectToCheckout({ sessionId: data.sessionId });
-        } catch (err) {
-            console.error(err);
-            setProcessingPayment(false);
+            if (!response.ok) {
+                console.error("❌ API Error:", data);
+                throw new Error(data.error || "Failed to create checkout session");
+            }
+
+            console.log("✅ Checkout session created:", data);
+
+            // Redirect to Stripe checkout
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error("No checkout URL received");
+            }
+        } catch (error: any) {
+            console.error("❌ Error creating checkout:", error);
+
+            alert(`Failed to start: ${error.message}`);
+            setProcessingPayment(null);
         }
     };
+
 
     if (packId) {
         return <StudyMaterialTab setPackId={setPackId} packId={packId} />;

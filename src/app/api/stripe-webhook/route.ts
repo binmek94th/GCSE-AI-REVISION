@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import admin from "@/lib/firebaseAdmin";
-import {generateStudyPlanForUser} from "@/lib/services/studyPlanGenerator";
+import { generateStudyPlanForUser } from "@/lib/services/studyPlanGenerator";
+
+export const config = {
+    api: {
+        bodyParser: false,
+    },
+};
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-08-27.basil",
@@ -9,91 +15,91 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-export async function POST(req: Request) {
-    const body = await req.text();
-    const sig = req.headers.get("stripe-signature")!
-
-    console.log(body)
-
-    let event: Stripe.Event;
-
+/** Decode your encoded client_reference_id (Payment Links) */
+function decodeClientReferenceId(encoded: string | null): any | null {
+    if (!encoded) return null;
     try {
-        event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-    } catch (err: any) {
-        console.error("Webhook signature verification failed.", err.message);
-        return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
+        return JSON.parse(Buffer.from(encoded, "base64").toString("utf8"));
+    } catch (e) {
+        console.error("❌ Failed to decode client_reference_id", e);
+        return null;
     }
-
-    const handleSubscriptionCreatedOrUpdated = async (subscription: Stripe.Subscription) => {
-        try {
-            const customerId = subscription.customer as string;
-
-            const stripeUser = await stripe.customers.retrieve(customerId);
-            if (!("metadata" in stripeUser)) {
-                console.warn(`Customer ${customerId} is deleted or missing metadata`);
-                return;
-            }
-
-            const uid = (stripeUser.metadata as any).firebaseUID;
-            if (!uid) return;
-
-
-            await admin.firestore().collection("users").doc(uid).update({
-                subscriptionId: subscription.id,
-                subscriptionStatus: subscription.status,
-                currentPeriodEnd: "current_period_end" in subscription ?  subscription.current_period_end : null, // safe access
-                priceId: subscription.items.data[0]?.price.id ?? null,
-            });
-
-            console.log(`Updated subscription info for user ${uid}`);
-        } catch (err) {
-            console.error("Failed to update user subscription:", err);
-        }
-    };
-
-    switch (event.type) {
-        case "customer.subscription.created":
-        case "customer.subscription.updated":
-            await handleSubscriptionCreatedOrUpdated(event.data.object as Stripe.Subscription);
-            break;
-
-        case "invoice.payment_succeeded":
-            console.log("Payment succeeded for invoice:", (event.data.object as Stripe.Invoice).id);
-            break;
-
-        case "invoice.payment_failed":
-            console.log("Payment failed for invoice:", (event.data.object as Stripe.Invoice).id);
-            break;
-
-        case "checkout.session.completed":
-            const session = event.data.object as Stripe.Checkout.Session;
-
-            if (session.mode === "subscription") {
-                const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-                await handleSubscriptionCreatedOrUpdated(subscription);
-            }
-            if (session.mode === "payment") {
-                await handleStudyPackPurchase(session);
-            }
-            break;
-
-
-        default:
-            console.log(`Unhandled event type ${event.type}`);
-    }
-
-    return NextResponse.json({ received: true });
 }
 
-
-const handleStudyPackPurchase = async (session: Stripe.Checkout.Session) => {
+/** Handle subscription created/updated */
+const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
     try {
-        const uid = session.metadata?.userId;
-        const packId = session.metadata?.packId;
+        const customerId = subscription.customer as string;
+        const customer = await stripe.customers.retrieve(customerId);
 
+        if (!("metadata" in customer)) {
+            console.warn(`⚠ Customer ${customerId} missing metadata`);
+            return;
+        }
+
+        const uid = (customer.metadata as any).firebaseUID;
+        if (!uid) {
+            console.warn("⚠ firebaseUID missing in customer metadata");
+            return;
+        }
+
+        // Get billing interval from subscription plan
+        const interval = subscription.items.data[0]?.price?.recurring?.interval;
+        const intervalCount = subscription.items.data[0]?.price?.recurring?.interval_count || 1;
+
+        // Calculate current period end manually
+        const startDate = new Date(subscription.created * 1000);
+        let endDate = new Date(startDate);
+
+        if (interval === "month") {
+            endDate.setMonth(endDate.getMonth() + intervalCount);
+        } else if (interval === "year") {
+            endDate.setFullYear(endDate.getFullYear() + intervalCount);
+        } else if (interval === "week") {
+            endDate.setDate(endDate.getDate() + (7 * intervalCount));
+        } else if (interval === "day") {
+            endDate.setDate(endDate.getDate() + intervalCount);
+        }
+
+        const currentPeriodEnd = admin.firestore.Timestamp.fromDate(endDate);
+        const currentPeriodStart = admin.firestore.Timestamp.fromDate(startDate);
+
+        console.log("📋 Subscription details:", {
+            id: subscription.id,
+            status: subscription.status,
+            interval: `${intervalCount} ${interval}(s)`,
+            startDate: startDate.toISOString(),
+            calculatedEndDate: endDate.toISOString(),
+        });
+
+        await admin.firestore().collection("users").doc(uid).collection("subscriptions")
+            .doc(subscription.id).set({
+            subscriptionId: subscription.id,
+            subscriptionStatus: subscription.status,
+            currentPeriodEnd: currentPeriodEnd,
+            currentPeriodStart: currentPeriodStart,
+            priceId: subscription.items.data[0]?.price?.id ?? null,
+            planInterval: interval,
+            planAmount: subscription.items.data[0]?.price?.unit_amount ?? null,
+            currency: subscription.currency,
+            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        console.log(`✅ Subscription updated for user ${uid} - Status: ${subscription.status}, End: ${endDate.toISOString()}`);
+    } catch (err) {
+        console.error("❌ Failed to update subscription:", err);
+    }
+};
+
+/** Handle one-time study pack purchase */
+const handleStudyPackPurchaseFromPaymentLink = async (ref: any) => {
+    try {
+        const uid = ref.userId;
+        const packId = ref.packId;
 
         if (!uid || !packId) {
-            console.warn("Checkout session missing userId or packId in metadata");
+            console.warn("⚠ Missing uid or packId in payload", ref);
             return;
         }
 
@@ -114,11 +120,119 @@ const handleStudyPackPurchase = async (session: Stripe.Checkout.Session) => {
                 boughtAt: admin.firestore.FieldValue.serverTimestamp(),
                 subject,
             });
-        await generateStudyPlanForUser(uid)
 
-        console.log(`User ${uid} bought pack ${packId} (subject: ${subject})`);
+        await generateStudyPlanForUser(uid);
+
+        console.log(`📚 User ${uid} purchased pack ${packId} (${subject})`);
     } catch (err) {
-        console.error("Failed to add bought study pack:", err);
+        console.error("❌ Failed to handle pack purchase:", err);
     }
 };
 
+export async function POST(req: Request) {
+    const body = await req.text();
+    const sig = req.headers.get("stripe-signature")!;
+
+    let event: Stripe.Event;
+
+    /** Validate Signature */
+    try {
+        event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+    } catch (err: any) {
+        console.error("❌ Webhook signature verification failed:", err.message);
+        return NextResponse.json(
+            { error: `Webhook Error: ${err.message}` },
+            { status: 400 }
+        );
+    }
+
+    console.log(`📩 Stripe Event Received: ${event.type}`);
+
+    // ----------------------------------------------------------
+    // 🔵 PROCESS EVENTS
+    // ----------------------------------------------------------
+    switch (event.type) {
+        // -------------------
+        // Subscription events
+        // -------------------
+        case "customer.subscription.created":
+        case "customer.subscription.updated":
+        case "customer.subscription.deleted":
+            await handleSubscriptionUpdate(
+                event.data.object as Stripe.Subscription
+            );
+            break;
+
+        // -------------------
+        // Invoice events
+        // -------------------
+        case "invoice.payment_succeeded":
+            console.log("💚 Invoice successfully paid");
+            break;
+
+        case "invoice.payment_failed":
+            console.log("💔 Invoice payment failed");
+            break;
+
+        // -------------------
+        // Checkout completed
+        // Works for PAYMENT LINKS
+        // -------------------
+        case "checkout.session.completed": {
+            const session = event.data.object as Stripe.Checkout.Session;
+
+            console.log("🔍 Checkout Session:", {
+                mode: session.mode,
+                customer: session.customer,
+                client_reference_id: session.client_reference_id,
+            });
+
+            // Decode your custom payload
+            const ref = decodeClientReferenceId(session.client_reference_id || "");
+
+            if (ref) {
+                console.log("🟦 Decoded client_reference_id:", ref);
+            }
+
+            // ------------------
+            // Subscription (via Payment Link)
+            // ------------------
+            if (session.mode === "subscription") {
+                // Attach firebaseUID to Stripe customer (important!)
+                if (ref?.userId && session.customer) {
+                    await stripe.customers.update(session.customer as string, {
+                        metadata: { firebaseUID: ref.userId },
+                    });
+                    console.log(`✅ Attached firebaseUID to customer ${session.customer}`);
+                }
+
+                const subscription = await stripe.subscriptions.retrieve(
+                    session.subscription as string
+                );
+
+                await handleSubscriptionUpdate(subscription);
+            }
+
+            // ------------------
+            // One-time study pack
+            // ------------------
+            if (session.mode === "payment") {
+                await handleStudyPackPurchaseFromPaymentLink(ref);
+            }
+
+            break;
+        }
+
+        // -------------------
+        // Optional fallback
+        // -------------------
+        case "payment_intent.succeeded":
+            console.log("💰 PaymentIntent succeeded");
+            break;
+
+        default:
+            console.log(`ℹ Unhandled Stripe event: ${event.type}`);
+    }
+
+    return NextResponse.json({ received: true });
+}

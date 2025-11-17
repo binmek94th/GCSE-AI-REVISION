@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import admin from "@/lib/firebaseAdmin";
 import {doc, getDoc, updateDoc} from "@firebase/firestore";
-import {db} from "@/lib/firebase";
 
 
 export async function POST(req: Request) {
@@ -80,8 +79,9 @@ export async function POST(req: Request) {
 
 
 async function checkAITutorBadges(userId: string) {
-    const userRef = doc(db, "users", userId);
-    const userSnap = await getDoc(userRef);
+    const db = admin.firestore();
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
     const data = userSnap.data();
 
     const badges = data?.badges?.tutor || [];
@@ -101,7 +101,7 @@ async function checkAITutorBadges(userId: string) {
         newBadges.push("Tutor Whisperer");
     }
 
-    await updateDoc(userRef, {
+    await userRef.update({
         "stats.aiInteractions": {
             total: (aiStats.total || 0) + 1,
             weekCount,

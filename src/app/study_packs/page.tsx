@@ -5,6 +5,8 @@ import { Badge } from "../components/badge";
 import {SubjectCard} from "@/app/components/SubjectCard";
 import { Button } from "../components/button";
 import {useState} from "react";
+import { getAuth } from "firebase/auth";
+import {useRouter} from "next/navigation";
 
 interface SubjectsHubProps {
     onNavigate?: (page: string, data?: any) => void;
@@ -15,6 +17,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
     const [selectedBoard, setSelectedBoard] = useState('All');
     const [selectedTier, setSelectedTier] = useState('All');
     const [selectedType, setSelectedType] = useState('All');
+    const [purchasingSubject, setPurchasingSubject] = useState<string | null>(null);
+    const router = useRouter();
 
     const subjects = [
         {
@@ -23,7 +27,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'Higher',
             type: 'Core',
-            price: 30
+            price: 30,
+            packId: 'maths-pack'
         },
         {
             subject: 'English Literature',
@@ -31,7 +36,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'All',
             type: 'Core',
-            price: 30
+            price: 30,
+            packId: 'english-literature-pack'
         },
         {
             subject: 'English Language',
@@ -39,7 +45,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'All',
             type: 'Core',
-            price: 30
+            price: 30,
+            packId: 'english-language-pack'
         },
         {
             subject: 'Combined Science',
@@ -47,7 +54,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'Higher',
             type: 'Core',
-            price: 30
+            price: 30,
+            packId: 'combined-science-pack'
         },
         {
             subject: 'Biology',
@@ -55,7 +63,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'Higher',
             type: 'Science',
-            price: 30
+            price: 30,
+            packId: 'biology-pack'
         },
         {
             subject: 'Chemistry',
@@ -63,7 +72,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'Higher',
             type: 'Science',
-            price: 30
+            price: 30,
+            packId: 'chemistry-pack'
         },
         {
             subject: 'Physics',
@@ -71,7 +81,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'Higher',
             type: 'Science',
-            price: 30
+            price: 30,
+            packId: 'physics-pack'
         },
         {
             subject: 'History',
@@ -79,7 +90,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'All',
             type: 'Humanities',
-            price: 30
+            price: 30,
+            packId: 'history-pack'
         },
         {
             subject: 'Geography',
@@ -87,7 +99,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'All',
             type: 'Humanities',
-            price: 30
+            price: 30,
+            packId: 'geography-pack'
         },
         {
             subject: 'French',
@@ -95,7 +108,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'Higher',
             type: 'Languages',
-            price: 30
+            price: 30,
+            packId: 'french-pack'
         },
         {
             subject: 'Spanish',
@@ -103,7 +117,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'Higher',
             type: 'Languages',
-            price: 30
+            price: 30,
+            packId: 'spanish-pack'
         },
         {
             subject: 'Computer Science',
@@ -111,7 +126,8 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
             examBoard: 'AQA',
             tier: 'All',
             type: 'Technology',
-            price: 30
+            price: 30,
+            packId: 'computer-science-pack'
         }
     ];
 
@@ -128,6 +144,63 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
 
         return matchesSearch && matchesBoard && matchesTier && matchesType;
     });
+
+    const handlePurchaseClick = async (subject: any) => {
+        const auth = getAuth();
+        const user = auth.currentUser;
+
+        if (!user) {
+            router.push("auth/login")
+            return;
+        }
+
+        setPurchasingSubject(subject.subject);
+
+        try {
+            // Get ID token for authentication
+            const idToken = await user.getIdToken();
+
+            console.log("🛒 Creating checkout for:", {
+                userId: user.uid,
+                packId: subject.packId,
+                subject: subject.subject
+            });
+
+            // Create checkout session via API (using your existing endpoint)
+            const response = await fetch("/api/checkout-study-pack", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    packId: subject.packId,
+                    subject: subject.subject,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                console.error("❌ API Error:", data);
+                throw new Error(data.error || "Failed to create checkout session");
+            }
+
+            console.log("✅ Checkout session created:", data);
+
+            // Redirect to Stripe checkout
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error("No checkout URL received");
+            }
+        } catch (error: any) {
+            console.error("❌ Error creating checkout:", error);
+            alert(`Failed to start checkout: ${error.message}`);
+            setPurchasingSubject(null);
+        }
+    };
 
     const handleSubjectClick = (subject: string) => {
         onNavigate?.('/subject-pack', { subject });
@@ -265,8 +338,9 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
                                 examBoard={subject.examBoard}
                                 tier={subject.tier}
                                 price={subject.price}
-                                onPreview={() => {/* Handle preview */}}
-                                onViewPack={() => handleSubjectClick(subject.subject)}
+                                onPreview={() => handleSubjectClick(subject.subject)}
+                                onViewPack={() => handlePurchaseClick(subject)}
+                                isPurchasing={purchasingSubject === subject.subject}
                             />
                         ))}
                     </div>

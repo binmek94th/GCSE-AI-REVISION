@@ -1,54 +1,70 @@
-import {NextResponse} from "next/server";
-import admin from "../../../lib/firebaseAdmin";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2025-08-27.basil",
+});
+
 export async function POST(req: Request) {
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-        apiVersion: "2025-08-27.basil",
-    });
-
     try {
-        const idToken = req.headers.get("Authorization")?.split("Bearer ")[1];
-        if (!idToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const body = await req.json();
 
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const userId = decodedToken.uid;
+        console.log("📥 Received request body:", body);
 
-        const { packId } = await req.json();
-        if (!packId) return NextResponse.json({ error: "Missing packId" }, { status: 400 });
+        // Extract parameters - check both userId and user_id for compatibility
+        const userId = body.userId || body.user_id;
+        const packId = body.packId || body.pack_id;
+        const subject = body.subject;
 
-        const packDoc = await admin.firestore().collection("study_packs").doc(packId).get();
-        if (!packDoc.exists) return NextResponse.json({ error: "Study pack not found" }, { status: 404 });
+        if (!userId || !packId) {
+            console.error("❌ Missing required fields:", { userId, packId });
+            return NextResponse.json(
+                { error: "User ID and Pack ID are required" },
+                { status: 400 }
+            );
+        }
 
-        const packData = packDoc.data();
-        const price = packData?.price * 100 || 0;
+        // Your study pack price ID
+        const priceId = process.env.STRIPE_PACK_PRICE_ID || "price_1SUU5xLkvi7Txyt7p60mLM6H";
 
+        console.log("📦 Creating pack checkout for:", { userId, packId, subject, priceId });
+
+        // Encode payload for client_reference_id
+        const payload = {
+            userId,
+            packId,
+            subject,
+        };
+        const clientReferenceId = Buffer.from(JSON.stringify(payload)).toString("base64");
+
+        // Create checkout session
         const session = await stripe.checkout.sessions.create({
+            mode: "payment", // One-time payment
             payment_method_types: ["card"],
             line_items: [
                 {
-                    price_data: {
-                        currency: "usd",
-                        product_data: {
-                            name: packData?.subject,
-                        },
-                        unit_amount: price,
-                    },
+                    price: priceId,
                     quantity: 1,
                 },
             ],
-            mode: "payment",
-            success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard?tab=studypack`,
-            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/study-packs?canceled=true`,
+            client_reference_id: clientReferenceId,
+            success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard?pack_purchased=true&subject=${encodeURIComponent(subject || 'Unknown')}`,
+            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/subjects?canceled=true`,
             metadata: {
                 userId,
                 packId,
+                subject: subject || "Unknown",
             },
         });
 
-        return NextResponse.json({ sessionId: session.id });
-    } catch (error) {
-        console.error("Error creating checkout session:", error);
-        return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
+        console.log("✅ Pack checkout session created:", session.id);
+
+        return NextResponse.json({ url: session.url });
+    } catch (error: any) {
+        console.error("❌ Error creating pack checkout session:", error);
+        return NextResponse.json(
+            { error: error.message },
+            { status: 500 }
+        );
     }
 }

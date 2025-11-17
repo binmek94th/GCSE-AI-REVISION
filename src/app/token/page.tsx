@@ -5,6 +5,7 @@ import {db} from '@/lib/firebase';
 import Spinner from "@/app/components/Spinner";
 import {useSearchParams} from "next/navigation";
 import {getAuth} from "firebase/auth";
+import {toast} from "sonner";
 
 interface Package {
     id: string;
@@ -16,7 +17,8 @@ interface Package {
 function BuyTokenComponent() {
     const [pkg, setPkg] = useState<Package | null>(null);
     const [loading, setLoading] = useState(true);
-    const [billingCycle, setBillingCycle] = useState<'month' | 'year'>('month'); // monthly by default
+    const [purchasing, setPurchasing] = useState(false);
+    const [billingCycle, setBillingCycle] = useState<'month' | 'year'>('month');
     const searchParams = useSearchParams();
     const redirectTo = searchParams.get("redirectTo");
 
@@ -42,32 +44,53 @@ function BuyTokenComponent() {
         fetchPackage();
     }, []);
 
-    const handlePurchase = () => {
+    const handlePurchase = async () => {
         const auth = getAuth();
         const user = auth.currentUser;
 
         if (!user) {
-            alert("You must be logged in to purchase.");
+            toast.error("You must be logged in to purchase.");
             return;
         }
 
-        const payload = {
-            userId: user.uid,
-            billing: billingCycle,
-            redirectTo: redirectTo || null,
-        };
+        setPurchasing(true);
 
-        const encoded = btoa(JSON.stringify(payload));
+        try {
+            // Get ID token for authentication
+            const idToken = await user.getIdToken();
 
-        const stripeUrl =
-            billingCycle === "month"
-                ? "https://buy.stripe.com/test_4gMbJ3b0g1ZY3qv4qRbV601"
-                : "https://buy.stripe.com/test_28EaEZ3xOcEC0ejbTjbV600";
+            // Create checkout session via API
+            const response = await fetch("/api/create-checkout-session", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    billing: billingCycle,
+                    redirectTo: redirectTo || null,
+                }),
+            });
 
-        window.location.href = `${stripeUrl}?client_reference_id=${encoded}`;
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to create checkout session");
+            }
+
+            // Redirect to Stripe checkout
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error("No checkout URL received");
+            }
+        } catch (error: any) {
+            console.error("Error creating checkout:", error);
+            toast.error(`Failed to start checkout: ${error.message}`);
+            setPurchasing(false);
+        }
     };
-
-
 
     if (loading) return <Spinner />;
 
@@ -94,27 +117,40 @@ function BuyTokenComponent() {
                 <div className="flex justify-center gap-4 mb-8">
                     <button
                         onClick={() => setBillingCycle('month')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${billingCycle === 'month' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700'}`}
+                        disabled={purchasing}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                            billingCycle === 'month'
+                                ? 'bg-primary text-white'
+                                : 'bg-gray-200 text-gray-700'
+                        } ${purchasing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         Monthly
                     </button>
                     <button
                         onClick={() => setBillingCycle('year')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${billingCycle === 'year' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-700'}`}
+                        disabled={purchasing}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                            billingCycle === 'year'
+                                ? 'bg-primary text-white'
+                                : 'bg-gray-200 text-gray-700'
+                        } ${purchasing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         Yearly
                     </button>
                 </div>
 
                 <ul className="text-left mb-8 space-y-2 text-gray-700">
-                    <li>Unlimited AI tutoring sessions</li>
+                    <li>✓ Unlimited AI tutoring sessions</li>
                 </ul>
 
                 <button
                     onClick={handlePurchase}
-                    className="px-8 py-4 rounded-lg bg-primary text-primary-foreground font-semibold text-lg hover:bg-primary-dark transition-all shadow-lg"
+                    disabled={purchasing}
+                    className={`px-8 py-4 rounded-lg bg-primary text-primary-foreground font-semibold text-lg hover:bg-primary-dark transition-all shadow-lg ${
+                        purchasing ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                 >
-                    Purchase Now & Start Learning
+                    {purchasing ? 'Creating checkout...' : 'Purchase Now & Start Learning'}
                 </button>
             </div>
         </div>

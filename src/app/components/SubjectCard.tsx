@@ -1,7 +1,7 @@
 import { Card, CardContent } from './card';
 import { Button } from './button';
 import { Badge } from './badge';
-import { Calculator, BookOpen, Microscope, Globe, Languages, Code, Clock, Trophy } from 'lucide-react';
+import { Calculator, BookOpen, Microscope, Globe, Languages, Code, Clock, Trophy, Loader2 } from 'lucide-react';
 
 interface SubjectCardProps {
     subject: string;
@@ -10,6 +10,7 @@ interface SubjectCardProps {
     tier?: string;
     price?: number;
     isPurchased?: boolean;
+    isPurchasing?: boolean;
     onPreview?: () => void;
     onViewPack?: () => void;
 }
@@ -38,6 +39,7 @@ export function SubjectCard({
                                 tier,
                                 price = 30,
                                 isPurchased = false,
+                                isPurchasing = false,
                                 onPreview,
                                 onViewPack
                             }: SubjectCardProps) {
@@ -99,6 +101,7 @@ export function SubjectCard({
                                     e.stopPropagation();
                                     onPreview?.();
                                 }}
+                                disabled={isPurchasing}
                                 className="text-primary hover:text-primary-dark hover:bg-primary/10 rounded-xl"
                             >
                                 Preview
@@ -110,9 +113,21 @@ export function SubjectCard({
                                 e.stopPropagation();
                                 onViewPack?.();
                             }}
-                            className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary rounded-xl px-6"
+                            disabled={isPurchasing}
+                            className={`bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary rounded-xl px-6 ${
+                                isPurchasing ? 'opacity-70 cursor-not-allowed' : ''
+                            }`}
                         >
-                            {isPurchased ? 'Open Pack' : 'View Pack'}
+                            {isPurchasing ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Processing...
+                                </>
+                            ) : isPurchased ? (
+                                'Open Pack'
+                            ) : (
+                                'Buy Pack'
+                            )}
                         </Button>
                     </div>
                 </div>
