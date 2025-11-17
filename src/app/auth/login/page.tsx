@@ -29,6 +29,35 @@ export default function LoginPage() {
     } = useForm<LoginForm>({
         resolver: zodResolver(loginSchema),
     });
+    const getFriendlyAuthError = (errorCode: string): string => {
+        switch (errorCode) {
+            case "auth/invalid-email":
+                return "Invalid email address. Please check and try again.";
+
+            case "auth/user-disabled":
+                return "This account has been disabled. Contact support.";
+
+            case "auth/user-not-found":
+            case "auth/wrong-password":
+                return "Incorrect email or password. Please try again.";
+
+            case "auth/too-many-requests":
+                return "Too many failed attempts. Please try again later.";
+
+            case "auth/network-request-failed":
+                return "Network error. Please check your connection.";
+
+            case "auth/missing-password":
+                return "Password is required.";
+
+            case "auth/invalid-credential":
+            case "auth/request-had-invalid-authentication-credentials":
+                return "Your login session is invalid or expired. Please try again.";
+
+            default:
+                return "Something went wrong. Please try again.";
+        }
+    };
 
     const onSubmit = async (data: LoginForm) => {
         setError(null);
@@ -58,7 +87,7 @@ export default function LoginPage() {
 
             router.push('/dashboard');
         } catch (err: any) {
-            setError(err.message);
+            setError(getFriendlyAuthError(err.message));
         }
     };
 

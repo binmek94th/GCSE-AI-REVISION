@@ -1,9 +1,10 @@
 'use client'
-import {useState, useEffect, Suspense} from 'react';
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
-import { db } from '@/lib/firebase';
+import {Suspense, useEffect, useState} from 'react';
+import {collection, getDocs, limit, query} from "firebase/firestore";
+import {db} from '@/lib/firebase';
 import Spinner from "@/app/components/Spinner";
-import { useRouter, useSearchParams } from "next/navigation";
+import {useSearchParams} from "next/navigation";
+import {getAuth} from "firebase/auth";
 
 interface Package {
     id: string;
@@ -16,7 +17,6 @@ function BuyTokenComponent() {
     const [pkg, setPkg] = useState<Package | null>(null);
     const [loading, setLoading] = useState(true);
     const [billingCycle, setBillingCycle] = useState<'month' | 'year'>('month'); // monthly by default
-    const router = useRouter();
     const searchParams = useSearchParams();
     const redirectTo = searchParams.get("redirectTo");
 
@@ -43,10 +43,31 @@ function BuyTokenComponent() {
     }, []);
 
     const handlePurchase = () => {
-        if (pkg) {
-            router.push(`token/checkout?packageId=${pkg.id}&billing=${billingCycle}&redirectTo=${redirectTo}`);
+        const auth = getAuth();
+        const user = auth.currentUser;
+
+        if (!user) {
+            alert("You must be logged in to purchase.");
+            return;
         }
+
+        const payload = {
+            userId: user.uid,
+            billing: billingCycle,
+            redirectTo: redirectTo || null,
+        };
+
+        const encoded = btoa(JSON.stringify(payload));
+
+        const stripeUrl =
+            billingCycle === "month"
+                ? "https://buy.stripe.com/test_4gMbJ3b0g1ZY3qv4qRbV601"
+                : "https://buy.stripe.com/test_28EaEZ3xOcEC0ejbTjbV600";
+
+        window.location.href = `${stripeUrl}?client_reference_id=${encoded}`;
     };
+
+
 
     if (loading) return <Spinner />;
 

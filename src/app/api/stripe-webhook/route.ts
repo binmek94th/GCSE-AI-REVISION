@@ -13,6 +13,8 @@ export async function POST(req: Request) {
     const body = await req.text();
     const sig = req.headers.get("stripe-signature")!
 
+    console.log(body)
+
     let event: Stripe.Event;
 
     try {
@@ -26,7 +28,6 @@ export async function POST(req: Request) {
         try {
             const customerId = subscription.customer as string;
 
-            // Retrieve customer and type guard
             const stripeUser = await stripe.customers.retrieve(customerId);
             if (!("metadata" in stripeUser)) {
                 console.warn(`Customer ${customerId} is deleted or missing metadata`);
