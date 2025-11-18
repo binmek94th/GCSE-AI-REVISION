@@ -29,42 +29,41 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter()
-
-    const user = auth.currentUser;
+    const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
-        const fetchProfile = async () => {
-            const idToken = await user?.getIdToken();
-            if (!idToken) {
+        const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+            if (!currentUser) {
                 router.push("/auth/login");
                 return;
             }
 
+            setUser(currentUser);
+
             try {
-                setLoading(true);
+                const idToken = await currentUser.getIdToken();
+
                 const response = await fetch("/api/profile", {
-                    method: "GET",
                     headers: {
                         Authorization: `Bearer ${idToken}`,
-                        "Content-Type": "application/json",
                     },
                 });
 
-                if (!response.ok) {
-                    throw new Error("Failed to fetch profile");
-                }
+                if (!response.ok) throw new Error("Failed to fetch profile");
 
                 const data = await response.json();
                 setProfileData(data);
+
             } catch (err) {
                 setError(err instanceof Error ? err.message : "An error occurred");
             } finally {
                 setLoading(false);
             }
-        };
+        });
 
-        fetchProfile();
-    }, [router, user]);
+        return () => unsubscribe();
+    }, [router]);
+
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -119,31 +118,31 @@ export default function ProfilePage() {
             </div>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-                    <Clock className="w-6 h-6 text-orange-500 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-900">{Math.floor(profileData.totalStudyHours)}</div>
-                    <div className="text-xs text-gray-600">Study Hours</div>
-                </div>
+            {/*<div className="grid grid-cols-2 md:grid-cols-4 gap-4">*/}
+            {/*    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">*/}
+            {/*        <Clock className="w-6 h-6 text-orange-500 mx-auto mb-2" />*/}
+            {/*        <div className="text-2xl font-bold text-gray-900">{Math.floor(profileData.totalStudyHours)}</div>*/}
+            {/*        <div className="text-xs text-gray-600">Study Hours</div>*/}
+            {/*    </div>*/}
 
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-                    <Package className="w-6 h-6 text-green-500 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-900">{profileData.studyPacks.length}</div>
-                    <div className="text-xs text-gray-600">Study Packs</div>
-                </div>
+            {/*    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">*/}
+            {/*        <Package className="w-6 h-6 text-green-500 mx-auto mb-2" />*/}
+            {/*        <div className="text-2xl font-bold text-gray-900">{profileData.studyPacks.length}</div>*/}
+            {/*        <div className="text-xs text-gray-600">Study Packs</div>*/}
+            {/*    </div>*/}
 
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-                    <Award className="w-6 h-6 text-blue-500 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-900">{profileData.stats.quizzesCompleted}</div>
-                    <div className="text-xs text-gray-600">Quizzes Done</div>
-                </div>
+            {/*    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">*/}
+            {/*        <Award className="w-6 h-6 text-blue-500 mx-auto mb-2" />*/}
+            {/*        <div className="text-2xl font-bold text-gray-900">{profileData.stats.quizzesCompleted}</div>*/}
+            {/*        <div className="text-xs text-gray-600">Quizzes Done</div>*/}
+            {/*    </div>*/}
 
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
-                    <TrendingUp className="w-6 h-6 text-purple-500 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-900">{profileData.stats.averageScore.toFixed(0)}%</div>
-                    <div className="text-xs text-gray-600">Avg Score</div>
-                </div>
-            </div>
+            {/*    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">*/}
+            {/*        <TrendingUp className="w-6 h-6 text-purple-500 mx-auto mb-2" />*/}
+            {/*        <div className="text-2xl font-bold text-gray-900">{profileData.stats.averageScore.toFixed(0)}%</div>*/}
+            {/*        <div className="text-xs text-gray-600">Avg Score</div>*/}
+            {/*    </div>*/}
+            {/*</div>*/}
 
             {/* Subscription Component */}
             <SubscriptionPage />
