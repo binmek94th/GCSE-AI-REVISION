@@ -2,7 +2,7 @@
 
 import {Suspense, useEffect, useState} from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/tabs";
-import {Calendar, Package, Brain, MessageCircle, Trophy, LogOut} from 'lucide-react';
+import {Calendar, Package, Brain, MessageCircle, Trophy, LogOut, User, ChevronDown} from 'lucide-react';
 import { PlanTab } from "@/app/dashboard/plan/page";
 import { StudyPackTab } from "@/app/dashboard/studyPack/page";
 import { QuizzesTab } from "@/app/dashboard/quizzes/page";
@@ -18,6 +18,7 @@ import { useDashboard } from "@/contexts/DashboardContext";
 import UserBadges from "@/app/dashboard/challenges/UserBadges";
 import {Button} from "@/app/components/button";
 import FriendsPage from "@/app/dashboard/friends/page";
+import ProfilePage from "@/app/dashboard/profile/page";
 
 
 function Dashboard() {
@@ -28,6 +29,7 @@ function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<ProgressData | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showDropdown, setShowDropdown] = useState(false);
 
     const { dashboardData, loading: dashboardLoading } = useDashboard();
     const { shouldShow: showMoodChecker, loading: moodLoading, submitMood, closeMoodChecker } = useMoodChecker(idToken || null);
@@ -146,15 +148,42 @@ function Dashboard() {
                             </div>
                         )}
 
-                        <Button
-                            onClick={handleLogout}
-                            variant="destructive"
-                            size="icon"
-                            className="rounded-full hover:bg-red-100 hover:text-red-600 transition-all"
-                            title="Logout"
-                        >
-                            <LogOut className="w-5 h-5" />
-                        </Button>
+                        {/* Dropdown Menu */}
+                        <div className="relative">
+                            <Button
+                                onClick={() => setShowDropdown(!showDropdown)}
+                                variant="outline"
+                                className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-200 rounded-full px-4 py-2 transition-all"
+                            >
+                                <User className="w-5 h-5 text-gray-700" />
+                                <ChevronDown className={`w-4 h-4 text-gray-700 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+                            </Button>
+
+                            {showDropdown && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                                    <button
+                                        onClick={() => {
+                                            setShowDropdown(false);
+                                            handleTabChange('profile');
+                                        }}
+                                        className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
+                                    >
+                                        <User className="w-4 h-4" />
+                                        <span>Profile</span>
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowDropdown(false);
+                                            handleLogout();
+                                        }}
+                                        className="w-full text-left px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-2 text-red-600"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        <span>Logout</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -225,8 +254,13 @@ function Dashboard() {
                         <TabsContent value="challenges">
                             <UserBadges></UserBadges>
                         </TabsContent>
+
                         <TabsContent value="friends">
                             <FriendsPage></FriendsPage>
+                        </TabsContent>
+
+                        <TabsContent value="profile">
+                            <ProfilePage />
                         </TabsContent>
                     </Tabs>
                 }

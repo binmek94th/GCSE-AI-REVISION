@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import admin from "@/lib/firebaseAdmin";
-import {doc, getDoc, updateDoc} from "@firebase/firestore";
 
 
 export async function POST(req: Request) {
@@ -25,14 +24,45 @@ export async function POST(req: Request) {
         if (!userDoc.exists) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
         const data = userDoc.data();
-        const tokens = data?.tokens ?? 1000; 
-        const subscription = data?.subscription ?? { status: null };
+        const tokens = data?.tokens ?? 1000;
 
-        if (tokens <= 0 && subscription.status !== "active") {
-            return NextResponse.json(
-                { allowed: false, message: "Subscribe to continue" },
-                { status: 403 }
-            );
+        const subColRef = db.collection("users").doc(uid).collection("subscriptions");
+
+        let subscriptionQuery = subColRef
+            .where("status", "==", "active")
+            .limit(1);
+
+        let subscriptionSnapshot = await subscriptionQuery.get();
+
+        if (subscriptionSnapshot.empty) {
+            subscriptionQuery = subColRef
+                .orderBy("updatedAt", "desc")
+                .limit(1);
+            subscriptionSnapshot = await subscriptionQuery.get();
+        }
+
+        const subscription = subscriptionSnapshot.empty
+            ? null
+            : subscriptionSnapshot.docs[0].data();
+
+        const hasActiveSubscription = subscription?.status === "active";
+
+        if (!hasActiveSubscription) {
+            if (tokens <= 0) {
+                return NextResponse.json(
+                    {
+                        allowed: false,
+                        message: "You've reached your free limit. Subscribe to continue using AI Tutor! 🎓",
+                        tokensRemaining: 0,
+                        requiresSubscription: true
+                    },
+                    { status: 403 }
+                );
+            }
+
+            if (tokens < 100) {
+                console.log(`User ${uid} is approaching token limit: ${tokens} remaining`);
+            }
         }
 
         const completion = await openai.chat.completions.create({
@@ -61,22 +91,29 @@ export async function POST(req: Request) {
 
         const tokensUsed = completion.usage?.total_tokens ?? 0;
 
-        if (subscription.status !== "active") {
+        if (!hasActiveSubscription) {
             await db.runTransaction(async (transaction) => {
                 const doc = await transaction.get(userRef);
                 const currentTokens = doc.exists ? doc.data()?.tokens ?? 1000 : 1000;
-                transaction.update(userRef, { tokens: currentTokens - tokensUsed });
+                const newTokenCount = Math.max(0, currentTokens - tokensUsed);
+                transaction.update(userRef, { tokens: newTokenCount });
             });
         }
-        await checkAITutorBadges(uid)
-        return NextResponse.json({ allowed: true, data: completion.choices[0].message });
+
+        await checkAITutorBadges(uid);
+
+        return NextResponse.json({
+            allowed: true,
+            data: completion.choices[0].message,
+            tokensUsed,
+            tokensRemaining: hasActiveSubscription ? "unlimited" : Math.max(0, tokens - tokensUsed)
+        });
 
     } catch (err: any) {
-        console.error(err);
+        console.error("AI Chat Error:", err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
-
 
 async function checkAITutorBadges(userId: string) {
     const db = admin.firestore();

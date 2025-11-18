@@ -17,7 +17,6 @@ import {
     XCircle,
     AlertCircle,
     RefreshCw,
-    ExternalLink,
     ChevronRight,
     Crown,
     Loader2
@@ -32,8 +31,6 @@ export default function SubscriptionPage() {
     const [canceling, setCanceling] = useState(false);
     const [resuming, setResuming] = useState(false);
     const router = useRouter();
-    const auth = getAuth();
-    const user = auth.currentUser;
 
     const handleCancelSubscription = async () => {
         if (!confirm('Are you sure you want to cancel your subscription? You will still have access until the end of your billing period.')) {
@@ -42,6 +39,8 @@ export default function SubscriptionPage() {
 
         setCanceling(true);
         try {
+            const auth = getAuth();
+            const user = auth.currentUser;
             const idToken = await user?.getIdToken();
             const response = await fetch('/api/cancel-subscription', {
                 method: 'POST',
@@ -72,6 +71,8 @@ export default function SubscriptionPage() {
     const handleResumeSubscription = async () => {
         setResuming(true);
         try {
+            const auth = getAuth();
+            const user = auth.currentUser;
             const idToken = await user?.getIdToken();
             const response = await fetch('/api/resume-subscription', {
                 method: 'POST',
