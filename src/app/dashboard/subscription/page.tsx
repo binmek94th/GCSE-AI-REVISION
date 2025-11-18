@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/card';
 import { Button } from '@/app/components/button';
 import { Badge } from '@/app/components/badge';
@@ -21,16 +21,21 @@ import {
     Crown,
     Loader2
 } from 'lucide-react';
-import { getAuth } from 'firebase/auth';
-import Spinner from '@/app/components/Spinner';
+import { auth } from '@/lib/firebase';
 import {useRouter} from "next/navigation";
 import {toast} from "sonner";
 
 export default function SubscriptionPage() {
-    const { subscription, isLoading, error, hasSubscription, daysUntilRenewal, isExpiringSoon, refresh } = useSubscription();
+    const { subscription, error, hasSubscription, daysUntilRenewal, isExpiringSoon, refresh } = useSubscription();
     const [canceling, setCanceling] = useState(false);
     const [resuming, setResuming] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const router = useRouter();
+
+    // Ensure component only renders on client
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const handleCancelSubscription = async () => {
         if (!confirm('Are you sure you want to cancel your subscription? You will still have access until the end of your billing period.')) {
@@ -39,9 +44,11 @@ export default function SubscriptionPage() {
 
         setCanceling(true);
         try {
-            const auth = getAuth();
             const user = auth.currentUser;
-            const idToken = await user?.getIdToken();
+            if (!user) {
+                throw new Error('No authenticated user');
+            }
+            const idToken = await user.getIdToken();
             const response = await fetch('/api/cancel-subscription', {
                 method: 'POST',
                 headers: {
@@ -71,9 +78,11 @@ export default function SubscriptionPage() {
     const handleResumeSubscription = async () => {
         setResuming(true);
         try {
-            const auth = getAuth();
             const user = auth.currentUser;
-            const idToken = await user?.getIdToken();
+            if (!user) {
+                throw new Error('No authenticated user');
+            }
+            const idToken = await user.getIdToken();
             const response = await fetch('/api/resume-subscription', {
                 method: 'POST',
                 headers: {
@@ -101,13 +110,18 @@ export default function SubscriptionPage() {
         window.open('https://billing.stripe.com/p/login/test_XXXXXXX', '_blank');
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-bg-subtle flex items-center justify-center">
-                <Spinner />
-            </div>
-        );
+    // Don't render anything until mounted (prevents SSR issues)
+    if (!mounted) {
+        return null;
     }
+
+    // if (isLoading) {
+    //     return (
+    //         <div className="min-h-screen bg-bg-subtle flex items-center justify-center">
+    //             <Spinner />
+    //         </div>
+    //     );
+    // }
 
     if (error) {
         return (
