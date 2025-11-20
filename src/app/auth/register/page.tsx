@@ -3,9 +3,9 @@
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {createUserWithEmailAndPassword, sendEmailVerification} from 'firebase/auth';
+import {createUserWithEmailAndPassword, sendEmailVerification, signOut} from 'firebase/auth';
 import {auth, db} from '@/lib/firebase';
-import { useState, useEffect } from 'react';
+import {useState, useEffect, useRef} from 'react';
 import { useRouter } from 'next/navigation';
 import {Input} from "@/app/components/input";
 import {Button} from "@/app/components/button";
@@ -30,7 +30,7 @@ export default function RegisterPage() {
     const [error, setError] = useState<string | null>(null);
     const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
     const [usernameMessage, setUsernameMessage] = useState<string>('');
-    const [checkTimeout, setCheckTimeout] = useState<NodeJS.Timeout | null>(null);
+    const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const {
         register,
@@ -46,24 +46,23 @@ export default function RegisterPage() {
     // Check username availability with debounce
     useEffect(() => {
         if (!username || username.length < 3) {
-            setUsernameStatus('idle');
-            setUsernameMessage('');
+            setUsernameStatus("idle");
+            setUsernameMessage("");
             return;
         }
 
-        // Clear previous timeout
-        if (checkTimeout) {
-            clearTimeout(checkTimeout);
+        if (checkTimeoutRef.current) {
+            clearTimeout(checkTimeoutRef.current);
         }
 
-        // Set new timeout for debounced check
-        const timeout = setTimeout(async () => {
-            setUsernameStatus('checking');
+        checkTimeoutRef.current = setTimeout(async () => {
+            setUsernameStatus("checking");
+
             try {
-                const response = await fetch('/api/auth/check-username', {
-                    method: 'POST',
+                const response = await fetch("/api/auth/check-username", {
+                    method: "POST",
                     headers: {
-                        'Content-Type': 'application/json',
+                        "Content-Type": "application/json",
                     },
                     body: JSON.stringify({ username }),
                 });
@@ -71,25 +70,26 @@ export default function RegisterPage() {
                 const data = await response.json();
 
                 if (data.available) {
-                    setUsernameStatus('available');
+                    setUsernameStatus("available");
                     setUsernameMessage(data.message);
                 } else {
-                    setUsernameStatus('taken');
+                    setUsernameStatus("taken");
                     setUsernameMessage(data.message);
                 }
             } catch (err) {
-                console.error('Error checking username:', err);
-                setUsernameStatus('idle');
-                setUsernameMessage('');
+                console.error("Error checking username:", err);
+                setUsernameStatus("idle");
+                setUsernameMessage("");
             }
-        }, 500); // 500ms debounce
-
-        setCheckTimeout(timeout);
+        }, 500);
 
         return () => {
-            if (timeout) clearTimeout(timeout);
+            if (checkTimeoutRef.current) {
+                clearTimeout(checkTimeoutRef.current);
+            }
         };
-    }, [checkTimeout, username]);
+    }, [username]);
+
 
     const onSubmit = async (data: RegisterForm) => {
         // Final check before submission
@@ -106,7 +106,6 @@ export default function RegisterPage() {
                 data.password
             );
 
-            // Store both original username and lowercase version for queries
             await setDoc(doc(db, "users", userCred.user.uid), {
                 username: data.username,
                 username_lowercase: data.username.toLowerCase().trim(),

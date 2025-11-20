@@ -33,7 +33,9 @@ function AuthActionInner() {
         if (actionMode === 'verifyEmail') {
             applyActionCode(auth, code)
                 .then(() => {
-                    setStatus('Your email has been successfully verified!');
+                    setStatus('Your email has been successfully verified! Redirecting...');
+
+                    setTimeout(() => router.push('/auth/login'), 2000);
                 })
                 .catch((err) => {
                     setStatus(`Failed to verify email: ${err.message}`);

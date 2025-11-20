@@ -58,7 +58,7 @@ export default function VerifyEmailPage() {
                     <Button
                         onClick={handleResend}
                         disabled={resendLoading}
-                        className="bg-primary text-primary-foreground hover:bg-primary-dark"
+                        className="bg-primary text-primary-foreground hover:bg-primary-dark hover:cursor-pointer"
                     >
                         {resendLoading ? 'Sending...' : 'Resend Email'}
                     </Button>

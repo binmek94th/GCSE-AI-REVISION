@@ -64,11 +64,10 @@ export default function LoginPage() {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
 
-            // TODO: Enable email verification flow
-            // if (!userCredential.user.emailVerified) {
-            //     router.push('/verify-email');
-            //     return;
-            // }
+            if (!userCredential.user.emailVerified) {
+                router.push('/verify-email');
+                return;
+            }
 
             const userDocRef = doc(db, "users", userCredential.user.uid);
             const userDocSnap = await getDoc(userDocRef);
