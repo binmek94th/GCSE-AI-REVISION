@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { SubjectSelection } from '@/app/onboarding/Schema';
 import { Skeleton } from "@/app/components/skeleton";
-import { auth } from "@/lib/firebase";
 import {StudyPlanLoading} from "@/app/onboarding/StudyPlanLoading";
 
 interface Props {
@@ -76,21 +75,21 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
     };
 
     const handleSubmit = async () => {
-        // Get auth token
-        const user = auth.currentUser;
-        if (!user) {
-            setError('You must be logged in to submit the quiz');
-            return;
-        }
-
-        const idToken = await user.getIdToken();
+        // // Get auth token
+        // const user = auth.currentUser;
+        // if (!user) {
+        //     setError('You must be logged in to submit the quiz');
+        //     return;
+        // }
+        //
+        // const idToken = await user.getIdToken();
 
         const payload: QuizAnswer[] = questions.map((q) => ({
             questionId: q.id,
             question: q.question,
             selectedAnswer: answers[q.id] || '',
             correctAnswer: q.answer || '',
-            subject: q.subject || 'General', // Ensure subject is included
+            subject: q.subject || 'General',
         }));
 
         setSubmitLoading(true);
@@ -100,7 +99,7 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`
+                    // 'Authorization': `Bearer ${idToken}`
                 },
                 body: JSON.stringify({
                     answers: payload,
