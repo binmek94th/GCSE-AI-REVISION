@@ -534,7 +534,7 @@ function HomePage({ onNavigate }: HomePageProps) {
                             <ul className="space-y-2 text-sm text-gray-300">
                                 <li><a href="#">Privacy Policy</a></li>
                                 <li><a href="#">Terms of Service</a></li>
-                                <li><a href="#">Exam Board Notice</a></li>
+                                <li><a href="/notice">Exam Board Notice</a></li>
                             </ul>
                         </div>
                     </div>

@@ -74,7 +74,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                             <button
                                 key={link.href}
                                 onClick={() => handleNavigate(link.href)}
-                                className={`px-4 py-2 text-sm font-medium transition-all duration-200 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded-xl ${
+                                className={`px-4 py-2 text-sm hover:cursor-pointer font-medium transition-all duration-200 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded-xl ${
                                     currentPage === link.href ? 'text-primary bg-primary/10' : 'text-text-muted hover:bg-bg-subtle'
                                 }`}
                             >

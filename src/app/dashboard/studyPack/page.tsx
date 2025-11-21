@@ -176,10 +176,9 @@ export function StudyPackTab() {
                             (
                                 <Button onClick={() => handleBuy(subject)} className={"w-full flex items-center justify-center  bg-blue-500 text-white hover:bg-blue-600"}>
                                     <BookOpen className="w-4 h-4 mr-2" />
-                                    Buy Study Pack - ${subject.price}
+                                    Buy Study Pack - £{subject.price}
                                 </Button>
                             )}
-
                     </CardContent>
                 </Card>
             ))}
