@@ -149,7 +149,7 @@ function Dashboard() {
                         )}
 
                         {/* Dropdown Menu */}
-                        <div className="relative">
+                        <div className="relative hover:cursor-pointer">
                             <Button
                                 onClick={() => setShowDropdown(!showDropdown)}
                                 variant="outline"
@@ -166,7 +166,7 @@ function Dashboard() {
                                             setShowDropdown(false);
                                             handleTabChange('profile');
                                         }}
-                                        className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
+                                        className="w-full hover:cursor-pointer text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
                                     >
                                         <User className="w-4 h-4" />
                                         <span>Profile</span>
@@ -176,7 +176,7 @@ function Dashboard() {
                                             setShowDropdown(false);
                                             handleLogout();
                                         }}
-                                        className="w-full text-left px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-2 text-red-600"
+                                        className="w-full hover:cursor-pointer text-left px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-2 text-red-600"
                                     >
                                         <LogOut className="w-4 h-4" />
                                         <span>Logout</span>
@@ -197,37 +197,37 @@ function Dashboard() {
                         <TabsList className="flex w-full  bg-white rounded-xl shadow-sm border border-gray-200">
                             <TabsTrigger
                                 value="plan"
-                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                             >
                                 <Calendar className="w-4 h-4" /> My Plan
                             </TabsTrigger>
                             <TabsTrigger
                                 value="studypack"
-                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                             >
                                 <Package className="w-4 h-4" /> Study Pack
                             </TabsTrigger>
                             <TabsTrigger
                                 value="quizzes"
-                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                             >
                                 <Brain className="w-4 h-4" /> Quizzes
                             </TabsTrigger>
                             <TabsTrigger
                                 value="tutor"
-                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                             >
                                 <MessageCircle className="w-4 h-4" /> AI Tutor
                             </TabsTrigger>
                             <TabsTrigger
                                 value="challenges"
-                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                             >
                                 <Trophy className="w-4 h-4" /> Challenges
                             </TabsTrigger>
                             <TabsTrigger
                                 value="friends"
-                                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                             >
                                 <Trophy className="w-4 h-4" /> Friends
                             </TabsTrigger>

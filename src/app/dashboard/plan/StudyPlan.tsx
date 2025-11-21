@@ -225,7 +225,7 @@ export default function StudyPlan() {
 
                         return (
                             <div key={index} onClick={() => setSelectedMaterial(session.material)}>
-                                <div className={`bg-white rounded-lg shadow-md p-6 relative ${isCompleted ? 'opacity-75 border-2 border-green-500' : ''}`}>
+                                <div className={`bg-white hover:cursor-pointer rounded-lg shadow-md p-6 relative ${isCompleted ? 'opacity-75 border-2 border-green-500' : ''}`}>
                                     {/* Completed Badge */}
                                     {isCompleted && (
                                         <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">

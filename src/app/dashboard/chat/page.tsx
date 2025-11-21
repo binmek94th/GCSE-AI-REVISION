@@ -220,7 +220,7 @@ export function StudentAIChat(){
                     type="button"
                     disabled={!input.trim() || isTyping || disabled}
                     onClick={handleSubmit}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium shadow-lg hover:shadow-xl"
+                    className="bg-gradient-to-r hover:cursor-pointer from-blue-500 to-purple-600 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 font-medium shadow-lg hover:shadow-xl"
                 >
                     <Send className="w-5 h-5" />
                     Send

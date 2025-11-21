@@ -274,7 +274,7 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                     )}
 
                     <Button
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className="w-full bg-purple-600 hover:bg-purple-700 hover:cursor-pointer"
                         onClick={startQuiz}
                         disabled={loading || !selectedPackId}
                     >

@@ -216,24 +216,6 @@ const DisclaimersPage = () => {
                                 </p>
                             </div>
 
-                            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-5 mt-4 border border-purple-200">
-                                <h3 className="font-semibold text-slate-900 mb-2 flex items-center">
-                                    <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    Season Pass (Time-Limited)
-                                </h3>
-                                <p className="text-sm text-slate-700 mb-2">
-                                    Provides access to <strong>all supported subjects</strong> and <strong>unlimited AI Tutor usage</strong> for the <strong>current exam season only</strong>.
-                                </p>
-                                <p className="text-sm font-semibold text-purple-900 mb-2">
-                                    Current season: {seasonDates}
-                                </p>
-                                <p className="text-xs text-slate-600 italic">
-                                    Access expires at the end of the specified exam season. Renewal required for subsequent seasons.
-                                </p>
-                            </div>
-
                             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mt-4">
                                 <h3 className="font-semibold text-slate-900 mb-2 text-sm">Important Terms</h3>
                                 <ul className="text-sm text-slate-700 space-y-2">
@@ -387,7 +369,6 @@ const DisclaimersPage = () => {
                         </div>
                     </section>
 
-                    {/* Change Log */}
                     <section id="changelog" className="mb-10 scroll-mt-6">
                         <h2 className="text-2xl font-bold text-slate-900 mb-4">Change Log</h2>
                         <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">

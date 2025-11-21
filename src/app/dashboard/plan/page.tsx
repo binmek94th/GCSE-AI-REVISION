@@ -58,7 +58,7 @@ export function PlanTab({ subjects, studyPack }: PlanTabProps) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {subjects.map((subject, index) => (
-                        <div key={index} className="space-y-2">
+                        <div key={index} className="space-y-2 ">
                             <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-700">
                               {subject.name

@@ -165,7 +165,7 @@ export function StudyPackTab() {
                                     setPackId(subject.id);
 
                                 }}
-                                className={`w-full flex items-center justify-center 
+                                className={`w-full flex items-center justify-center hover:cursor-pointer
                                         "bg-green-500 text-white hover:bg-green-600"
                                 }`}
                             >
@@ -174,7 +174,7 @@ export function StudyPackTab() {
                             </Button>
                         ) :
                             (
-                                <Button onClick={() => handleBuy(subject)} className={"w-full flex items-center justify-center  bg-blue-500 text-white hover:bg-blue-600"}>
+                                <Button onClick={() => handleBuy(subject)} className={"w-full hover:cursor-pointer flex items-center justify-center  bg-blue-500 text-white hover:bg-blue-600"}>
                                     <BookOpen className="w-4 h-4 mr-2" />
                                     Buy Study Pack - £{subject.price}
                                 </Button>

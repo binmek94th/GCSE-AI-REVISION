@@ -88,7 +88,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleNavigate('/auth/login')}
-                                className="text-text-muted hover:text-primary"
+                                className="text-text-muted hover:text-primary hover:cursor-pointer"
                             >
                                 <User className="w-4 h-4 mr-2" />
                                 Login
@@ -96,7 +96,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                             <Button
                                 size="sm"
                                 onClick={() => handleNavigate('/auth/register')}
-                                className="bg-primary hover:bg-primary-dark ml-2 px-6 rounded-xl"
+                                className="bg-primary hover:bg-primary-dark ml-2 px-6 rounded-xl hover:cursor-pointer"
                             >
                                 Get Started
                             </Button>
@@ -109,7 +109,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                                     variant="ghost"
                                     size="sm"
                                     onClick={handleLogout}
-                                    className="text-red-500 hover:text-red-600"
+                                    className="text-red-500 hover:text-red-600 hover:cursor-pointer"
                                 >
                                     Logout
                                 </Button>
