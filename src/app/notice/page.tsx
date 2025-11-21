@@ -57,13 +57,12 @@ const DisclaimersPage = () => {
                         </h2>
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
                             <p>
-                                <strong>Binaym</strong> is an independent GCSE revision platform and is <strong>not affiliated with, endorsed by, or approved by</strong> any awarding body, including:
+                                <strong>GCSE</strong> is an independent GCSE revision platform and is <strong>not affiliated with, endorsed by, or approved by</strong> any awarding body, including:
                             </p>
                             <ul className="list-disc pl-6 space-y-1">
                                 <li>AQA (Assessment and Qualifications Alliance)</li>
                                 <li>Pearson Edexcel</li>
                                 <li>OCR (Oxford, Cambridge and RSA Examinations)</li>
-                                <li>WJEC (Welsh Joint Education Committee) / Eduqas</li>
                             </ul>
                             <p>
                                 All exam papers, mark schemes, specifications, and related materials are the <strong>property and copyright of their respective awarding bodies</strong>. GCSE is administered by these awarding organisations who own their respective examination materials.
@@ -87,7 +86,7 @@ const DisclaimersPage = () => {
                         </h2>
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
                             <p>
-                                Any content labelled as <strong>&#34;predicted&#34;</strong> (including &#34;Predicted 2026 Questions&#34; or similar) represents <strong>original practice materials</strong> created by Binaym based on:
+                                Any content labelled as <strong>&#34;predicted&#34;</strong> (including &#34;Predicted 2026 Questions&#34; or similar) represents <strong>original practice materials</strong> created by GCSE based on:
                             </p>
                             <ul className="list-disc pl-6 space-y-1">
                                 <li>Publicly available syllabus information and specifications</li>
@@ -193,7 +192,7 @@ const DisclaimersPage = () => {
                         </h2>
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
                             <p>
-                                Binaym offers two main purchase options with different access terms:
+                                GCSE offers two main purchase options with different access terms:
                             </p>
 
                             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-5 mt-4 border border-blue-200">
@@ -257,7 +256,7 @@ const DisclaimersPage = () => {
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
                             <h3 className="font-semibold text-slate-900 mt-4">Payment Processing</h3>
                             <p>
-                                All payments are processed securely through <strong>Stripe</strong>, a PCI-compliant payment processor. Binaym does not store your complete card details on our servers.
+                                All payments are processed securely through <strong>Stripe</strong>, a PCI-compliant payment processor. GCSE does not store your complete card details on our servers.
                             </p>
                             <p className="text-sm text-slate-600">
                                 Supported payment methods include major credit cards, debit cards, and other payment options as provided by Stripe in your region.
@@ -348,12 +347,12 @@ const DisclaimersPage = () => {
                             Intellectual Property
                         </h2>
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
-                            <h3 className="font-semibold text-slate-900">Binaym Content</h3>
+                            <h3 className="font-semibold text-slate-900">GCSE Content</h3>
                             <p>
-                                All content created by Binaym, including but not limited to study materials, predicted questions, user interface design, logos, and platform features, is protected by copyright and other intellectual property laws.
+                                All content created by GCSE, including but not limited to study materials, predicted questions, user interface design, logos, and platform features, is protected by copyright and other intellectual property laws.
                             </p>
                             <p>
-                                <strong>© {currentYear} Binaym. All rights reserved.</strong>
+                                <strong>© {currentYear} GCSE. All rights reserved.</strong>
                             </p>
 
                             <h3 className="font-semibold text-slate-900 mt-6">Third-Party Trademarks</h3>
@@ -375,7 +374,7 @@ const DisclaimersPage = () => {
                                 Users may <strong>not</strong>:
                             </p>
                             <ul className="list-disc pl-6 space-y-1">
-                                <li>Reproduce, distribute, or republish Binaym content without permission</li>
+                                <li>Reproduce, distribute, or republish GCSE content without permission</li>
                                 <li>Use our materials for commercial purposes</li>
                                 <li>Remove or alter copyright notices</li>
                                 <li>Create derivative works based on our content</li>
