@@ -53,9 +53,8 @@ export function Navigation({ currentPage }: NavigationProps) {
 
     if (!showNavigation) return null;
 
-
     return (
-        <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-border/50">
+        <nav className="top-0 z-[40] bg-white/90 backdrop-blur-md border-b pointer-events-auto relative">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-20">
                 <div className="flex items-center justify-between h-20">
                     {/* Logo */}
@@ -131,7 +130,10 @@ export function Navigation({ currentPage }: NavigationProps) {
                                     <Menu className="w-6 h-6" />
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="right" className="w-80">
+                            <SheetContent
+                                side="right"
+                                className="w-80 z-[1000]"
+                            >
                                 <div className="flex flex-col gap-2 mt-8">
                                     {navLinks.map((link) => (
                                         <button
@@ -146,7 +148,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                                     ))}
                                     <div className="h-px bg-border my-4"></div>
                                     <Button
-                                        onClick={() => handleNavigate('/account')}
+                                        onClick={() => handleNavigate('/auth/login')}
                                         className="justify-start"
                                         variant="ghost"
                                     >

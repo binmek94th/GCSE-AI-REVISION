@@ -194,7 +194,13 @@ function Dashboard() {
                 )}
                 {!showMoodChecker &&
                     <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-                        <TabsList className="flex w-full  bg-white rounded-xl shadow-sm border border-gray-200">
+                        <TabsList
+                            className="
+                                flex w-full flex-wrap
+                                h-auto !flex-shrink-0 items-start
+                                bg-white rounded-xl shadow-sm border border-gray-200
+                              "
+                        >
                             <TabsTrigger
                                 value="plan"
                                 className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"

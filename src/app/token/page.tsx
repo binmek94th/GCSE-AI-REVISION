@@ -107,7 +107,7 @@ function BuyTokenComponent() {
 
                 <div className="mb-6">
                     <span className="text-2xl font-extrabold text-primary">
-                        ${billingCycle === 'month' ? pkg.monthly_price : pkg.yearly_price}
+                        £{billingCycle === 'month' ? pkg.monthly_price : pkg.yearly_price}
                     </span>
                     <span className="text-gray-600 ml-2">
                         / {billingCycle === 'month' ? 'month' : 'year'}
@@ -118,7 +118,7 @@ function BuyTokenComponent() {
                     <button
                         onClick={() => setBillingCycle('month')}
                         disabled={purchasing}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                        className={`px-4 py-2 rounded-lg font-medium transition-all £{
                             billingCycle === 'month'
                                 ? 'bg-primary text-white'
                                 : 'bg-gray-200 text-gray-700'

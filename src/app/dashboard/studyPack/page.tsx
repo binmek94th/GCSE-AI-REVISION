@@ -194,7 +194,7 @@ export function StudyPackTab() {
                         {/* Price */}
                         <div className="mt-4 flex items-center justify-between">
                             <span className="text-gray-700 font-medium">Price:</span>
-                            <span className="text-lg font-semibold text-green-600">${selectedPack.price}</span>
+                            <span className="text-lg font-semibold text-green-600">£{selectedPack.price}</span>
                         </div>
 
                         {/* Buttons */}
