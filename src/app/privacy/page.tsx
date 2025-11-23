@@ -6,12 +6,12 @@ const PrivacyPolicyPage = () => {
     const effectiveDate = "1 January 2025";
 
     const companyDetails = {
-        legalName: "GCSE Ltd",
-        tradingAs: "GCSE",
+        legalName: "Sapienu Ltd",
+        tradingAs: "Sapienu",
         postalAddress: "Office address to be provided, United Kingdom",
-        privacyEmail: "privacy@GCSE.com",
-        supportEmail: "support@GCSE.com",
-        securityEmail: "security@GCSE.com",
+        privacyEmail: "privacy@Sapienu.com",
+        supportEmail: "support@Sapienu.com",
+        securityEmail: "security@Sapienu.com",
         dpoName: "To be appointed",
         icoNumber: "Pending registration",
         hostingProvider: "Firebase/Google Cloud Platform",
@@ -27,7 +27,7 @@ const PrivacyPolicyPage = () => {
             <header className="bg-white border-b border-slate-200">
                 <div className="max-w-5xl mx-auto px-6 py-4">
                     <Link href="/" className="text-blue-600 hover:text-blue-700 font-semibold">
-                        ← Back to GCSE
+                        ← Back to Sapienu
                     </Link>
                 </div>
             </header>

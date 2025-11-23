@@ -57,7 +57,7 @@ const DisclaimersPage = () => {
                         </h2>
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
                             <p>
-                                <strong>GCSE</strong> is an independent GCSE revision platform and is <strong>not affiliated with, endorsed by, or approved by</strong> any awarding body, including:
+                                <strong>Sapienu</strong> is an independent Sapienu revision platform and is <strong>not affiliated with, endorsed by, or approved by</strong> any awarding body, including:
                             </p>
                             <ul className="list-disc pl-6 space-y-1">
                                 <li>AQA (Assessment and Qualifications Alliance)</li>
@@ -65,7 +65,7 @@ const DisclaimersPage = () => {
                                 <li>OCR (Oxford, Cambridge and RSA Examinations)</li>
                             </ul>
                             <p>
-                                All exam papers, mark schemes, specifications, and related materials are the <strong>property and copyright of their respective awarding bodies</strong>. GCSE is administered by these awarding organisations who own their respective examination materials.
+                                All exam papers, mark schemes, specifications, and related materials are the <strong>property and copyright of their respective awarding bodies</strong>. Sapienu is administered by these awarding organisations who own their respective examination materials.
                             </p>
                             <p>
                                 Where we reference or link to past papers, specimen materials, or official specifications, we do so for <strong>educational purposes only</strong> under fair dealing provisions. Availability and access to such materials may vary by awarding body and their respective policies.
@@ -86,7 +86,7 @@ const DisclaimersPage = () => {
                         </h2>
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
                             <p>
-                                Any content labelled as <strong>&#34;predicted&#34;</strong> (including &#34;Predicted 2026 Questions&#34; or similar) represents <strong>original practice materials</strong> created by GCSE based on:
+                                Any content labelled as <strong>&#34;predicted&#34;</strong> (including &#34;Predicted 2026 Questions&#34; or similar) represents <strong>original practice materials</strong> created by Sapienu based on:
                             </p>
                             <ul className="list-disc pl-6 space-y-1">
                                 <li>Publicly available syllabus information and specifications</li>
@@ -192,7 +192,7 @@ const DisclaimersPage = () => {
                         </h2>
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
                             <p>
-                                GCSE offers two main purchase options with different access terms:
+                                Sapienu offers two main purchase options with different access terms:
                             </p>
 
                             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-5 mt-4 border border-blue-200">
@@ -238,7 +238,7 @@ const DisclaimersPage = () => {
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
                             <h3 className="font-semibold text-slate-900 mt-4">Payment Processing</h3>
                             <p>
-                                All payments are processed securely through <strong>Stripe</strong>, a PCI-compliant payment processor. GCSE does not store your complete card details on our servers.
+                                All payments are processed securely through <strong>Stripe</strong>, a PCI-compliant payment processor. Sapienu does not store your complete card details on our servers.
                             </p>
                             <p className="text-sm text-slate-600">
                                 Supported payment methods include major credit cards, debit cards, and other payment options as provided by Stripe in your region.
@@ -329,12 +329,12 @@ const DisclaimersPage = () => {
                             Intellectual Property
                         </h2>
                         <div className="pl-11 space-y-3 text-slate-700 leading-relaxed">
-                            <h3 className="font-semibold text-slate-900">GCSE Content</h3>
+                            <h3 className="font-semibold text-slate-900">Sapienu Content</h3>
                             <p>
-                                All content created by GCSE, including but not limited to study materials, predicted questions, user interface design, logos, and platform features, is protected by copyright and other intellectual property laws.
+                                All content created by Sapienu, including but not limited to study materials, predicted questions, user interface design, logos, and platform features, is protected by copyright and other intellectual property laws.
                             </p>
                             <p>
-                                <strong>© {currentYear} GCSE. All rights reserved.</strong>
+                                <strong>© {currentYear} Sapienu. All rights reserved.</strong>
                             </p>
 
                             <h3 className="font-semibold text-slate-900 mt-6">Third-Party Trademarks</h3>
@@ -343,7 +343,7 @@ const DisclaimersPage = () => {
                             </p>
                             <ul className="list-disc pl-6 space-y-1 text-sm">
                                 <li>AQA, Pearson Edexcel, OCR, WJEC - owned by their respective awarding bodies</li>
-                                <li>GCSE - administered and trademarked by UK awarding organisations</li>
+                                <li>Sapienu - administered and trademarked by UK awarding organisations</li>
                                 <li>Stripe - owned by Stripe, Inc.</li>
                                 <li>Other mentioned brands, products, or services</li>
                             </ul>
@@ -356,7 +356,7 @@ const DisclaimersPage = () => {
                                 Users may <strong>not</strong>:
                             </p>
                             <ul className="list-disc pl-6 space-y-1">
-                                <li>Reproduce, distribute, or republish GCSE content without permission</li>
+                                <li>Reproduce, distribute, or republish Sapienu content without permission</li>
                                 <li>Use our materials for commercial purposes</li>
                                 <li>Remove or alter copyright notices</li>
                                 <li>Create derivative works based on our content</li>
@@ -417,7 +417,7 @@ const DisclaimersPage = () => {
             <footer className="bg-white border-t border-slate-200 mt-12">
                 <div className="max-w-4xl mx-auto px-6 py-6">
                     <p className="text-sm text-slate-600 text-center">
-                        © {2025} GCSE Independent GCSE revision platform not affiliated with AQA, Pearson Edexcel, or OCR .
+                        © {2025} Sapienu Independent Sapienu revision platform not affiliated with AQA, Pearson Edexcel, or OCR .
                     </p>
                 </div>
             </footer>

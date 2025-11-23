@@ -29,7 +29,7 @@ const CookiePolicyPage = () => {
                             Last updated: {effectiveDate}
                         </p>
                         <p className="text-slate-700 leading-relaxed">
-                            This Cookie Policy explains how GCSE (&#34;we&#34;, &#34;us&#34;, &#34;our&#34;) uses cookies and similar technologies on our website and services.
+                            This Cookie Policy explains how Sapienu (&#34;we&#34;, &#34;us&#34;, &#34;our&#34;) uses cookies and similar technologies on our website and services.
                         </p>
                     </div>
 
@@ -357,7 +357,7 @@ const CookiePolicyPage = () => {
                         {/* Cookie Banner */}
                         <div className="mb-6">
                             <h3 className="text-xl font-semibold text-slate-900 mb-3">In Our Cookie Banner</h3>
-                            <p className="text-slate-700 mb-3">When you first visit GCSE, you&#39;ll see a cookie banner where you can:</p>
+                            <p className="text-slate-700 mb-3">When you first visit Sapienu, you&#39;ll see a cookie banner where you can:</p>
                             <div className="grid md:grid-cols-3 gap-4">
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                                     <div className="flex items-center mb-2">
@@ -449,7 +449,7 @@ const CookiePolicyPage = () => {
 
                             <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mt-4">
                                 <p className="text-sm text-amber-900">
-                                    <strong>Warning:</strong> Blocking all cookies may prevent you from logging in or using key features of GCSE.
+                                    <strong>Warning:</strong> Blocking all cookies may prevent you from logging in or using key features of Sapienu.
                                 </p>
                             </div>
                         </div>
@@ -604,7 +604,7 @@ const CookiePolicyPage = () => {
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-5">
                             <div className="space-y-2 text-sm">
                                 <p className="text-slate-700">
-                                    <strong>Email:</strong> <a href="mailto:privacy@GCSE.com" className="text-blue-600 hover:underline font-semibold">privacy@GCSE.com</a>
+                                    <strong>Email:</strong> <a href="mailto:privacy@Sapienu.com" className="text-blue-600 hover:underline font-semibold">privacy@Sapienu.com</a>
                                 </p>
                                 <p className="text-slate-700">
                                     <strong>Privacy Policy:</strong> <Link href="/privacy" className="text-blue-600 hover:underline font-semibold">Read our full Privacy Policy</Link>
@@ -636,7 +636,7 @@ const CookiePolicyPage = () => {
             <footer className="bg-white border-t border-slate-200 mt-12">
                 <div className="max-w-4xl mx-auto px-6 py-6">
                     <p className="text-sm text-slate-600 text-center">
-                        © {currentYear} GCSE. Your privacy matters to us.
+                        © {currentYear} Sapienu. Your privacy matters to us.
                     </p>
                 </div>
             </footer>
