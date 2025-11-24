@@ -3,6 +3,10 @@ import Stripe from "stripe";
 import admin from "@/lib/firebaseAdmin";
 import { generateStudyPlanForUser } from "@/lib/services/studyPlanGenerator";
 
+// This is CRITICAL - tells Next.js not to parse the body
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-08-27.basil",
 });
@@ -37,11 +41,9 @@ const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
             return;
         }
 
-        // Get billing interval from subscription plan
         const interval = subscription.items.data[0]?.price?.recurring?.interval;
         const intervalCount = subscription.items.data[0]?.price?.recurring?.interval_count || 1;
 
-        // Calculate current period end manually
         const startDate = new Date(subscription.created * 1000);
         let endDate = new Date(startDate);
 
@@ -125,32 +127,43 @@ const handleStudyPackPurchaseFromPaymentLink = async (ref: any) => {
 
 export async function POST(req: Request) {
     try {
-        // Get the raw body as text - CRITICAL for Stripe signature verification
-        const body = await req.text();
-        const sig = req.headers.get("stripe-signature");
+        const rawBody = await req.text();
+        const signature = req.headers.get("stripe-signature");
 
-        if (!sig) {
-            console.error("❌ No stripe-signature header found");
+        if (!signature) {
+            console.error("❌ Missing stripe-signature header");
             return NextResponse.json(
-                { error: "No signature found" },
+                { error: "Missing stripe-signature header" },
                 { status: 400 }
             );
         }
 
+        console.log("🔍 Webhook Debug Info:", {
+            hasBody: !!rawBody,
+            bodyLength: rawBody.length,
+            hasSignature: !!signature,
+            signaturePreview: signature.substring(0, 20) + "...",
+            endpointSecretConfigured: !!endpointSecret,
+        });
+
         let event: Stripe.Event;
 
-        // Validate Signature
         try {
-            event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+            event = stripe.webhooks.constructEvent(
+                rawBody,
+                signature,
+                endpointSecret
+            );
         } catch (err: any) {
             console.error("❌ Webhook signature verification failed:", err.message);
+            console.error("Full error:", err);
             return NextResponse.json(
                 { error: `Webhook Error: ${err.message}` },
                 { status: 400 }
             );
         }
 
-        console.log(`📩 Stripe Event Received: ${event.type}`);
+        console.log(`✅ Webhook verified! Event type: ${event.type}`);
 
         switch (event.type) {
             case "customer.subscription.created":
@@ -219,7 +232,7 @@ export async function POST(req: Request) {
     } catch (err: any) {
         console.error("❌ Webhook processing error:", err);
         return NextResponse.json(
-            { error: "Webhook processing failed" },
+            { error: "Internal server error" },
             { status: 500 }
         );
     }
