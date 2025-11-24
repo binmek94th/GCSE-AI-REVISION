@@ -48,7 +48,7 @@ export async function POST(req: Request) {
                 },
             ],
             client_reference_id: clientReferenceId,
-            success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard?tab=studypack}`,
+            success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard?tab=studypack`,
             cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/purchase?canceled=true`,
             metadata: {
                 userId,
