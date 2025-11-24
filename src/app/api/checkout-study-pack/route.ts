@@ -48,8 +48,8 @@ export async function POST(req: Request) {
                 },
             ],
             client_reference_id: clientReferenceId,
-            success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard?pack_purchased=true&subject=${encodeURIComponent(subject || 'Unknown')}`,
-            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/subjects?canceled=true`,
+            success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard?tab=studypack}`,
+            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/purchase?canceled=true`,
             metadata: {
                 userId,
                 packId,
