@@ -3,12 +3,6 @@ import Stripe from "stripe";
 import admin from "@/lib/firebaseAdmin";
 import { generateStudyPlanForUser } from "@/lib/services/studyPlanGenerator";
 
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
-
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-08-27.basil",
 });
@@ -74,17 +68,17 @@ const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
 
         await admin.firestore().collection("users").doc(uid).collection("subscriptions")
             .doc(subscription.id).set({
-            subscriptionId: subscription.id,
-            subscriptionStatus: subscription.status,
-            currentPeriodEnd: currentPeriodEnd,
-            currentPeriodStart: currentPeriodStart,
-            priceId: subscription.items.data[0]?.price?.id ?? null,
-            planInterval: interval,
-            planAmount: subscription.items.data[0]?.price?.unit_amount ?? null,
-            currency: subscription.currency,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+                subscriptionId: subscription.id,
+                subscriptionStatus: subscription.status,
+                currentPeriodEnd: currentPeriodEnd,
+                currentPeriodStart: currentPeriodStart,
+                priceId: subscription.items.data[0]?.price?.id ?? null,
+                planInterval: interval,
+                planAmount: subscription.items.data[0]?.price?.unit_amount ?? null,
+                currency: subscription.currency,
+                cancelAtPeriodEnd: subscription.cancel_at_period_end,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
 
         console.log(`✅ Subscription updated for user ${uid} - Status: ${subscription.status}, End: ${endDate.toISOString()}`);
     } catch (err) {
@@ -130,109 +124,103 @@ const handleStudyPackPurchaseFromPaymentLink = async (ref: any) => {
 };
 
 export async function POST(req: Request) {
-    const body = await req.text();
-    const sig = req.headers.get("stripe-signature")!;
-
-    let event: Stripe.Event;
-
-    /** Validate Signature */
     try {
-        event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-    } catch (err: any) {
-        console.error("❌ Webhook signature verification failed:", err.message);
-        return NextResponse.json(
-            { error: `Webhook Error: ${err.message}` },
-            { status: 400 }
-        );
-    }
+        // Get the raw body as text - CRITICAL for Stripe signature verification
+        const body = await req.text();
+        const sig = req.headers.get("stripe-signature");
 
-    console.log(`📩 Stripe Event Received: ${event.type}`);
-
-    // ----------------------------------------------------------
-    // 🔵 PROCESS EVENTS
-    // ----------------------------------------------------------
-    switch (event.type) {
-        // -------------------
-        // Subscription events
-        // -------------------
-        case "customer.subscription.created":
-        case "customer.subscription.updated":
-        case "customer.subscription.deleted":
-            await handleSubscriptionUpdate(
-                event.data.object as Stripe.Subscription
+        if (!sig) {
+            console.error("❌ No stripe-signature header found");
+            return NextResponse.json(
+                { error: "No signature found" },
+                { status: 400 }
             );
-            break;
-
-        // -------------------
-        // Invoice events
-        // -------------------
-        case "invoice.payment_succeeded":
-            console.log("💚 Invoice successfully paid");
-            break;
-
-        case "invoice.payment_failed":
-            console.log("💔 Invoice payment failed");
-            break;
-
-        // -------------------
-        // Checkout completed
-        // Works for PAYMENT LINKS
-        // -------------------
-        case "checkout.session.completed": {
-            const session = event.data.object as Stripe.Checkout.Session;
-
-            console.log("🔍 Checkout Session:", {
-                mode: session.mode,
-                customer: session.customer,
-                client_reference_id: session.client_reference_id,
-            });
-
-            // Decode your custom payload
-            const ref = decodeClientReferenceId(session.client_reference_id || "");
-
-            if (ref) {
-                console.log("🟦 Decoded client_reference_id:", ref);
-            }
-
-            // ------------------
-            // Subscription (via Payment Link)
-            // ------------------
-            if (session.mode === "subscription") {
-                // Attach firebaseUID to Stripe customer (important!)
-                if (ref?.userId && session.customer) {
-                    await stripe.customers.update(session.customer as string, {
-                        metadata: { firebaseUID: ref.userId },
-                    });
-                    console.log(`✅ Attached firebaseUID to customer ${session.customer}`);
-                }
-
-                const subscription = await stripe.subscriptions.retrieve(
-                    session.subscription as string
-                );
-
-                await handleSubscriptionUpdate(subscription);
-            }
-
-            // ------------------
-            // One-time study pack
-            // ------------------
-            if (session.mode === "payment") {
-                await handleStudyPackPurchaseFromPaymentLink(ref);
-            }
-
-            break;
         }
 
-        // -------------------
-        // Optional fallback
-        // -------------------
-        case "payment_intent.succeeded":
-            console.log("💰 PaymentIntent succeeded");
-            break;
+        let event: Stripe.Event;
 
-        default:
-            console.log(`ℹ Unhandled Stripe event: ${event.type}`);
+        // Validate Signature
+        try {
+            event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+        } catch (err: any) {
+            console.error("❌ Webhook signature verification failed:", err.message);
+            return NextResponse.json(
+                { error: `Webhook Error: ${err.message}` },
+                { status: 400 }
+            );
+        }
+
+        console.log(`📩 Stripe Event Received: ${event.type}`);
+
+        switch (event.type) {
+            case "customer.subscription.created":
+            case "customer.subscription.updated":
+            case "customer.subscription.deleted":
+                await handleSubscriptionUpdate(
+                    event.data.object as Stripe.Subscription
+                );
+                break;
+
+            case "invoice.payment_succeeded":
+                console.log("💚 Invoice successfully paid");
+                break;
+
+            case "invoice.payment_failed":
+                console.log("💔 Invoice payment failed");
+                break;
+
+            case "checkout.session.completed": {
+                const session = event.data.object as Stripe.Checkout.Session;
+
+                console.log("🔍 Checkout Session:", {
+                    mode: session.mode,
+                    customer: session.customer,
+                    client_reference_id: session.client_reference_id,
+                });
+
+                const ref = decodeClientReferenceId(session.client_reference_id || "");
+
+                if (ref) {
+                    console.log("🟦 Decoded client_reference_id:", ref);
+                }
+
+                if (session.mode === "subscription") {
+                    if (ref?.userId && session.customer) {
+                        await stripe.customers.update(session.customer as string, {
+                            metadata: { firebaseUID: ref.userId },
+                        });
+                        console.log(`✅ Attached firebaseUID to customer ${session.customer}`);
+                    }
+
+                    if (session.subscription) {
+                        const subscription = await stripe.subscriptions.retrieve(
+                            session.subscription as string
+                        );
+                        await handleSubscriptionUpdate(subscription);
+                    }
+                }
+
+                if (session.mode === "payment") {
+                    await handleStudyPackPurchaseFromPaymentLink(ref);
+                }
+
+                break;
+            }
+
+            case "payment_intent.succeeded":
+                console.log("💰 PaymentIntent succeeded");
+                break;
+
+            default:
+                console.log(`ℹ Unhandled Stripe event: ${event.type}`);
+        }
+
+        return NextResponse.json({ received: true });
+    } catch (err: any) {
+        console.error("❌ Webhook processing error:", err);
+        return NextResponse.json(
+            { error: "Webhook processing failed" },
+            { status: 500 }
+        );
     }
-
-    return NextResponse.json({ received: true });
 }
