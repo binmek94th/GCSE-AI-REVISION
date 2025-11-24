@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {Suspense, useEffect, useState} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function CancelledPurchasePageEnhanced() {
+function CancelledPurchasePageEnhanced() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [countdown, setCountdown] = useState(10);
@@ -169,7 +169,7 @@ export default function CancelledPurchasePageEnhanced() {
                             />
                         </svg>
                         <p className="text-sm text-green-800 text-left">
-                            Your account is secure and no charges were made. Feel free to try again when you're ready!
+                            Your account is secure and no charges were made. Feel free to try again when you&#39;re ready!
                         </p>
                     </div>
                 </div>
@@ -239,5 +239,14 @@ export default function CancelledPurchasePageEnhanced() {
                 }
             `}</style>
         </div>
+    );
+}
+
+
+export default function Page() {
+    return (
+        <Suspense fallback={null}>
+            <CancelledPurchasePageEnhanced />
+        </Suspense>
     );
 }
