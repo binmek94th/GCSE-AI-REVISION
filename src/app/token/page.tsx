@@ -20,7 +20,6 @@ function BuyTokenComponent() {
     const [purchasing, setPurchasing] = useState(false);
     const [billingCycle, setBillingCycle] = useState<'month' | 'year'>('month');
     const searchParams = useSearchParams();
-    const redirectTo = searchParams.get("redirectTo");
 
     useEffect(() => {
         const fetchPackage = async () => {
@@ -56,10 +55,8 @@ function BuyTokenComponent() {
         setPurchasing(true);
 
         try {
-            // Get ID token for authentication
             const idToken = await user.getIdToken();
 
-            // Create checkout session via API
             const response = await fetch("/api/create-checkout-session", {
                 method: "POST",
                 headers: {
@@ -69,7 +66,7 @@ function BuyTokenComponent() {
                 body: JSON.stringify({
                     userId: user.uid,
                     billing: billingCycle,
-                    redirectTo: redirectTo || null,
+                    redirectTo: "/dashboard?tab=tutor",
                 }),
             });
 

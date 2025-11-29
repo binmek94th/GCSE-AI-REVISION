@@ -35,7 +35,6 @@ export async function POST(req: Request) {
         };
         const clientReferenceId = Buffer.from(JSON.stringify(payload)).toString("base64");
 
-        // Create checkout session
         const session = await stripe.checkout.sessions.create({
             mode: "subscription",
             payment_method_types: ["card"],
@@ -46,7 +45,7 @@ export async function POST(req: Request) {
                 },
             ],
             client_reference_id: clientReferenceId,
-            success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${redirectTo || "/dashboard"}?session_id={CHECKOUT_SESSION_ID}`,
+            success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${redirectTo || "/dashboard"}`,
             cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/buy-token?canceled=true`,
             metadata: {
                 userId,
