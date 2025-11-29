@@ -15,12 +15,11 @@ import {
     Users
 } from 'lucide-react';
 import {SubjectCard} from "@/app/components/SubjectCard";
+import {useRouter} from "next/navigation";
 
-interface HomePageProps {
-    onNavigate?: (page: string) => void;
-}
+function HomePage() {
+    const router = useRouter();
 
-function HomePage({ onNavigate }: HomePageProps) {
     const subjects = [
         { subject: 'Maths', description: 'Master algebra, calculus, and problem-solving with AI-predicted questions' },
         { subject: 'English Literature', description: 'Ace your essays with model answers and exam technique' },
@@ -35,6 +34,10 @@ function HomePage({ onNavigate }: HomePageProps) {
         { subject: 'Spanish', description: 'Comprehensive language learning with cultural context' },
         { subject: 'Computer Science', description: 'Programming, algorithms, and computational thinking' }
     ];
+
+    const onNavigate = (url: string) => {
+        router.push(url);
+    }
 
     return (
         <div className="min-h-screen bg-white">
@@ -62,7 +65,7 @@ function HomePage({ onNavigate }: HomePageProps) {
                             <Button
                                 size="lg"
                                 onClick={() => onNavigate?.('/onboarding')}
-                                className="bg-primary hover:bg-primary-dark text-white text-lg px-10 py-4 h-auto rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                                className="bg-primary hover:cursor-pointer hover:bg-primary-dark text-white text-lg px-10 py-4 h-auto rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                             >
                                 Start Free Planner
                                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -70,7 +73,7 @@ function HomePage({ onNavigate }: HomePageProps) {
                             <Button
                                 variant="ghost"
                                 onClick={() => onNavigate?.('/subjects')}
-                                className="text-lg px-6 py-4 h-auto text-text-muted hover:text-primary"
+                                className="text-lg hover:cursor-pointer px-6 py-4 h-auto text-text-muted hover:text-primary"
                             >
                                 Browse Subjects →
                             </Button>
@@ -297,7 +300,7 @@ function HomePage({ onNavigate }: HomePageProps) {
                         <Button
                             size="lg"
                             onClick={() => onNavigate?.('/onboarding')}
-                            className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white text-lg px-8 py-4 h-auto rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+                            className="w-full hover:cursor-pointer bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white text-lg px-8 py-4 h-auto rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
                         >
                             Create My Free Revision Plan
                             <ArrowRight className="w-5 h-5 ml-2" />
@@ -342,7 +345,7 @@ function HomePage({ onNavigate }: HomePageProps) {
                         <Button
                             size="lg"
                             onClick={() => onNavigate?.('/subjects')}
-                            className="bg-gradient-to-r from-accent-success to-primary hover:from-primary hover:to-accent-success text-white px-8 py-4 h-auto rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                            className="bg-gradient-to-r hover:cursor-pointer from-accent-success to-primary hover:from-primary hover:to-accent-success text-white px-8 py-4 h-auto rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                         >
                             Explore All {subjects.length} Subjects
                             <ArrowRight className="w-5 h-5 ml-2" />
@@ -366,7 +369,7 @@ function HomePage({ onNavigate }: HomePageProps) {
                         </p>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-8">
+                    <div className="grid md:grid-cols-2 gap-8">
                         {/* Free Plan */}
                         <Card className="border-border bg-white p-8 rounded-2xl">
                             <div className="text-center mb-8">
@@ -395,7 +398,7 @@ function HomePage({ onNavigate }: HomePageProps) {
                             <Button
                                 variant="outline"
                                 onClick={() => onNavigate?.('/onboarding')}
-                                className="w-full py-3 rounded-xl"
+                                className="w-full py-3 rounded-xl hover:cursor-pointer"
                             >
                                 Get Started Free
                             </Button>
@@ -403,9 +406,9 @@ function HomePage({ onNavigate }: HomePageProps) {
 
                         {/* Subject Pack - Most Popular */}
                         <Card className="border-primary border-2 bg-white p-8 rounded-2xl relative shadow-xl scale-105">
-                            <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-primary to-accent-success text-white px-4 py-1">
-                                Most Popular
-                            </Badge>
+                            {/*<Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-primary to-accent-success text-white px-4 py-1">*/}
+                            {/*    Most Popular*/}
+                            {/*</Badge>*/}
 
                             <div className="text-center mb-8">
                                 <h3 className="text-2xl font-bold text-text-main mb-2">Subject Pack</h3>
@@ -436,49 +439,49 @@ function HomePage({ onNavigate }: HomePageProps) {
 
                             <Button
                                 onClick={() => onNavigate?.('/subjects')}
-                                className="w-full bg-gradient-to-r from-primary to-accent-success hover:from-primary-dark hover:to-primary py-3 rounded-xl"
+                                className="w-full hover:cursor-pointer bg-gradient-to-r from-primary to-accent-success hover:from-primary-dark hover:to-primary py-3 rounded-xl"
                             >
                                 Choose Subject
                             </Button>
                         </Card>
 
-                        {/* Season Pass */}
-                        <Card className="border-border bg-white p-8 rounded-2xl">
-                            <div className="text-center mb-8">
-                                <h3 className="text-2xl font-bold text-text-main mb-2">Season Pass</h3>
-                                <div className="flex items-baseline justify-center gap-1 mb-4">
-                                    <span className="text-5xl font-bold text-text-main">£79</span>
-                                </div>
-                                <p className="text-text-muted">All subjects + premium features</p>
-                            </div>
+                        {/*/!* Season Pass *!/*/}
+                        {/*<Card className="border-border bg-white p-8 rounded-2xl">*/}
+                        {/*    <div className="text-center mb-8">*/}
+                        {/*        <h3 className="text-2xl font-bold text-text-main mb-2">Season Pass</h3>*/}
+                        {/*        <div className="flex items-baseline justify-center gap-1 mb-4">*/}
+                        {/*            <span className="text-5xl font-bold text-text-main">£79</span>*/}
+                        {/*        </div>*/}
+                        {/*        <p className="text-text-muted">All subjects + premium features</p>*/}
+                        {/*    </div>*/}
 
-                            <ul className="space-y-4 mb-8">
-                                <li className="flex items-start gap-3">
-                                    <CheckCircle className="w-5 h-5 text-accent-success mt-0.5 shrink-0" />
-                                    <span className="text-text-muted">Access to all 12+ subjects</span>
-                                </li>
-                                <li className="flex items-start gap-3">
-                                    <CheckCircle className="w-5 h-5 text-accent-success mt-0.5 shrink-0" />
-                                    <span className="text-text-muted">Unlimited AI tutor usage</span>
-                                </li>
-                                <li className="flex items-start gap-3">
-                                    <CheckCircle className="w-5 h-5 text-accent-success mt-0.5 shrink-0" />
-                                    <span className="text-text-muted">Priority support</span>
-                                </li>
-                                <li className="flex items-start gap-3">
-                                    <CheckCircle className="w-5 h-5 text-accent-success mt-0.5 shrink-0" />
-                                    <span className="text-text-muted">Family sharing (up to 3 students)</span>
-                                </li>
-                            </ul>
+                        {/*    <ul className="space-y-4 mb-8">*/}
+                        {/*        <li className="flex items-start gap-3">*/}
+                        {/*            <CheckCircle className="w-5 h-5 text-accent-success mt-0.5 shrink-0" />*/}
+                        {/*            <span className="text-text-muted">Access to all 12+ subjects</span>*/}
+                        {/*        </li>*/}
+                        {/*        <li className="flex items-start gap-3">*/}
+                        {/*            <CheckCircle className="w-5 h-5 text-accent-success mt-0.5 shrink-0" />*/}
+                        {/*            <span className="text-text-muted">Unlimited AI tutor usage</span>*/}
+                        {/*        </li>*/}
+                        {/*        <li className="flex items-start gap-3">*/}
+                        {/*            <CheckCircle className="w-5 h-5 text-accent-success mt-0.5 shrink-0" />*/}
+                        {/*            <span className="text-text-muted">Priority support</span>*/}
+                        {/*        </li>*/}
+                        {/*        <li className="flex items-start gap-3">*/}
+                        {/*            <CheckCircle className="w-5 h-5 text-accent-success mt-0.5 shrink-0" />*/}
+                        {/*            <span className="text-text-muted">Family sharing (up to 3 students)</span>*/}
+                        {/*        </li>*/}
+                        {/*    </ul>*/}
 
-                            <Button
-                                variant="outline"
-                                onClick={() => onNavigate?.('/pricing')}
-                                className="w-full py-3 rounded-xl border-primary text-primary hover:bg-primary hover:text-white"
-                            >
-                                Learn More
-                            </Button>
-                        </Card>
+                        {/*    <Button*/}
+                        {/*        variant="outline"*/}
+                        {/*        onClick={() => onNavigate?.('/pricing')}*/}
+                        {/*        className="w-full py-3 hover:cursor-pointer rounded-xl border-primary text-primary hover:bg-primary hover:text-white"*/}
+                        {/*    >*/}
+                        {/*        Learn More*/}
+                        {/*    </Button>*/}
+                        {/*</Card>*/}
                     </div>
 
                     <div className="text-center mt-16">

@@ -101,7 +101,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                             </Button>
                         </div> :
                             <div className={"flex gap-3"}>
-                                <Button onClick={() => handleNavigate("/dashboard")} variant={"default"}>
+                                <Button className={"hover:cursor-pointer"} onClick={() => handleNavigate("/dashboard")} variant={"default"}>
                                     Dashboard
                                 </Button>
                                 <Button
