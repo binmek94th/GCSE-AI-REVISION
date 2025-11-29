@@ -37,7 +37,6 @@ export async function POST(req: Request) {
         };
         const clientReferenceId = Buffer.from(JSON.stringify(payload)).toString("base64");
 
-        // Create checkout session
         const session = await stripe.checkout.sessions.create({
             mode: "payment", // One-time payment
             payment_method_types: ["card"],
