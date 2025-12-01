@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { auth } from '@/lib/firebase';
 import { Search, UserPlus, UserCheck, UserX, Clock, Loader2 } from 'lucide-react';
-import { Button } from '@/app/components/button';
-import { Input } from '@/app/components/input';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
 import {toast} from "sonner";
 
 interface User {

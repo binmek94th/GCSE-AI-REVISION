@@ -7,7 +7,7 @@ import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, CheckCircle } from 'lucide-react';
 import {ScrollArea} from "@radix-ui/react-scroll-area";
-import { Button } from "@/app/components/button";
+import { Button } from "@/app/components/ui/button";
 import {useDashboard} from "@/contexts/DashboardContext";
 
 interface Break {

@@ -12,7 +12,7 @@ import {
     SelectLabel,
     SelectTrigger,
     SelectValue
-} from "../components/select";
+} from "../components/ui/select";
 import {useRouter} from "next/navigation";
 import {auth, db} from "@/lib/firebase";
 import {doc, setDoc} from "@firebase/firestore";

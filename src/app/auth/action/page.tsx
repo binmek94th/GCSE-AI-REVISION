@@ -7,8 +7,8 @@ import {
     confirmPasswordReset,
     verifyPasswordResetCode,
 } from 'firebase/auth';
-import { Input } from '@/app/components/input';
-import { Button } from '@/app/components/button';
+import { Input } from '@/app/components/ui/input';
+import { Button } from '@/app/components/ui/button';
 import {auth} from "@/lib/firebase";
 
 function AuthActionInner() {

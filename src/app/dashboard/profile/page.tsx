@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Mail, Calendar, Package, Clock, Award, TrendingUp } from "lucide-react";
 import { auth } from "@/lib/firebase";
-import Spinner from "@/app/components/Spinner";
+import Spinner from "@/app/components/ui/Spinner";
 import {useRouter} from "next/navigation";
 import SubscriptionPage from "@/app/dashboard/subscription/page";
 

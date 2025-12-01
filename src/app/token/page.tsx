@@ -2,7 +2,7 @@
 import {Suspense, useEffect, useState} from 'react';
 import {collection, getDocs, limit, query} from "firebase/firestore";
 import {db} from '@/lib/firebase';
-import Spinner from "@/app/components/Spinner";
+import Spinner from "@/app/components/ui/Spinner";
 import {useSearchParams} from "next/navigation";
 import {getAuth} from "firebase/auth";
 import {toast} from "sonner";

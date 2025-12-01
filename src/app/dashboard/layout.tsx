@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { DashboardProvider } from '@/contexts/DashboardContext';
-import Spinner from "@/app/components/Spinner";
+import Spinner from "@/app/components/ui/Spinner";
 
 export default function DashboardLayout({
                                             children,

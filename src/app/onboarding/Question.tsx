@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react';
 import { SubjectSelection } from '@/app/onboarding/Schema';
-import { Skeleton } from "@/app/components/skeleton";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import {StudyPlanLoading} from "@/app/onboarding/StudyPlanLoading";
 
 interface Props {

@@ -1,4 +1,4 @@
-import { Badge } from '@/app/components/badge';
+import { Badge } from '@/app/components/ui/badge';
 import { Crown, Loader2 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 

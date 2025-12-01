@@ -6,7 +6,7 @@ import { useState } from 'react';
 import {QuizResultSuggestion, QuizSuggestionRecommendation} from "@/app/onboarding/Schema";
 import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
 import {useRouter} from "next/navigation";
-import {Button} from "@/app/components/button";
+import {Button} from "@/app/components/ui/button";
 
 interface Props {
     data: QuizResultSuggestion;

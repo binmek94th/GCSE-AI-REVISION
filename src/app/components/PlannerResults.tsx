@@ -1,7 +1,7 @@
-import { Button } from './button';
-import { Card, CardContent, CardHeader, CardTitle } from './card';
-import { Badge } from './badge';
-import { Progress } from './progress';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
 import {
     TrendingUp,
     Calendar,

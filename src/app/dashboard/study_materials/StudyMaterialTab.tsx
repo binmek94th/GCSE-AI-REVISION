@@ -5,6 +5,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {auth} from "@/lib/firebase";
 import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
 import {useDashboard} from "@/contexts/DashboardContext";
+import ContextualAiChat from "@/app/components/ContextualAiChat";
 
 interface Material {
     id: string;
@@ -277,6 +278,15 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
                     )}
                 </div>
             </div>
+            {selectedMaterial && (
+                <ContextualAiChat
+                    materialId={selectedMaterial.id}
+                    materialTitle={selectedMaterial.title}
+                    subject={selectedMaterial.subject}
+                    packId={packId}
+                    contentSelector=".study-content"
+                />
+            )}
         </div>
     );
 }

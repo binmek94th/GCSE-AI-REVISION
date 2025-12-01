@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { sendEmailVerification, onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { Button } from '@/app/components/button';
+import { Button } from '@/app/components/ui/button';
 import {toast} from "sonner";
 
 export default function VerifyEmailPage() {

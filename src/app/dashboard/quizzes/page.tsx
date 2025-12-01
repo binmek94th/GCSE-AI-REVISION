@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/card";
-import { Button } from "@/app/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
 import { Brain, Play, Loader2, RefreshCw } from 'lucide-react';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";

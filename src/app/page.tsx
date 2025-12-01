@@ -1,8 +1,8 @@
 'use client'
 
-import { Button } from './components/button';
-import { Card} from './components/card';
-import { Badge } from './components/badge';
+import { Button } from './components/ui/button';
+import { Card} from './components/ui/card';
+import { Badge } from './components/ui/badge';
 import {
     Star,
     CheckCircle,

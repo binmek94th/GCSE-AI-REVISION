@@ -1,12 +1,12 @@
 'use client'
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/card";
-import { Button } from "@/app/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
 import { BookOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {useRouter} from "next/navigation";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
 import {auth} from "@/lib/firebase";
-import Spinner from "@/app/components/Spinner";
+import Spinner from "@/app/components/ui/Spinner";
 import {loadStripe} from "@stripe/stripe-js";
 import StudyMaterialTab from "@/app/dashboard/study_materials/StudyMaterialTab";
 

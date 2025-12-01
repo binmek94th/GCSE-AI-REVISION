@@ -1,7 +1,7 @@
 'use client'
 
 import {Suspense, useEffect, useState} from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import {Calendar, Package, Brain, MessageCircle, Trophy, LogOut, User, ChevronDown} from 'lucide-react';
 import { PlanTab } from "@/app/dashboard/plan/page";
 import { StudyPackTab } from "@/app/dashboard/studyPack/page";
@@ -11,12 +11,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ProgressData } from "@/hooks/useProgress";
 import {onAuthStateChanged, signOut} from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import Spinner from "@/app/components/Spinner";
+import Spinner from "@/app/components/ui/Spinner";
 import { useMoodChecker } from "@/hooks/useMoodChecker";
 import { MoodChecker } from "@/app/dashboard/MoodChecker";
 import { useDashboard } from "@/contexts/DashboardContext";
 import UserBadges from "@/app/dashboard/challenges/UserBadges";
-import {Button} from "@/app/components/button";
+import {Button} from "@/app/components/ui/button";
 import FriendsPage from "@/app/dashboard/friends/page";
 import ProfilePage from "@/app/dashboard/profile/page";
 

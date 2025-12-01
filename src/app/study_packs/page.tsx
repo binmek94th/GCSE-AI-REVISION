@@ -1,9 +1,9 @@
 'use client'
 import { Search } from 'lucide-react';
-import {Input} from "@/app/components/input";
-import { Badge } from "../components/badge";
+import {Input} from "@/app/components/ui/input";
+import { Badge } from "../components/ui/badge";
 import {SubjectCard} from "@/app/components/SubjectCard";
-import { Button } from "../components/button";
+import { Button } from "../components/ui/button";
 import {useState} from "react";
 import { getAuth } from "firebase/auth";
 import {useRouter} from "next/navigation";

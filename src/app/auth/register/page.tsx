@@ -7,8 +7,8 @@ import {createUserWithEmailAndPassword, sendEmailVerification, signOut} from 'fi
 import {auth, db} from '@/lib/firebase';
 import {useState, useEffect, useRef} from 'react';
 import { useRouter } from 'next/navigation';
-import {Input} from "@/app/components/input";
-import {Button} from "@/app/components/button";
+import {Input} from "@/app/components/ui/input";
+import {Button} from "@/app/components/ui/button";
 import {doc, setDoc} from "@firebase/firestore";
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 

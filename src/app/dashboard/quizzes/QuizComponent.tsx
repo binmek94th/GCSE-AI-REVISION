@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/card";
-import { Button } from "@/app/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
 import { CheckCircle, XCircle, ChevronRight, Trophy, RotateCcw } from 'lucide-react';
 import {useDashboard} from "@/contexts/DashboardContext";
 

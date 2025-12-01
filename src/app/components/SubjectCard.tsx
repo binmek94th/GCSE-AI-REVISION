@@ -1,6 +1,6 @@
-import { Card, CardContent } from './card';
-import { Button } from './button';
-import { Badge } from './badge';
+import { Card, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import { Calculator, BookOpen, Microscope, Globe, Languages, Code, Clock, Trophy, Loader2 } from 'lucide-react';
 
 interface SubjectCardProps {

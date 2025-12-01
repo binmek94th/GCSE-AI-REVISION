@@ -9,7 +9,7 @@ import {
     SelectLabel,
     SelectTrigger,
     SelectValue
-} from "@/app/components/select";
+} from "@/app/components/ui/select";
 
 export default function SubjectExamDisplay() {
     // ------------------------------------------------------------

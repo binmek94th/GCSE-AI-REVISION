@@ -7,8 +7,8 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import {auth, db} from '@/lib/firebase';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {Button} from "@/app/components/button";
-import {Input} from "@/app/components/input";
+import {Button} from "@/app/components/ui/button";
+import {Input} from "@/app/components/ui/input";
 import {doc, getDoc} from "@firebase/firestore";
 
 const loginSchema = z.object({

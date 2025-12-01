@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { auth } from '@/lib/firebase';
 import { UserPlus, UserCheck, UserX, Loader2 } from 'lucide-react';
-import { Button } from '@/app/components/button';
+import { Button } from '@/app/components/ui/button';
 import {toast} from "sonner";
 
 interface FriendRequest {

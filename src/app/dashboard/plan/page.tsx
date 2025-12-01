@@ -1,9 +1,9 @@
 'use client'
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/card";
-import { Button } from "@/app/components/button";
-import { Progress } from "@/app/components/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Progress } from "@/app/components/ui/progress";
 import { Target, Award } from 'lucide-react';
-import { Badge } from "@/app/components/badge";
+import { Badge } from "@/app/components/ui/badge";
 import StudyPlan from "@/app/dashboard/plan/StudyPlan";
 import {useRouter} from "next/navigation";
 

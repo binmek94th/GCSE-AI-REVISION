@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/card';
-import { Button } from '@/app/components/button';
-import { Badge } from '@/app/components/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import { Badge } from '@/app/components/ui/badge';
 import {
     useSubscription,
     formatCurrency,
@@ -23,7 +23,7 @@ import {
     Loader2
 } from 'lucide-react';
 import { auth } from '@/lib/firebase';
-import Spinner from '@/app/components/Spinner';
+import Spinner from '@/app/components/ui/Spinner';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
