@@ -91,15 +91,112 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        adjustedPlan.sessions = adjustedPlan.sessions?.map((session: any) => ({
-            ...session,
-            material: materialDocs[session.materialId] || null,
-        }));
+        // ---- Collect All Question IDs from Materials ----
+        const allQuestionIds: string[] = [];
+        const questionToMaterialMap: Record<string, { materialId: string; subject: string; materialTitle: string }> = {};
 
+        for (const session of adjustedPlan.sessions || []) {
+            const material = materialDocs[session.materialId];
+            if (material && Array.isArray(material.questions)) {
+                for (const q of material.questions) {
+                    if (q.id) {
+                        allQuestionIds.push(q.id);
+                        questionToMaterialMap[q.id] = {
+                            materialId: material.id,
+                            subject: material.subject || session.subject,
+                            materialTitle: material.title || session.materialTitle,
+                        };
+                    }
+                }
+            }
+        }
+
+        // ---- Fetch Full Question Details from Firestore ----
+        const fullQuestions: any[] = [];
+        const questionsBySubject: Record<string, any[]> = {};
+
+        if (allQuestionIds.length > 0) {
+            // Fetch questions in batches (Firestore 'in' query supports up to 10 items)
+            const batchSize = 10;
+            const questionBatches: string[][] = [];
+
+            for (let i = 0; i < allQuestionIds.length; i += batchSize) {
+                questionBatches.push(allQuestionIds.slice(i, i + batchSize));
+            }
+
+            for (const batch of questionBatches) {
+                const questionsSnapshot = await db
+                    .collection("questions")
+                    .where(admin.firestore.FieldPath.documentId(), "in", batch)
+                    .get();
+
+                questionsSnapshot.docs.forEach((qDoc) => {
+                    const qData = qDoc.data();
+                    const metadata = questionToMaterialMap[qDoc.id];
+
+                    const questionData = {
+                        id: qDoc.id,
+                        question: qData.question,
+                        options: qData.options,
+                        correctAnswer: qData.correctAnswer,
+                        explanation: qData.explanation || null,
+                        subject: metadata?.subject || qData.subject,
+                        materialId: metadata?.materialId,
+                        materialTitle: metadata?.materialTitle,
+                        difficulty: qData.difficulty || "Elementary",
+                        createdAt: qData.createdAt?.toDate?.().toISOString?.() || qData.createdAt,
+                    };
+
+                    // Group by subject
+                    const subject = questionData.subject;
+                    if (!questionsBySubject[subject]) {
+                        questionsBySubject[subject] = [];
+                    }
+                    questionsBySubject[subject].push(questionData);
+                });
+            }
+
+            // Limit to 10 questions per subject
+            for (const subject in questionsBySubject) {
+                const subjectQuestions = questionsBySubject[subject].slice(0, 10);
+                fullQuestions.push(...subjectQuestions);
+            }
+        }
+
+        // ---- Update Sessions with Material (without questions) ----
+        adjustedPlan.sessions = adjustedPlan.sessions?.map((session: any) => {
+            const material = materialDocs[session.materialId];
+            if (material) {
+                // Remove questions array from material to avoid duplication
+                const { questions, ...materialWithoutQuestions } = material;
+                return {
+                    ...session,
+                    material: materialWithoutQuestions,
+                };
+            }
+            return {
+                ...session,
+                material: null,
+            };
+        });
+
+        // ---- Build Final Response ----
         const studyPlan = {
             id: doc.id,
             ...data,
             plan: adjustedPlan,
+            assessment: {
+                totalQuestions: fullQuestions.length,
+                questions: fullQuestions,
+                bySubject: fullQuestions.reduce((acc: any, q: any) => {
+                    const subject = q.subject || "Unknown";
+                    if (!acc[subject]) {
+                        acc[subject] = [];
+                    }
+                    acc[subject].push(q.id);
+                    return acc;
+                }, {}),
+            },
             createdAt: data.createdAt?.toDate?.().toISOString?.() || data.createdAt,
             date:
                 typeof data.date === "string"

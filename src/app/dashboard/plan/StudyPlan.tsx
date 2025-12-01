@@ -5,15 +5,35 @@ import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, CheckCircle } from 'lucide-react';
+import { X, CheckCircle, ClipboardCheck } from 'lucide-react';
 import {ScrollArea} from "@radix-ui/react-scroll-area";
 import { Button } from "@/app/components/ui/button";
 import {useDashboard} from "@/contexts/DashboardContext";
+import {QuizComponent} from "@/app/dashboard/quizzes/QuizComponent";
+import {toast} from "sonner";
 
 interface Break {
     after: string;
     duration: string;
     type: string;
+}
+
+interface Question {
+    id: string;
+    question: string;
+    options: Record<string, string> | string[];
+    correctAnswer: string;
+    explanation?: string;
+    subject: string;
+    materialId: string;
+    materialTitle: string;
+    difficulty: string;
+}
+
+interface Assessment {
+    totalQuestions: number;
+    questions: Question[];
+    bySubject: Record<string, string[]>;
 }
 
 interface Session {
@@ -52,6 +72,7 @@ interface StudyPlan {
     createdAt: string;
     date: string;
     plan: Plan;
+    assessment: Assessment;
     preferences: Preferences;
     status: string;
 }
@@ -62,6 +83,7 @@ export default function StudyPlan() {
     const [error, setError] = useState<string | null>(null);
     const [authChecked, setAuthChecked] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState<any>()
+    const [showAssessment, setShowAssessment] = useState(false);
     const { incrementStreak } = useDashboard();
 
     useEffect(() => {
@@ -136,7 +158,6 @@ export default function StudyPlan() {
         if (!selectedMaterial.id || !auth.currentUser) return
         try {
             const idToken = await auth.currentUser.getIdToken();
-            setLoading(true);
 
             // Mark the study material as done
             await fetch("/api/study_materials", {
@@ -186,14 +207,24 @@ export default function StudyPlan() {
 
             setSelectedMaterial(null);
             incrementStreak();
+            toast.success("Marked material as done!");
 
         } catch (error) {
             console.error("Error marking material done:", error);
+            toast.error("Failed to mark material as done. Please try again.");
         }
         finally {
-            setLoading(false);
         }
     }
+
+    const handleAssessmentComplete = (score: number, correctCount: number, totalCount: number) => {
+        // You can add additional logic here if needed
+        console.log('Assessment completed:', { score, correctCount, totalCount });
+    };
+
+    const handleAssessmentExit = () => {
+        setShowAssessment(false);
+    };
 
     if (!studyPlan) {
         return (
@@ -207,6 +238,38 @@ export default function StudyPlan() {
         );
     }
 
+    // Check if all sessions are completed
+    const allSessionsCompleted = studyPlan.plan.sessions.every(session => session.completed === true);
+    const hasAssessment = studyPlan.assessment && studyPlan.assessment.questions.length > 0;
+
+    // Show Assessment Quiz if triggered
+    if (showAssessment && hasAssessment) {
+        return (
+            <div className="min-h-screen bg-gray-50 py-8 px-4">
+                <div className="max-w-4xl mx-auto">
+                    <div className="mb-6">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowAssessment(false)}
+                            className="mb-4"
+                        >
+                            ← Back to Study Plan
+                        </Button>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Daily Assessment Quiz</h1>
+                        <p className="text-gray-600">
+                            Test your knowledge with {studyPlan.assessment.totalQuestions} questions from today&#39;s study materials
+                        </p>
+                    </div>
+                    <QuizComponent
+                        questions={studyPlan.assessment.questions}
+                        packId="daily-assessment"
+                        onComplete={handleAssessmentComplete}
+                        onExit={handleAssessmentExit}
+                    />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 py-4 px-4">
@@ -224,8 +287,8 @@ export default function StudyPlan() {
                         const isCompleted = session.completed === true;
 
                         return (
-                            <div key={index} onClick={() => setSelectedMaterial(session.material)}>
-                                <div className={`bg-white hover:cursor-pointer rounded-lg shadow-md p-6 relative ${isCompleted ? 'opacity-75 border-2 border-green-500' : ''}`}>
+                            <div key={index}>
+                                <div onClick={() => setSelectedMaterial(session.material)} className={`bg-white hover:cursor-pointer rounded-lg shadow-md p-6 relative ${isCompleted ? 'opacity-75 border-2 border-green-500' : ''}`}>
                                     {/* Completed Badge */}
                                     {isCompleted && (
                                         <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
@@ -289,17 +352,62 @@ export default function StudyPlan() {
 
                                 </div>
 
-                                <div className="flex items-center justify-center my-4">
-                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
-                                        <p className="text-sm font-semibold text-yellow-800">
-                                            ☕ Break (30 mins)
-                                        </p>
-
+                                {index < studyPlan.plan.sessions.length - 1 && (
+                                    <div className="flex items-center justify-center my-4">
+                                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
+                                            <p className="text-sm font-semibold text-yellow-800">
+                                                ☕ Break (30 mins)
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         );
                     })}
+
+                    {/* Assessment Quiz Button - Show at the end */}
+                    {allSessionsCompleted && hasAssessment && (
+                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow-lg p-8 text-center border-2 border-purple-200 mt-8">
+                            <div className="max-w-2xl mx-auto">
+                                <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
+                                    <ClipboardCheck className="w-8 h-8 text-purple-600" />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                                    Ready for Your Assessment?
+                                </h3>
+                                <p className="text-gray-600 mb-6">
+                                    You&#39;ve completed all study sessions! Test your knowledge with {studyPlan.assessment.totalQuestions} questions covering all today&#39;s materials.
+                                </p>
+                                <div className="flex flex-wrap gap-2 justify-center mb-6">
+                                    {Object.entries(studyPlan.assessment.bySubject).map(([subject, questionIds]) => (
+                                        <span
+                                            key={subject}
+                                            className="px-3 py-1 bg-white border border-purple-200 rounded-full text-sm font-medium text-purple-700"
+                                        >
+                                            {subject}: {questionIds.length} questions
+                                        </span>
+                                    ))}
+                                </div>
+                                <Button
+                                    onClick={() => setShowAssessment(true)}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-6 text-lg font-semibold"
+                                    size="lg"
+                                >
+                                    <ClipboardCheck className="w-5 h-5 mr-2" />
+                                    Start Assessment Quiz
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Encouragement message if not all sessions are completed */}
+                    {!allSessionsCompleted && hasAssessment && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center mt-8">
+                            <p className="text-blue-800">
+                                <strong>💡 Tip:</strong> Complete all study sessions to unlock the daily assessment quiz with {studyPlan.assessment.totalQuestions} questions!
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
             <Dialog.Root open={!!selectedMaterial} onOpenChange={(open) => !open && setSelectedMaterial(null)}>
@@ -325,7 +433,7 @@ export default function StudyPlan() {
                             {selectedMaterial?.content ? (
                                 <div>
                                     <MarkdownContent content={selectedMaterial.content} />
-                                    <div onClick={handleMarkAsDone} className={"flex justify-end"}>
+                                    <div onClick={handleMarkAsDone} className={"flex justify-end mt-6"}>
                                         <Button>Mark as Finished</Button>
                                     </div>
                                 </div>
