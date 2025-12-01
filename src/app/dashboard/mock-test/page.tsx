@@ -77,8 +77,6 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
     const [availablePacks, setAvailablePacks] = useState<StudyPack[]>(initialPacks || []);
     const router = useRouter();
 
-    console.log(initialPacks)
-
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
         return () => unsubscribe();

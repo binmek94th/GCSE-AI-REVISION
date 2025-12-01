@@ -289,18 +289,14 @@ export default function StudyPlan() {
 
                                 </div>
 
-                                {studyPlan.plan.breaks[index] && (
-                                    <div className="flex items-center justify-center my-4">
-                                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
-                                            <p className="text-sm font-semibold text-yellow-800">
-                                                ☕ Break ({studyPlan.plan.breaks[index].duration})
-                                            </p>
-                                            <p className="text-xs text-yellow-600">
-                                                After {studyPlan.plan.breaks[index].after}
-                                            </p>
-                                        </div>
+                                <div className="flex items-center justify-center my-4">
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
+                                        <p className="text-sm font-semibold text-yellow-800">
+                                            ☕ Break (30 mins)
+                                        </p>
+
                                     </div>
-                                )}
+                                </div>
                             </div>
                         );
                     })}
