@@ -8,6 +8,15 @@ import { auth } from "@/lib/firebase";
 import { QuizComponent } from './QuizComponent';
 import {formatDate} from "@/lib/formatDate";
 import {useRouter} from "next/navigation";
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue
+} from "@/app/components/ui/select";
 
 interface Quiz {
     packId: string;
@@ -240,32 +249,41 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
 
                     {/* Pack Selection Dropdown */}
                     <div className="space-y-2">
-                        <label htmlFor="pack-select" className="text-sm font-medium text-gray-700">
+                        <label className="text-sm font-medium text-gray-700">
                             Select Study Pack
                         </label>
-                        <select
-                            id="pack-select"
+
+                        <Select
                             value={selectedPackId}
-                            onChange={(e) => setSelectedPackId(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            onValueChange={setSelectedPackId}
                             disabled={loading || availablePacks.length === 0}
                         >
-                            <option value="">Choose a pack...</option>
-                            {availablePacks?.map((pack) => {
-                                const formattedName = pack.id
-                                    .replace(/_/g, " ")
-                                    .split(" ")
-                                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                                    .join(" ");
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Choose a pack..." />
+                            </SelectTrigger>
 
-                                return (
-                                    <option key={pack.id} value={pack.id}>
-                                        {formattedName}
-                                    </option>
-                                );
-                            })}
-                        </select>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectLabel>Study Packs</SelectLabel>
+
+                                    {availablePacks?.map((pack) => {
+                                        const formattedName = pack.id
+                                            .replace(/_/g, " ")
+                                            .split(" ")
+                                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                                            .join(" ");
+
+                                        return (
+                                            <SelectItem key={pack.id} value={pack.id}>
+                                                {formattedName}
+                                            </SelectItem>
+                                        );
+                                    })}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     </div>
+
 
                     {error && (
                         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">

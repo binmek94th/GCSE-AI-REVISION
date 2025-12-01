@@ -14,8 +14,6 @@ async function getQuestionsByPack(
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
             .join(" ");
     }
-    console.log(formatPackId(packId));
-
     let formatedPackId = formatPackId(packId);
 
     if (formatedPackId === "Art And Design")

@@ -2,7 +2,7 @@
 
 import {Suspense, useEffect, useState} from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
-import {Calendar, Package, Brain, MessageCircle, Trophy, LogOut, User, ChevronDown} from 'lucide-react';
+import {Calendar, Package, Brain, TestTube, MessageCircle, Trophy, LogOut, User, ChevronDown} from 'lucide-react';
 import { PlanTab } from "@/app/dashboard/plan/page";
 import { StudyPackTab } from "@/app/dashboard/studyPack/page";
 import { QuizzesTab } from "@/app/dashboard/quizzes/page";
@@ -19,6 +19,7 @@ import UserBadges from "@/app/dashboard/challenges/UserBadges";
 import {Button} from "@/app/components/ui/button";
 import FriendsPage from "@/app/dashboard/friends/page";
 import ProfilePage from "@/app/dashboard/profile/page";
+import MockTests from "@/app/dashboard/mock-test/page";
 
 
 function Dashboard() {
@@ -40,11 +41,10 @@ function Dashboard() {
                 router.push("/auth/login");
                 return;
             }
-            // TODO: uncomment this before deployment
-            // if (!currentUser.emailVerified){
-            //     router.push("/verify-email");
-            //     return;
-            // }
+            if (!currentUser.emailVerified){
+                router.push("/verify-email");
+                return;
+            }
 
             const token = await currentUser.getIdToken();
             setIdToken(token);
@@ -129,7 +129,7 @@ function Dashboard() {
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl text-gray-900 mb-2">Welcome back, Alex! 👋</h1>
+                        <h1 className="text-3xl text-gray-900 mb-2">Welcome back! 👋</h1>
                         <p className="text-gray-600">Ready to ace your GCSEs? Let&#39;s continue your journey.</p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -220,6 +220,12 @@ function Dashboard() {
                                 <Brain className="w-4 h-4" /> Quizzes
                             </TabsTrigger>
                             <TabsTrigger
+                                value="mocktests"
+                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+                            >
+                                <TestTube className="w-4 h-4" /> Mock Tests
+                            </TabsTrigger>
+                            <TabsTrigger
                                 value="tutor"
                                 className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                             >
@@ -254,6 +260,12 @@ function Dashboard() {
                         <TabsContent value="tutor">
                             <div className={'w-[80%] mx-auto'}>
                                 <StudentAIChat />
+                            </div>
+                        </TabsContent>
+                        
+                        <TabsContent value={"mocktests"}>
+                            <div className={'w-[100%] mx-auto'}>
+                                <MockTests initialPacks={dashboardData?.studyPacks} studyPack={dashboardData.studyPacks.length}></MockTests>
                             </div>
                         </TabsContent>
 
