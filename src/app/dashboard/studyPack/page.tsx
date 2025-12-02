@@ -25,7 +25,6 @@ interface Subject {
 
 
 export function StudyPackTab() {
-    const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -156,7 +155,6 @@ export function StudyPackTab() {
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between"><span>Study Notes</span><span>{subject.chapters}</span></div>
                             <div className="flex justify-between"><span>Practice Questions</span><span>{subject.practiceQuestions}</span></div>
-                            <div className="flex justify-between"><span>Video Lessons</span><span>{subject.videoLessons}</span></div>
                             <div className="flex justify-between"><span>Past Papers</span><span>{subject.pastPapers}</span></div>
                         </div>
                         {subject.bought ? (
