@@ -198,17 +198,17 @@ function HomePage() {
                                     </div>
                                 </div>
 
-                                <div className="flex gap-4">
-                                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                                        <Users className="w-6 h-6 text-primary" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-text-main mb-2">Parent progress tracking</h3>
-                                        <p className="text-text-muted">
-                                            Keep parents informed with detailed progress reports and upcoming revision schedules.
-                                        </p>
-                                    </div>
-                                </div>
+                                {/*<div className="flex gap-4">*/}
+                                {/*    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">*/}
+                                {/*        <Users className="w-6 h-6 text-primary" />*/}
+                                {/*    </div>*/}
+                                {/*    <div>*/}
+                                {/*        <h3 className="text-xl font-bold text-text-main mb-2">Parent progress tracking</h3>*/}
+                                {/*        <p className="text-text-muted">*/}
+                                {/*            Keep parents informed with detailed progress reports and upcoming revision schedules.*/}
+                                {/*        </p>*/}
+                                {/*    </div>*/}
+                                {/*</div>*/}
                             </div>
                         </div>
 
