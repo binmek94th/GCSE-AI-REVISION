@@ -17,6 +17,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/app/components/ui/select";
+import {RetryIncorrectButton} from "@/app/dashboard/incorrect-question/page";
 
 interface Quiz {
     packId: string;
@@ -56,6 +57,10 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
     const [quizQuestions, setQuizQuestions] = useState<Question[] | null>(null);
     const [isQuizActive, setIsQuizActive] = useState(false);
     const router = useRouter();
+
+    // Retry quiz state
+    const [isRetryQuizActive, setIsRetryQuizActive] = useState(false);
+    const [retryQuizQuestions, setRetryQuizQuestions] = useState<Question[] | null>(null);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
@@ -214,7 +219,22 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         fetchRecentQuizzes();
     };
 
-    // Show quiz if active
+    const handleRetryQuizStart = (questions: Question[]) => {
+        setRetryQuizQuestions(questions);
+        setIsRetryQuizActive(true);
+    };
+
+    const handleRetryQuizExit = () => {
+        setIsRetryQuizActive(false);
+        setRetryQuizQuestions(null);
+        fetchRecentQuizzes();
+    };
+
+    const handleRetryQuizComplete = () => {
+        fetchRecentQuizzes();
+    };
+
+    // Show full-width quiz when either regular quiz or retry quiz is active
     if (isQuizActive && quizQuestions) {
         return (
             <QuizComponent
@@ -225,6 +245,18 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
             />
         );
     }
+
+    if (isRetryQuizActive && retryQuizQuestions) {
+        return (
+            <QuizComponent
+                questions={retryQuizQuestions}
+                packId={selectedPackId}
+                onComplete={handleRetryQuizComplete}
+                onExit={handleRetryQuizExit}
+            />
+        );
+    }
+
     const formatName = (id: string) => {
         return id
             .replace(/_/g, " ")
@@ -284,7 +316,6 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                         </Select>
                     </div>
 
-
                     {error && (
                         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-sm text-red-600">{error}</p>
@@ -308,6 +339,13 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                             </>
                         )}
                     </Button>
+
+                    {/* Retry Incorrect Questions Button */}
+                    <RetryIncorrectButton
+                        packId={selectedPackId}
+                        onQuizComplete={handleRetryQuizComplete}
+                        onQuizStart={handleRetryQuizStart}
+                    />
                 </CardContent>
             </Card>
 
