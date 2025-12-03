@@ -144,7 +144,6 @@ export default function StudyPlan() {
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                     <Spinner size={"lg"}></Spinner>
-                    <p className="text-lg text-gray-600">Loading your study plan...</p>
                 </div>
             </div>
         );

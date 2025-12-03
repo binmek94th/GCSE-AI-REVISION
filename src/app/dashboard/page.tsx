@@ -265,7 +265,7 @@ function Dashboard() {
                         
                         <TabsContent value={"mocktests"}>
                             <div className={'w-[100%] mx-auto'}>
-                                <MockTests initialPacks={dashboardData?.studyPacks} studyPack={dashboardData.studyPacks.length}></MockTests>
+                                <MockTests initialPacks={dashboardData?.studyPacks} studyPack={dashboardData?.studyPacks.length}></MockTests>
                             </div>
                         </TabsContent>
 

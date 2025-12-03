@@ -38,8 +38,8 @@ export function Navigation({ currentPage }: NavigationProps) {
 
     const handleLogout = async () => {
         try {
-            await signOut(auth);
             setUser(null);
+            await signOut(auth);
             router.push("/");
         } catch (error) {
             console.error("Logout failed:", error);
