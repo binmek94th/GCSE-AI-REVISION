@@ -12,7 +12,11 @@ import {
     ArrowRight,
     Shield,
     Infinity,
-    Users
+    Smile,
+    Calendar,
+    GraduationCap,
+    Target,
+    Gamepad2
 } from 'lucide-react';
 import {SubjectCard} from "@/app/components/SubjectCard";
 import {useRouter} from "next/navigation";
@@ -54,7 +58,7 @@ function HomePage() {
 
                         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-text-main mb-8 leading-tight tracking-tight">
                             Your GCSE Success,
-                            <span className="bg-gradient-to-r from-primary to-accent-success bg-clip-text text-transparent"> Tailored by AI</span>
+                            <span className="bg-gradient-to-r from-primary to-accent-success bg-clip-text text-transparent"> Tailored by AI  ,</span>
                         </h1>
 
                         <p className="text-xl sm:text-2xl text-text-muted mb-12 leading-relaxed max-w-3xl mx-auto">
@@ -93,6 +97,58 @@ function HomePage() {
                     </div>
                 </div>
             </section>
+            <section className="py-20 bg-white border-y border-border">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-20">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 md:gap-8">
+                        <div className="text-center group relative">
+                            <div className="w-14 h-14 bg-gradient-to-br from-primary/10 to-accent-success/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                                <Smile className="w-7 h-7 text-primary" />
+                            </div>
+                            <p className="text-text-main font-medium mb-2">Adapts to your mood</p>
+                            <p className="text-sm text-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 max-w-[200px] mx-auto">
+                                Good day? Do more. Stressful day? We&#39;ll consolidate your learning instead.
+                            </p>
+                        </div>
+                        <div className="text-center group relative">
+                            <div className="w-14 h-14 bg-gradient-to-br from-primary/10 to-accent-success/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                                <Calendar className="w-7 h-7 text-primary" />
+                            </div>
+                            <p className="text-text-main font-medium mb-2">Plans like a coach</p>
+                            <p className="text-sm text-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 max-w-[200px] mx-auto">
+                                Creates personalized schedules that prioritize your weak areas and optimize study time.
+                            </p>
+                        </div>
+                        <div className="text-center group relative">
+                            <div className="w-14 h-14 bg-gradient-to-br from-primary/10 to-accent-success/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                                <GraduationCap className="w-7 h-7 text-primary" />
+                            </div>
+                            <p className="text-text-main font-medium mb-2">Teaches like a tutor</p>
+                            <p className="text-sm text-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 max-w-[200px] mx-auto">
+                                Explains concepts in different ways until you understand, adapting to your learning style.
+                            </p>
+                        </div>
+                        <div className="text-center group relative">
+                            <div className="w-14 h-14 bg-gradient-to-br from-primary/10 to-accent-success/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                                <Target className="w-7 h-7 text-primary" />
+                            </div>
+                            <p className="text-text-main font-medium mb-2">Tests like an exam board</p>
+                            <p className="text-sm text-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 max-w-[200px] mx-auto">
+                                Real past papers plus AI-predicted questions based on curriculum patterns.
+                            </p>
+                        </div>
+                        <div className="text-center group relative col-span-2 md:col-span-3 lg:col-span-1">
+                            <div className="w-14 h-14 bg-gradient-to-br from-primary/10 to-accent-success/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
+                                <Gamepad2 className="w-7 h-7 text-primary" />
+                            </div>
+                            <p className="text-text-main font-medium mb-2">Engages like a game</p>
+                            <p className="text-sm text-text-muted opacity-0 group-hover:opacity-100 transition-opacity duration-200 max-w-[200px] mx-auto">
+                                Rewards your progress and streaks, making revision fun and motivating.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
 
             {/* How It Works */}
             <section className="py-24 bg-bg-subtle">
