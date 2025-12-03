@@ -35,6 +35,8 @@ export async function POST(req: Request) {
         };
         const clientReferenceId = Buffer.from(JSON.stringify(payload)).toString("base64");
 
+        console.log(redirectTo)
+
         const session = await stripe.checkout.sessions.create({
             mode: "subscription",
             payment_method_types: ["card"],
@@ -46,7 +48,7 @@ export async function POST(req: Request) {
             ],
             client_reference_id: clientReferenceId,
             success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${redirectTo || "/dashboard"}`,
-            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/buy-token?canceled=true`,
+            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/token?canceled=true`,
             metadata: {
                 userId,
                 billing,

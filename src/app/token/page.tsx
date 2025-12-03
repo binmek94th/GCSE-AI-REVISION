@@ -42,6 +42,7 @@ function BuyTokenComponent() {
 
         fetchPackage();
     }, []);
+    console.log(searchParams.get("redirectTo"));
 
     const handlePurchase = async () => {
         const auth = getAuth();
@@ -66,7 +67,7 @@ function BuyTokenComponent() {
                 body: JSON.stringify({
                     userId: user.uid,
                     billing: billingCycle,
-                    redirectTo: "/dashboard?tab=tutor",
+                    redirectTo: searchParams.get("redirectTo"),
                 }),
             });
 

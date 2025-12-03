@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Send, MessageCircle, Sparkles } from 'lucide-react';
 import { auth } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
+import {usePathname, useRouter, useSearchParams} from "next/navigation";
 
 interface RawMessage {
     role: "user" | "assistant";
@@ -49,6 +49,8 @@ export default function ContextualAiChat({
     const [disabled, setDisabled] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
+    const pathname = usePathname()
+    const searchParams = useSearchParams();
 
     // Subject color mapping
     const subjectColors: { [key: string]: string } = {
@@ -209,8 +211,16 @@ Please answer the student's question specifically about this study material. Ref
                             timestamp: new Date()
                         },
                     ]);
+                    const params = new URLSearchParams(searchParams.toString());
 
-                    setTimeout(() => router.push("/token?redirectTo=/dashboard?tab=tutor"), 3000);
+                    params.delete("materialId");
+
+                    const currentUrl = pathname + (searchParams?.toString() ? `?${params.toString()}` : "");
+
+                    setTimeout(() => {
+                        router.push(`/token?redirectTo=${encodeURIComponent(currentUrl)}`);
+                    }, 3000);
+
                     return;
                 }
                 throw new Error(data.error || "Failed to get response");

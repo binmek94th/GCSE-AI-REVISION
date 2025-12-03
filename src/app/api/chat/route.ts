@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         const subColRef = db.collection("users").doc(uid).collection("subscriptions");
 
         let subscriptionQuery = subColRef
-            .where("status", "==", "active")
+            .where("subscriptionStatus", "==", "active")
             .limit(1);
 
         let subscriptionSnapshot = await subscriptionQuery.get();
@@ -46,6 +46,16 @@ export async function POST(req: Request) {
             : subscriptionSnapshot.docs[0].data();
 
         const hasActiveSubscription = subscription?.status === "active";
+
+        return NextResponse.json(
+            {
+                allowed: false,
+                message: "You've reached your free limit. Subscribe to continue using AI Tutor! 🎓",
+                tokensRemaining: 0,
+                requiresSubscription: true
+            },
+            { status: 403 }
+        );
 
         if (!hasActiveSubscription) {
             if (tokens <= 0) {

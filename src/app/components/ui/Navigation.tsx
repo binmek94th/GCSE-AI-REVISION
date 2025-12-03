@@ -34,7 +34,6 @@ export function Navigation({ currentPage }: NavigationProps) {
     const handleNavigate = (href: string) => {
         setIsOpen(false);
         router.push(href);
-
     };
 
     const handleLogout = async () => {
@@ -57,7 +56,6 @@ export function Navigation({ currentPage }: NavigationProps) {
         <nav className="top-0 z-[40] bg-white/90 backdrop-blur-md border-b pointer-events-auto relative">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-20">
                 <div className="flex items-center justify-between h-20">
-                    {/* Logo */}
                     <button
                         onClick={() => handleNavigate('/')}
                         className="flex items-center gap-3 hover:opacity-80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary rounded-xl p-2 -ml-2"

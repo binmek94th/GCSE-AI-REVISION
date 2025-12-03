@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/ca
 import { Button } from "@/app/components/ui/button";
 import { BookOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import {useRouter} from "next/navigation";
+import {useRouter, useSearchParams} from "next/navigation";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
 import {auth} from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
@@ -32,6 +32,17 @@ export function StudyPackTab() {
     const [modalOpen, setModalOpen] = useState(false)
     const [processingPayment, setProcessingPayment] = useState(false);
     const [packId, setPackId] = useState<string | null>()
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const packId = searchParams.get("packId");
+        if (packId && subjects) {
+            const subject =subjects.find(s => s.id === packId);
+            if (subject) {
+                setPackId(subject.id);
+            }
+        }
+    }, [searchParams, subjects]);
 
     useEffect(() => {
         setLoading(true);
@@ -137,9 +148,22 @@ export function StudyPackTab() {
         }
     };
 
+    const selectPack = (packId: any) => {
+        setPackId(packId);
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("packId", packId);
+
+        router.push(`?${params.toString()}`);
+    };
+
+    const unSelectPack = () => {
+        setPackId(null);
+    }
+
 
     if (packId) {
-        return <StudyMaterialTab setPackId={setPackId} packId={packId} />;
+        return <StudyMaterialTab unSelectPack={unSelectPack} packId={packId} />;
     }
 
     return (
@@ -160,7 +184,7 @@ export function StudyPackTab() {
                         {subject.bought ? (
                             <Button
                                 onClick={() => {
-                                    setPackId(subject.id);
+                                    selectPack(subject.id);
 
                                 }}
                                 className={`w-full flex items-center justify-center hover:cursor-pointer

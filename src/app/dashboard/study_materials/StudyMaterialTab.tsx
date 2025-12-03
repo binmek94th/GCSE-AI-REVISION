@@ -6,6 +6,7 @@ import {auth} from "@/lib/firebase";
 import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
 import {useDashboard} from "@/contexts/DashboardContext";
 import ContextualAiChat from "@/app/components/ContextualAiChat";
+import {useRouter, useSearchParams} from "next/navigation";
 
 interface Material {
     id: string;
@@ -17,10 +18,10 @@ interface Material {
 
 interface Props {
     packId: string;
-    setPackId: (id: string | null) => void;
+    unSelectPack: () => void;
 }
 
-export default function StudyMaterialTab({ packId, setPackId }: Props) {
+export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
     const [materials, setMaterials] = useState<Material[]>([]);
     const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
     const [loading, setLoading] = useState(true);
@@ -28,7 +29,18 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const { incrementStreak } = useDashboard();
+    const searchParams = useSearchParams();
+    const router = useRouter();
 
+    useEffect(() => {
+        const materialId = searchParams.get("materialId");
+        if (materialId && materials) {
+            const material = materials.find(s => s.id === materialId);
+            if (material) {
+                setSelectedMaterial(material);
+            }
+        }
+    }, [searchParams, materials]);
 
     useEffect(() => {
         const fetchMaterials = async () => {
@@ -74,6 +86,16 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
         fetchMaterials();
     }, [page, packId]);
 
+
+    const selectMaterial = (material: any) => {
+        setSelectedMaterial(material);
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("materialId", material.id);
+
+        router.push(`?${params.toString()}`);
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -115,9 +137,9 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
             )
         );
 
-
         if (currentIndex !== -1 && currentIndex + 1 < materials.length) {
             setSelectedMaterial(materials[currentIndex + 1]);
+            selectMaterial(materials[currentIndex + 1]);
         }
 
         try {
@@ -136,6 +158,14 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
         incrementStreak()
     };
 
+    const unSelectMaterial = () => {
+        setSelectedMaterial(null);
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("materialId");
+        router.push(`?${params.toString()}`);
+    }
+
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -148,7 +178,15 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
                         </div>
                         <button
                             className="cursor-pointer text-white flex items-center gap-2 px-3 py-1 rounded-lg hover:bg-indigo-700 hover:shadow-md transition-all duration-200"
-                            onClick={() => setPackId(null)}
+                            onClick={() => {
+                                const params = new URLSearchParams(searchParams.toString());
+                                params.delete("materialId");
+                                params.delete("packId");
+                                router.push(`?${params.toString()}`);
+
+                                setSelectedMaterial(null);
+                                unSelectPack();
+                            }}
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Back
@@ -165,7 +203,7 @@ export default function StudyMaterialTab({ packId, setPackId }: Props) {
                             {materials.map((material) => (
                                 <button
                                     key={material.id}
-                                    onClick={() => setSelectedMaterial(material)}
+                                    onClick={() => selectMaterial(material)}
                                     className={`w-full text-left p-4 rounded-lg transition-all duration-200 flex items-start gap-3 ${
                                         selectedMaterial?.id === material.id
                                             ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md"

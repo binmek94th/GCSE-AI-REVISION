@@ -12,11 +12,10 @@ function CancelledPurchasePageEnhanced() {
     const canceled = searchParams.get("canceled");
 
     useEffect(() => {
-        // Trigger entrance animation
         setIsVisible(true);
 
         if (!canceled) {
-            router.push("/dashboard?tab=studypack");
+            router.push("/dashboard");
             return;
         }
 
@@ -44,7 +43,6 @@ function CancelledPurchasePageEnhanced() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-            {/* Animated background shapes */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
                 <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
@@ -56,7 +54,6 @@ function CancelledPurchasePageEnhanced() {
                     isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
                 }`}
             >
-                {/* Animated Icon */}
                 <div className="mb-6 relative">
                     <div className="mx-auto w-20 h-20 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-full flex items-center justify-center animate-pulse-slow">
                         <svg

@@ -45,7 +45,7 @@ const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
         const intervalCount = subscription.items.data[0]?.price?.recurring?.interval_count || 1;
 
         const startDate = new Date(subscription.created * 1000);
-        let endDate = new Date(startDate);
+        const endDate = new Date(startDate);
 
         if (interval === "month") {
             endDate.setMonth(endDate.getMonth() + intervalCount);
@@ -59,14 +59,6 @@ const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
 
         const currentPeriodEnd = admin.firestore.Timestamp.fromDate(endDate);
         const currentPeriodStart = admin.firestore.Timestamp.fromDate(startDate);
-
-        console.log("📋 Subscription details:", {
-            id: subscription.id,
-            status: subscription.status,
-            interval: `${intervalCount} ${interval}(s)`,
-            startDate: startDate.toISOString(),
-            calculatedEndDate: endDate.toISOString(),
-        });
 
         await admin.firestore().collection("users").doc(uid).collection("subscriptions")
             .doc(subscription.id).set({
@@ -82,7 +74,6 @@ const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
 
-        console.log(`✅ Subscription updated for user ${uid} - Status: ${subscription.status}, End: ${endDate.toISOString()}`);
     } catch (err) {
         console.error("❌ Failed to update subscription:", err);
     }

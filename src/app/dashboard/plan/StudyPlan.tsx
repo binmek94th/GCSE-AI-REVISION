@@ -12,6 +12,8 @@ import {useDashboard} from "@/contexts/DashboardContext";
 import {QuizComponent} from "@/app/dashboard/quizzes/QuizComponent";
 import {toast} from "sonner";
 import ContextualAiChat from "@/app/components/ContextualAiChat";
+import {useRouter, useSearchParams} from "next/navigation";
+import Spinner from "@/app/components/ui/Spinner";
 
 interface Break {
     after: string;
@@ -86,6 +88,18 @@ export default function StudyPlan() {
     const [selectedMaterial, setSelectedMaterial] = useState<any>()
     const [showAssessment, setShowAssessment] = useState(false);
     const { incrementStreak } = useDashboard();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
+    useEffect(() => {
+        const materialId = searchParams.get("materialId");
+        if (materialId && studyPlan) {
+            const session = studyPlan.plan.sessions.find(s => s.material?.id === materialId);
+            if (session) {
+                setSelectedMaterial(session.material);
+            }
+        }
+    }, [searchParams, studyPlan]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -129,7 +143,7 @@ export default function StudyPlan() {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                    <Spinner size={"lg"}></Spinner>
                     <p className="text-lg text-gray-600">Loading your study plan...</p>
                 </div>
             </div>
@@ -272,6 +286,24 @@ export default function StudyPlan() {
         );
     }
 
+    const selectMaterial = (material: any) => {
+        setSelectedMaterial(material);
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("materialId", material.id);
+
+        router.push(`?${params.toString()}`);
+    };
+
+    const unSelectMaterial = () => {
+        setSelectedMaterial(null);
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("materialId");
+        router.push(`?${params.toString()}`);
+    }
+
+
     return (
         <div className="min-h-screen bg-gray-50 py-4 px-4">
             <div className="max-w-5xl mx-auto">
@@ -289,7 +321,7 @@ export default function StudyPlan() {
 
                         return (
                             <div key={index}>
-                                <div onClick={() => setSelectedMaterial(session.material)} className={`bg-white hover:cursor-pointer rounded-lg shadow-md p-6 relative ${isCompleted ? 'opacity-75 border-2 border-green-500' : ''}`}>
+                                <div onClick={() => selectMaterial(session.material)} className={`bg-white hover:cursor-pointer rounded-lg shadow-md p-6 relative ${isCompleted ? 'opacity-75 border-2 border-green-500' : ''}`}>
                                     {/* Completed Badge */}
                                     {isCompleted && (
                                         <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
@@ -411,7 +443,7 @@ export default function StudyPlan() {
                     )}
                 </div>
             </div>
-            <Dialog.Root open={!!selectedMaterial} onOpenChange={(open) => !open && setSelectedMaterial(null)}>
+            <Dialog.Root open={!!selectedMaterial} onOpenChange={unSelectMaterial}>
                 <Dialog.Portal>
                     {/* Overlay */}
                     <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm data-[state=open]:animate-fadeIn" />
