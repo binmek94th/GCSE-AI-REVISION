@@ -144,6 +144,7 @@ export default function StudyPlan() {
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="text-center">
                     <Spinner size={"lg"}></Spinner>
+                    <p className="text-lg text-gray-600">Loading your study plan...</p>
                 </div>
             </div>
         );
@@ -315,87 +316,152 @@ export default function StudyPlan() {
                 </div>
 
                 <div className="space-y-6">
-                    {studyPlan.plan.sessions.map((session, index) => {
-                        const isCompleted = session.completed === true;
+                    {(() => {
+                        // Group sessions by subject
+                        const groupedSessions = studyPlan.plan.sessions.reduce((acc: Record<string, Session[]>, session) => {
+                            if (!acc[session.subject]) {
+                                acc[session.subject] = [];
+                            }
+                            acc[session.subject].push(session);
+                            return acc;
+                        }, {});
 
-                        return (
-                            <div key={index}>
-                                <div onClick={() => selectMaterial(session.material)} className={`bg-white hover:cursor-pointer rounded-lg shadow-md p-6 relative ${isCompleted ? 'opacity-75 border-2 border-green-500' : ''}`}>
-                                    {/* Completed Badge */}
-                                    {isCompleted && (
-                                        <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
-                                            <CheckCircle className="w-4 h-4" />
-                                            Completed
+                        // Convert duration string to minutes
+                        const parseDuration = (duration: string): number => {
+                            const match = duration.match(/(\d+)/);
+                            return match ? parseInt(match[1]) : 0;
+                        };
+
+                        // Create an array of grouped sessions with cumulative time
+                        const sessionGroups: Array<{ subject: string; sessions: Session[]; cumulativeTime: number }> = [];
+                        let cumulativeMinutes = 0;
+
+                        Object.entries(groupedSessions).forEach(([subject, sessions]) => {
+                            const groupDuration = sessions.reduce((sum, session) => sum + parseDuration(session.duration), 0);
+                            cumulativeMinutes += groupDuration;
+                            sessionGroups.push({
+                                subject,
+                                sessions,
+                                cumulativeTime: cumulativeMinutes
+                            });
+                        });
+
+                        return sessionGroups.map((group, groupIndex) => {
+                            const allCompleted = group.sessions.every(s => s.completed === true);
+                            const totalDuration = group.sessions.reduce((sum, s) => sum + parseDuration(s.duration), 0);
+
+                            // Determine if we need a break after this group (every 45 minutes)
+                            const needsBreak = groupIndex < sessionGroups.length - 1 &&
+                                Math.floor(group.cumulativeTime / 45) > Math.floor((group.cumulativeTime - totalDuration) / 45);
+
+                            return (
+                                <div key={group.subject}>
+                                    <div className={`bg-white rounded-lg shadow-md p-6 relative ${allCompleted ? 'opacity-75 border-2 border-green-500' : ''}`}>
+                                        {/* Completed Badge */}
+                                        {allCompleted && (
+                                            <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
+                                                <CheckCircle className="w-4 h-4" />
+                                                Completed
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h3 className={`text-xl font-bold ${allCompleted ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                                                    {group.subject}
+                                                </h3>
+                                                <p className={`text-sm ${allCompleted ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                    {group.sessions.length} material{group.sessions.length > 1 ? 's' : ''}
+                                                </p>
+                                            </div>
+                                            <span className={`px-3 py-1 ${allCompleted ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-800'} rounded-full text-sm font-semibold`}>
+                                                {totalDuration} mins
+                                            </span>
+                                        </div>
+
+                                        {/* Materials List */}
+                                        <div className="space-y-4">
+                                            {group.sessions.map((session, sessionIndex) => {
+                                                const isCompleted = session.completed === true;
+
+                                                return (
+                                                    <div
+                                                        key={sessionIndex}
+                                                        onClick={() => selectMaterial(session.material)}
+                                                        className={`border rounded-lg p-4 hover:cursor-pointer hover:border-blue-400 transition-colors ${isCompleted ? 'border-green-300 bg-green-50' : 'border-gray-200 hover:bg-gray-50'}`}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <div className="flex-1">
+                                                                <h4 className={`font-semibold ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                                                                    {session.materialTitle}
+                                                                </h4>
+                                                                <p className={`text-sm ${isCompleted ? 'text-gray-400' : 'text-gray-600'}`}>
+                                                                    {session.timeSlot}
+                                                                </p>
+                                                            </div>
+                                                            {isCompleted && (
+                                                                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 ml-2" />
+                                                            )}
+                                                        </div>
+
+                                                        <div className="grid grid-cols-3 gap-4 mb-3">
+                                                            <div>
+                                                                <p className="text-xs text-gray-500 uppercase">Duration</p>
+                                                                <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
+                                                                    {session.duration}
+                                                                </p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs text-gray-500 uppercase">Difficulty</p>
+                                                                <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
+                                                                    {session.difficulty}
+                                                                </p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs text-gray-500 uppercase">Focus</p>
+                                                                <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
+                                                                    {session.focusArea.replace('_', ' ')}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <h5 className={`text-xs font-semibold mb-1 uppercase ${isCompleted ? 'text-gray-500' : 'text-gray-700'}`}>
+                                                                Objectives:
+                                                            </h5>
+                                                            <ul className="space-y-1">
+                                                                {session.objectives.map((objective, objIndex) => (
+                                                                    <li key={objIndex} className="flex items-start">
+                                                                        <span className={`mr-2 text-xs ${isCompleted ? 'text-green-500' : 'text-blue-500'}`}>
+                                                                            {isCompleted ? '✓' : '•'}
+                                                                        </span>
+                                                                        <span className={`text-sm ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-700'}`}>
+                                                                            {objective}
+                                                                        </span>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Break indicator - only after 45 minutes of cumulative study */}
+                                    {needsBreak && (
+                                        <div className="flex items-center justify-center my-4">
+                                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
+                                                <p className="text-sm font-semibold text-yellow-800">
+                                                    ☕ Break (15 mins) - You've studied for {group.cumulativeTime} minutes
+                                                </p>
+                                            </div>
                                         </div>
                                     )}
-
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <h3 className={`text-xl font-bold ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                                                Session {index + 1}: {session.subject}
-                                            </h3>
-                                            <p className={`${isCompleted ? 'text-gray-400' : 'text-gray-600'}`}>
-                                                {session.materialTitle}
-                                            </p>
-                                        </div>
-                                        <span className={`px-3 py-1 ${isCompleted ? 'bg-gray-100 text-gray-600' : 'bg-purple-100 text-purple-800'} rounded-full text-sm font-semibold`}>
-                                            {session.timeSlot}
-                                        </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                        <div>
-                                            <p className="text-xs text-gray-500 uppercase">Duration</p>
-                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
-                                                {session.duration}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-gray-500 uppercase">Difficulty</p>
-                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
-                                                {session.difficulty}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-gray-500 uppercase">Focus Area</p>
-                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
-                                                {session.focusArea.replace('_', ' ')}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mb-4">
-                                        <h4 className={`font-semibold mb-2 ${isCompleted ? 'text-gray-500' : 'text-gray-700'}`}>
-                                            Objectives:
-                                        </h4>
-                                        <ul className="space-y-1">
-                                            {session.objectives.map((objective, objIndex) => (
-                                                <li key={objIndex} className="flex items-start">
-                                                    <span className={`mr-2 ${isCompleted ? 'text-green-500' : 'text-blue-500'}`}>
-                                                        {isCompleted ? '✓' : '•'}
-                                                    </span>
-                                                    <span className={`${isCompleted ? 'text-gray-500 line-through' : 'text-gray-700'}`}>
-                                                        {objective}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-
                                 </div>
-
-                                {index < studyPlan.plan.sessions.length - 1 && (
-                                    <div className="flex items-center justify-center my-4">
-                                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
-                                            <p className="text-sm font-semibold text-yellow-800">
-                                                ☕ Break (30 mins)
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
+                            );
+                        });
+                    })()}
 
                     {/* Assessment Quiz Button - Show at the end */}
                     {allSessionsCompleted && hasAssessment && (

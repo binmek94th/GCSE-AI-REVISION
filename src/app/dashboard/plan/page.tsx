@@ -62,7 +62,7 @@ export function PlanTab({ subjects, studyPack }: PlanTabProps) {
                             <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-700">
                               {subject.name
-                                  .replace(/_/g, " ") // replace underscores with spaces
+                                  .replace(/_/g, " ")
                                   .replace(/\b\w/g, (c) => c.toUpperCase()) // capitalize first letter of each word
                               }
                             </span>
