@@ -19,7 +19,7 @@ import UserBadges from "@/app/dashboard/challenges/UserBadges";
 import {Button} from "@/app/components/ui/button";
 import FriendsPage from "@/app/dashboard/friends/page";
 import ProfilePage from "@/app/dashboard/profile/page";
-import MockTests from "@/app/dashboard/mock-test/page";
+import MockTests from "@/app/dashboard/mock-exam/page";
 
 
 function Dashboard() {

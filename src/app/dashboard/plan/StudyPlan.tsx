@@ -11,6 +11,7 @@ import { Button } from "@/app/components/ui/button";
 import {useDashboard} from "@/contexts/DashboardContext";
 import {QuizComponent} from "@/app/dashboard/quizzes/QuizComponent";
 import {toast} from "sonner";
+import ContextualAiChat from "@/app/components/ContextualAiChat";
 
 interface Break {
     after: string;
@@ -417,7 +418,7 @@ export default function StudyPlan() {
 
                     {/* Dialog Content */}
                     <Dialog.Content
-                        className="fixed top-[50%] left-[50%] w-full max-w-3xl h-[80vh] -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg focus:outline-none flex flex-col"
+                        className="fixed top-[50%] left-[50%] w-screen max-w-3xl h-[90vh] !max-w-none !w-[70vw] -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg focus:outline-none flex flex-col"
                     >
                         {/* Header */}
                         <div className="flex justify-between items-center border-b p-4">
@@ -436,11 +437,18 @@ export default function StudyPlan() {
                                     <div onClick={handleMarkAsDone} className={"flex justify-end mt-6"}>
                                         <Button>Mark as Finished</Button>
                                     </div>
+                                    <ContextualAiChat
+                                        subject={selectedMaterial?.subject}
+                                        materialTitle={selectedMaterial?.title}
+                                        packId={selectedMaterial?.packId}
+                                        materialId={selectedMaterial?.id}>
+                                    </ContextualAiChat>
                                 </div>
                             ) : (
                                 <p className="text-gray-500 italic">No content available.</p>
                             )}
                         </ScrollArea>
+
                     </Dialog.Content>
                 </Dialog.Portal>
             </Dialog.Root>
