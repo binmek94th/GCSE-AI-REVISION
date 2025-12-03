@@ -17,6 +17,7 @@ const registerSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email(),
     password: z.string().min(8, "Password must be at least 8 characters"),
+    parent_email: z.string().email(),
     confirm_password: z.string().min(8, "Confirm Password must be at least 8 characters"),
 }).refine((data) => data.password === data.confirm_password, {
     message: "Passwords do not match",
@@ -109,6 +110,7 @@ export default function RegisterPage() {
             await setDoc(doc(db, "users", userCred.user.uid), {
                 username: data.username,
                 username_lowercase: data.username.toLowerCase().trim(),
+                parent_email: data.parent_email,
                 name: data.name,
                 email: data.email,
                 userType: "student",
@@ -196,6 +198,18 @@ export default function RegisterPage() {
                         />
                         {errors.email && (
                             <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <Input
+                            type="email"
+                            placeholder="Parent's Email"
+                            {...register("parent_email")}
+                            className="w-full bg-input-background"
+                        />
+                        {errors.email && (
+                            <p className="text-red-500 text-sm mt-1">{errors.parent_email.message}</p>
                         )}
                     </div>
 

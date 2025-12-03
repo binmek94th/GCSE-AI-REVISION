@@ -46,12 +46,12 @@ function OnBoarding() {
     const [showSelectionModal, setShowSelectionModal] = useState(false);
     const [currentSubject, setCurrentSubject] = useState<string>('');
     const [selectedTier, setSelectedTier] = useState<string>('');
+    const [selectedTargetGrade, setSelectedTargetGrade] = useState<string>('7');
     const [disableNext, setDisableNext] = useState(false);
     const [showPlan, setShowPlan] = useState(false)
 
     const [globalExamBoard, setGlobalExamBoard] = useState<string>('AQA');
     const [preferences, setPreferences] = useState({
-        targetGrade: '7',
         hoursPerWeek: '10-15'
     });
 
@@ -89,6 +89,7 @@ function OnBoarding() {
             setCurrentSubject(subject);
             const tiers = getTiersForSubjectAndBoard(subject, globalExamBoard);
             setSelectedTier(tiers[0]);
+            setSelectedTargetGrade('7'); // Default target grade
             setShowSelectionModal(true);
         }
     };
@@ -100,7 +101,8 @@ function OnBoarding() {
                 ...selectedSubjects.subjects,
                 {
                     name: currentSubject,
-                    tier: selectedTier
+                    tier: selectedTier,
+                    targetGrade: selectedTargetGrade
                 }
             ]
         });
@@ -120,20 +122,16 @@ function OnBoarding() {
     const handleSubmission = async () => {
         try {
             const user = auth.currentUser;
-            if (!user) {
-                router.push('/auth/login')
-                return;
+            if (user) {
+                const onboardingData = {
+                    examBoard: selectedSubjects.examBoard,
+                    subjects: selectedSubjects.subjects,
+                    preferences,
+                    onboardingComplete: true,
+                    updatedAt: new Date(),
+                };
+                await setDoc(doc(db, "users", user.uid), onboardingData, { merge: true });
             }
-
-            const onboardingData = {
-                examBoard: selectedSubjects.examBoard,
-                subjects: selectedSubjects.subjects,
-                preferences,
-                onboardingComplete: true,
-                updatedAt: new Date(),
-            };
-
-            await setDoc(doc(db, "users", user.uid), onboardingData, { merge: true });
             setShowPlan(true);
         } catch (error) {
             console.error("🔥 Error saving onboarding data:", error);
@@ -170,7 +168,7 @@ function OnBoarding() {
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                     <QuizSuggestionsDisplay data={plan} />
                 </div>
-            :
+                :
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Header */}
                     <div className="mb-12">
@@ -252,6 +250,7 @@ function OnBoarding() {
                                                             {isSelected && (
                                                                 <div className="mt-2 text-xs space-y-1">
                                                                     <p className="text-blue-700"><strong>Tier:</strong> {isSelected.tier}</p>
+                                                                    <p className="text-blue-700"><strong>Target:</strong> Grade {isSelected.targetGrade}</p>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -283,6 +282,27 @@ function OnBoarding() {
                                                                             }`}
                                                                         >
                                                                             {tier}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="text-xs font-semibold text-gray-700 mb-2 block">
+                                                                    Target Grade
+                                                                </label>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {gradeOptions.map(grade => (
+                                                                        <button
+                                                                            key={grade}
+                                                                            onClick={() => setSelectedTargetGrade(grade)}
+                                                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                                                                                selectedTargetGrade === grade
+                                                                                    ? 'bg-green-600 text-white shadow-md'
+                                                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                                            }`}
+                                                                        >
+                                                                            Grade {grade}
                                                                         </button>
                                                                     ))}
                                                                 </div>
@@ -323,7 +343,7 @@ function OnBoarding() {
                                                 Selected: {selectedSubjects.subjects.length} subject{selectedSubjects.subjects.length !== 1 ? 's' : ''}
                                             </p>
                                             <p className="text-gray-600 text-sm">
-                                                {selectedSubjects.subjects.map(s => s.name).join(', ') || 'None selected'}
+                                                {selectedSubjects.subjects.map(s => `${s.name} (Grade ${s.targetGrade})`).join(', ') || 'None selected'}
                                             </p>
                                         </div>
                                     </div>
@@ -359,37 +379,10 @@ function OnBoarding() {
                                     <h2 className="text-2xl font-bold">Your Study Preferences</h2>
                                 </div>
                                 <p className="text-gray-600 mb-6">
-                                    Tell us about your goals and available time.
+                                    Tell us about your available study time.
                                 </p>
 
-                                <div className="grid md:grid-cols-2 gap-6">
-                                    {/* Target Grade */}
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-900 mb-2 block">
-                                            Target Grade
-                                        </label>
-                                        <Select
-                                            value={preferences.targetGrade}
-                                            onValueChange={(val) =>
-                                                setPreferences({ ...preferences, targetGrade: val })
-                                            }
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select Grade" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectGroup>
-                                                    <SelectLabel>Grade</SelectLabel>
-                                                    {gradeOptions.map((grade) => (
-                                                        <SelectItem key={grade} value={grade}>
-                                                            Grade {grade}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectGroup>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
+                                <div className="grid md:grid-cols-1 gap-6">
                                     <div>
                                         <label className="text-sm font-medium text-gray-900 mb-2 block">
                                             Study Time Per Week
@@ -421,16 +414,13 @@ function OnBoarding() {
                                     <h4 className="font-medium text-gray-900 mb-2">Summary</h4>
                                     <div className="text-sm text-gray-700 space-y-2">
                                         <div>
-                                            <strong>Subjects:</strong>
+                                            <strong>Subjects & Target Grades:</strong>
                                             {selectedSubjects.subjects.map((sel, i) => (
                                                 <div key={i} className="ml-4 mt-1">
-                                                    • {sel.name} - {sel.tier})
+                                                    • {sel.name} - {sel.tier} (Target: Grade {sel.targetGrade})
                                                 </div>
                                             ))}
                                         </div>
-                                        <p>
-                                            <strong>Target:</strong> Grade {preferences.targetGrade}
-                                        </p>
                                         <p>
                                             <strong>Weekly Study:</strong> {preferences.hoursPerWeek} hours
                                         </p>

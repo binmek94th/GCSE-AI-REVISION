@@ -6,6 +6,7 @@ export interface SubjectSelection {
 interface Subject {
     name: string;
     tier: string;
+    targetGrade?: string;
 }
 
 export interface QuizSuggestionMaterial {
