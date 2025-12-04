@@ -223,7 +223,7 @@ function Dashboard() {
                                 value="mocktests"
                                 className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
                             >
-                                <TestTube className="w-4 h-4" /> Mock Tests
+                                <TestTube className="w-4 h-4" /> Mock Exam
                             </TabsTrigger>
                             <TabsTrigger
                                 value="tutor"
