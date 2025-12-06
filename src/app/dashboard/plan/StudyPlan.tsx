@@ -303,6 +303,11 @@ export default function StudyPlan() {
         router.push(`?${params.toString()}`);
     }
 
+    const getDuration = (duration: string): number => {
+        const match = duration.match(/(\d+)/);
+        return match ? parseInt(match[1]) : 0;
+    }
+
 
     return (
         <div className="min-h-screen bg-gray-50 py-4 px-4">
@@ -404,11 +409,11 @@ export default function StudyPlan() {
                                                             )}
                                                         </div>
 
-                                                        <div className="grid grid-cols-3 gap-4 mb-3">
+                                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-3">
                                                             <div>
                                                                 <p className="text-xs text-gray-500 uppercase">Duration</p>
                                                                 <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>
-                                                                    {session.duration}
+                                                                    {getDuration(session.duration)} min
                                                                 </p>
                                                             </div>
                                                             <div>
