@@ -22,7 +22,7 @@ interface RetryIncorrectButtonProps {
     onQuizStart: (questions: Question[]) => void;
 }
 
-export function RetryIncorrectButton({ packId, onQuizComplete, onQuizStart }: RetryIncorrectButtonProps) {
+function RetryIncorrectButton({ packId, onQuizComplete, onQuizStart }: RetryIncorrectButtonProps) {
     const [loading, setLoading] = useState(false);
     const [user, setUser] = useState<any>(null);
     const [incorrectCount, setIncorrectCount] = useState<number>(0);
@@ -141,3 +141,5 @@ export function RetryIncorrectButton({ packId, onQuizComplete, onQuizStart }: Re
         </Button>
     );
 }
+
+export default RetryIncorrectButton
