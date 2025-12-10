@@ -24,7 +24,7 @@ interface Subject {
 
 
 
-export function StudyPackTab() {
+function StudyPackTab() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -243,3 +243,5 @@ export function StudyPackTab() {
         </div>
     );
 }
+
+export default StudyPackTab

@@ -18,7 +18,7 @@ interface PlanTabProps {
     studyPack: number;
 }
 
-export function PlanTab({ subjects, studyPack }: PlanTabProps) {
+function PlanTab({ subjects, studyPack }: PlanTabProps) {
     const router = useRouter()
 
     const handleClick = () => {
@@ -79,3 +79,5 @@ export function PlanTab({ subjects, studyPack }: PlanTabProps) {
         </div>
     );
 }
+
+export default PlanTab

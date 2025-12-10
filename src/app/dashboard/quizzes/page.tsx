@@ -17,7 +17,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/app/components/ui/select";
-import {RetryIncorrectButton} from "@/app/dashboard/incorrect-question/page";
+import RetryIncorrectButton from "@/app/dashboard/incorrect-question/page";
 
 interface Quiz {
     packId: string;
@@ -46,7 +46,7 @@ interface QuizzesTabProps {
     studyPack: number;
 }
 
-export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
+function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
     const [loading, setLoading] = useState(false);
     const [loadingResults, setLoadingResults] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -398,3 +398,5 @@ export function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         </div>
     );
 }
+
+export default QuizzesTab
