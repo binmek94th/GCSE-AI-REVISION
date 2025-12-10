@@ -19,7 +19,7 @@ interface DisplayMessage {
     timestamp: Date;
 }
 
-export function StudentAIChat(){
+function StudentAIChat(){
     const [rawMessages, setRawMessages] = useState<RawMessage[]>([
         {
             role: 'assistant',
@@ -229,3 +229,5 @@ export function StudentAIChat(){
         </div>
     );
 }
+
+export default StudentAIChat
