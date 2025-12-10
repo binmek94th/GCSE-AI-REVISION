@@ -6,7 +6,7 @@ import {Calendar, Package, Brain, TestTube, MessageCircle, Trophy, LogOut, User,
 import { PlanTab } from "@/app/dashboard/plan/page";
 import { StudyPackTab } from "@/app/dashboard/studyPack/page";
 import { QuizzesTab } from "@/app/dashboard/quizzes/page";
-import { StudentAIChat } from "@/app/dashboard/chat/page";
+import StudentAIChat  from "@/app/dashboard/chat/page";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ProgressData } from "@/hooks/useProgress";
 import {onAuthStateChanged, signOut} from "firebase/auth";
