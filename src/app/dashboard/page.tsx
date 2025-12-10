@@ -3,9 +3,9 @@
 import {Suspense, useEffect, useState} from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import {Calendar, Package, Brain, TestTube, MessageCircle, Trophy, LogOut, User, ChevronDown} from 'lucide-react';
-import { PlanTab } from "@/app/dashboard/plan/page";
-import { StudyPackTab } from "@/app/dashboard/studyPack/page";
-import { QuizzesTab } from "@/app/dashboard/quizzes/page";
+import PlanTab  from "@/app/dashboard/plan/page";
+import StudyPackTab  from "@/app/dashboard/studyPack/page";
+import QuizzesTab  from "@/app/dashboard/quizzes/page";
 import StudentAIChat  from "@/app/dashboard/chat/page";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ProgressData } from "@/hooks/useProgress";
