@@ -300,7 +300,7 @@ async function generateStudyPlanWithAI(
             incompleteMaterials: pack.incompleteMaterials.map(m => ({
                 id: m.id,
                 title: m.title,
-                difficulty: m.difficulty || 'medium',
+                difficulty: m.difficulty || 'basic',
             })),
 
             // Question performance

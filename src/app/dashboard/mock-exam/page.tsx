@@ -99,7 +99,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                 setMockTestHistory(data.mockTests || []);
             }
         } catch (err) {
-            console.error('Error fetching mock test history:', err);
+            console.error('Error fetching mock exam history:', err);
         } finally {
             setLoadingHistory(false);
         }
@@ -123,7 +123,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                     setMockTestHistory(data.mockTests || []);
                 }
             } catch (err) {
-                console.error('Error fetching mock test history:', err);
+                console.error('Error fetching mock exam history:', err);
             } finally {
                 setLoadingHistory(false);
             }
@@ -162,7 +162,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
     if (studyPack === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-full space-y-4">
-                <p className="text-gray-600">No subjects found. Please add study packs to take mock tests.</p>
+                <p className="text-gray-600">No subjects found. Please add study packs to take mock exam.</p>
                 <Button onClick={handleClick}>
                     Browse Study Packs
                 </Button>
@@ -172,7 +172,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
 
     const startMockTest = async () => {
         if (!user) {
-            setError('Please log in to start a mock test');
+            setError('Please log in to start a mock exam');
             return;
         }
 
@@ -210,13 +210,13 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                 return;
             }
 
-            console.log('Mock test metadata:', metadata);
+            console.log('Mock exam metadata:', metadata);
             setTestQuestions(questions);
             setIsTestActive(true);
 
         } catch (err) {
-            console.error('Error starting mock test:', err);
-            setError(err instanceof Error ? err.message : 'Failed to start mock test');
+            console.error('Error starting mock exam:', err);
+            setError(err instanceof Error ? err.message : 'Failed to start mock exam');
         } finally {
             setLoading(false);
         }
@@ -276,12 +276,12 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <FileText className="w-5 h-5 text-blue-600" />
-                        Start Mock Test
+                        Start Mock Exam
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <p className="text-gray-600">
-                        Take a comprehensive mock test to assess your knowledge and exam readiness.
+                        Take a comprehensive mock exam to assess your knowledge and exam readiness.
                     </p>
 
                     {/* Subject Selection */}
@@ -316,7 +316,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                     {/* Question Count Selection */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">
-                            Test Length
+                            Exam Length
                         </label>
 
                         <Select
@@ -325,12 +325,12 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                             disabled={loading}
                         >
                             <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select test length" />
+                                <SelectValue placeholder="Select exam length" />
                             </SelectTrigger>
 
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectLabel>Test Length</SelectLabel>
+                                    <SelectLabel>Exam Length</SelectLabel>
 
                                     {QUESTION_COUNTS.map((option) => (
                                         <SelectItem key={option.value} value={String(option.value)}>
@@ -351,7 +351,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                         <ul className="text-sm text-blue-700 mt-2 space-y-1 ml-4 list-disc">
                             <li>Priority given to previously incorrect answers</li>
                             <li>Unstudied material included for comprehensive coverage</li>
-                            <li>Timed test environment to simulate exam conditions</li>
+                            <li>Timed exam environment to simulate exam conditions</li>
                         </ul>
                     </div>
 
@@ -369,12 +369,12 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                         {loading ? (
                             <>
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Preparing Test...
+                                Preparing Exam...
                             </>
                         ) : (
                             <>
                                 <Play className="w-4 h-4 mr-2" />
-                                Start Mock Test
+                                Start Mock Exam
                             </>
                         )}
                     </Button>
@@ -384,7 +384,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
             {/* Test History Card */}
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Recent Mock Tests</CardTitle>
+                    <CardTitle>Recent Mock Exams</CardTitle>
                     <Button
                         variant="ghost"
                         size="sm"
@@ -448,7 +448,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                         <div className="text-center py-8">
                             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                             <p className="text-gray-500">
-                                No mock tests completed yet. Start your first mock test!
+                                No mock exams completed yet. Start your first mock exam!
                             </p>
                         </div>
                     )}
@@ -464,7 +464,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                     <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div className="p-4 bg-blue-50 rounded-lg">
-                                <p className="text-sm text-gray-600 mb-1">Tests Completed</p>
+                                <p className="text-sm text-gray-600 mb-1">Exams Completed</p>
                                 <p className="text-2xl font-bold text-blue-600">{mockTestHistory.length}</p>
                             </div>
                             <div className="p-4 bg-green-50 rounded-lg">
