@@ -86,7 +86,8 @@ export default function StudyPlan() {
     const [error, setError] = useState<string | null>(null);
     const [authChecked, setAuthChecked] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState<any>()
-    const [showAssessment, setShowAssessment] = useState(false);
+    const [showAssessment, setShowAssessment] = useState<string | null>(null); // Changed to store subject name
+    const [completedAssessments, setCompletedAssessments] = useState<Set<string>>(new Set()); // Track completed assessments
     const { incrementStreak } = useDashboard();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -174,6 +175,7 @@ export default function StudyPlan() {
         try {
             const idToken = await auth.currentUser.getIdToken();
 
+
             // Mark the study material as done
             await fetch("/api/study_materials", {
                 method: "POST",
@@ -223,7 +225,7 @@ export default function StudyPlan() {
             setSelectedMaterial(null);
             incrementStreak();
             toast.success("Marked material as done!");
-
+            unSelectMaterial()
         } catch (error) {
             console.error("Error marking material done:", error);
             toast.error("Failed to mark material as done. Please try again.");
@@ -233,12 +235,14 @@ export default function StudyPlan() {
     }
 
     const handleAssessmentComplete = (score: number, correctCount: number, totalCount: number) => {
-        // You can add additional logic here if needed
         console.log('Assessment completed:', { score, correctCount, totalCount });
+        if (showAssessment) {
+            setCompletedAssessments(prev => new Set([...prev, showAssessment]));
+        }
     };
 
     const handleAssessmentExit = () => {
-        setShowAssessment(false);
+        setShowAssessment(null);
     };
 
     if (!studyPlan) {
@@ -253,31 +257,33 @@ export default function StudyPlan() {
         );
     }
 
-    // Check if all sessions are completed
-    const allSessionsCompleted = studyPlan.plan.sessions.every(session => session.completed === true);
     const hasAssessment = studyPlan.assessment && studyPlan.assessment.questions.length > 0;
 
     // Show Assessment Quiz if triggered
     if (showAssessment && hasAssessment) {
+        const subjectQuestions = studyPlan.assessment.questions.filter(
+            q => q.subject === showAssessment
+        );
+
         return (
             <div className="min-h-screen bg-gray-50 py-8 px-4">
                 <div className="max-w-4xl mx-auto">
                     <div className="mb-6">
                         <Button
                             variant="outline"
-                            onClick={() => setShowAssessment(false)}
+                            onClick={() => setShowAssessment(null)}
                             className="mb-4"
                         >
                             ← Back to Study Plan
                         </Button>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Daily Assessment Quiz</h1>
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">{showAssessment} Assessment Quiz</h1>
                         <p className="text-gray-600">
-                            Test your knowledge with {studyPlan.assessment.totalQuestions} questions from today&#39;s study materials
+                            Test your knowledge with {subjectQuestions.length} questions from your {showAssessment} study materials
                         </p>
                     </div>
                     <QuizComponent
-                        questions={studyPlan.assessment.questions}
-                        packId="daily-assessment"
+                        questions={subjectQuestions}
+                        packId={`${showAssessment}-assessment`}
                         onComplete={handleAssessmentComplete}
                         onExit={handleAssessmentExit}
                     />
@@ -354,6 +360,8 @@ export default function StudyPlan() {
                         return sessionGroups.map((group, groupIndex) => {
                             const allCompleted = group.sessions.every(s => s.completed === true);
                             const totalDuration = group.sessions.reduce((sum, s) => sum + parseDuration(s.duration), 0);
+                            const hasSubjectAssessment = hasAssessment && studyPlan.assessment.bySubject[group.subject];
+                            const assessmentCompleted = completedAssessments.has(group.subject);
 
                             // Determine if we need a break after this group (every 45 minutes)
                             const needsBreak = groupIndex < sessionGroups.length - 1 &&
@@ -451,6 +459,45 @@ export default function StudyPlan() {
                                                 );
                                             })}
                                         </div>
+
+                                        {/* Subject Assessment Button */}
+                                        {allCompleted && hasSubjectAssessment && !assessmentCompleted && (
+                                            <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 border-2 border-purple-200">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-3 mb-2">
+                                                            <ClipboardCheck className="w-6 h-6 text-purple-600" />
+                                                            <h4 className="text-lg font-bold text-gray-900">
+                                                                Ready for {group.subject} Assessment?
+                                                            </h4>
+                                                        </div>
+                                                        <p className="text-sm text-gray-600">
+                                                            Test your knowledge with {studyPlan.assessment.bySubject[group.subject].length} questions
+                                                        </p>
+                                                    </div>
+                                                    <Button
+                                                        onClick={() => setShowAssessment(group.subject)}
+                                                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                                                    >
+                                                        <ClipboardCheck className="w-4 h-4 mr-2" />
+                                                        Start Quiz
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Assessment Completed Badge */}
+                                        {assessmentCompleted && (
+                                            <div className="mt-6 bg-green-50 rounded-lg p-4 border-2 border-green-200">
+                                                <div className="flex items-center gap-3">
+                                                    <CheckCircle className="w-6 h-6 text-green-600" />
+                                                    <div>
+                                                        <p className="font-semibold text-green-900">Assessment Completed!</p>
+                                                        <p className="text-sm text-green-700">You&#39;ve finished the {group.subject} quiz</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Break indicator - only after 45 minutes of cumulative study */}
@@ -458,7 +505,7 @@ export default function StudyPlan() {
                                         <div className="flex items-center justify-center my-4">
                                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-6 py-3 text-center">
                                                 <p className="text-sm font-semibold text-yellow-800">
-                                                    ☕ Break (15 mins) - You've studied for {group.cumulativeTime} minutes
+                                                    ☕ Break (15 mins) - You&#39;ve studied for {group.cumulativeTime} minutes
                                                 </p>
                                             </div>
                                         </div>
@@ -467,50 +514,6 @@ export default function StudyPlan() {
                             );
                         });
                     })()}
-
-                    {/* Assessment Quiz Button - Show at the end */}
-                    {allSessionsCompleted && hasAssessment && (
-                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow-lg p-8 text-center border-2 border-purple-200 mt-8">
-                            <div className="max-w-2xl mx-auto">
-                                <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mb-4">
-                                    <ClipboardCheck className="w-8 h-8 text-purple-600" />
-                                </div>
-                                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                                    Ready for Your Assessment?
-                                </h3>
-                                <p className="text-gray-600 mb-6">
-                                    You&#39;ve completed all study sessions! Test your knowledge with {studyPlan.assessment.totalQuestions} questions covering all today&#39;s materials.
-                                </p>
-                                <div className="flex flex-wrap gap-2 justify-center mb-6">
-                                    {Object.entries(studyPlan.assessment.bySubject).map(([subject, questionIds]) => (
-                                        <span
-                                            key={subject}
-                                            className="px-3 py-1 bg-white border border-purple-200 rounded-full text-sm font-medium text-purple-700"
-                                        >
-                                            {subject}: {questionIds.length} questions
-                                        </span>
-                                    ))}
-                                </div>
-                                <Button
-                                    onClick={() => setShowAssessment(true)}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-6 text-lg font-semibold"
-                                    size="lg"
-                                >
-                                    <ClipboardCheck className="w-5 h-5 mr-2" />
-                                    Start Assessment Quiz
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Encouragement message if not all sessions are completed */}
-                    {!allSessionsCompleted && hasAssessment && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center mt-8">
-                            <p className="text-blue-800">
-                                <strong>💡 Tip:</strong> Complete all study sessions to unlock the daily assessment quiz with {studyPlan.assessment.totalQuestions} questions!
-                            </p>
-                        </div>
-                    )}
                 </div>
             </div>
             <Dialog.Root open={!!selectedMaterial} onOpenChange={unSelectMaterial}>

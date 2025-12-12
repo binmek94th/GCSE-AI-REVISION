@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import admin from "firebase-admin";
-import {doc, getDoc, updateDoc} from "@firebase/firestore";
-import {db} from "@/lib/firebase";
+// import {doc, getDoc, updateDoc} from "@firebase/firestore";
+// import {db} from "@/lib/firebase";
 
 export async function GET(request: NextRequest) {
     try {
@@ -169,24 +169,38 @@ function calculateStreakFromDates(dates: string[]): number {
 }
 
 async function checkConsistencyBadges(userId: string, currentStreak: number) {
-    const userRef = doc(db, "users", userId);
-    const userSnap = await getDoc(userRef);
-        const badges = userSnap.data()?.badges?.consistency || [];
+    const db = admin.firestore();
 
-        const newBadges = [...badges];
+    const userRef = db.collection("users").doc(userId);
+    const userSnap = await userRef.get();
 
-        if (currentStreak >= 3 && !badges.includes("Streak Starter"))
-            newBadges.push("Streak Starter");
+    if (!userSnap.exists) return;
 
-        if (currentStreak >= 7 && !badges.includes("Momentum Master"))
-            newBadges.push("Momentum Master");
+    const badges: string[] =
+        userSnap.data()?.badges?.consistency || [];
 
-        if (currentStreak >= 14 && !badges.includes("Two-Week Titan"))
-            newBadges.push("Two-Week Titan");
+    const newBadges = [...badges];
 
-        if (currentStreak >= 30 && !badges.includes("Month-Long Marvel"))
-            newBadges.push("Month-Long Marvel");
+    if (currentStreak >= 3 && !badges.includes("Streak Starter"))
+        newBadges.push("Streak Starter");
 
-        if (newBadges.length > badges.length)
-            await updateDoc(userRef, { "badges.consistency": newBadges });
+    if (currentStreak >= 7 && !badges.includes("Momentum Master"))
+        newBadges.push("Momentum Master");
+
+    if (currentStreak >= 14 && !badges.includes("Two-Week Titan"))
+        newBadges.push("Two-Week Titan");
+
+    if (currentStreak >= 30 && !badges.includes("Month-Long Marvel"))
+        newBadges.push("Month-Long Marvel");
+
+    if (newBadges.length > badges.length) {
+        await userRef.set(
+            {
+                badges: {
+                    consistency: newBadges
+                }
+            },
+            { merge: true }
+        );
+    }
 }
