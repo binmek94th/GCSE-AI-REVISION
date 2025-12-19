@@ -161,7 +161,6 @@ function StudyPackTab() {
         setPackId(null);
     }
 
-
     if (packId) {
         return <StudyMaterialTab unSelectPack={unSelectPack} packId={packId} />;
     }

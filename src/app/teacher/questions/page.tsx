@@ -5,6 +5,7 @@ import { Question } from '@/types/moderation';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/app/components/ui/select";
 import {EXAM_DATA} from "@/app/onboarding/exam_data";
 import Spinner from "@/app/components/ui/Spinner";
+import {toast} from "sonner";
 
 export default function QuestionsModeration() {
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -66,12 +67,12 @@ export default function QuestionsModeration() {
             : Object.values(question.options);
 
         setEditForm({
-            question_text: question.question_text,
+            question_text: question.question,
             options: optionsArray,
             correct_answer: question.correct_answer,
             explanation: question.explanation || '',
             subject: question.subject,
-            topic: question.topic,
+            topic: question.tier,
             difficulty: question.difficulty,
             question_type: question.question_type,
             marks: question.marks || 1,
@@ -94,16 +95,16 @@ export default function QuestionsModeration() {
             const data = await response.json();
 
             if (data.success) {
-                alert('Question updated successfully!');
+                toast.success('Question updated successfully!');
                 fetchQuestions();
                 setSelectedQuestion(data.question);
                 setEditMode(false);
             } else {
-                alert(data.error || 'Failed to update question');
+                toast.error(data.error || 'Failed to update question');
             }
         } catch (error) {
             console.error('Error updating question:', error);
-            alert('Failed to update question');
+            toast.error('Failed to update question');
         }
     };
 
@@ -121,12 +122,13 @@ export default function QuestionsModeration() {
             });
 
             if (response.ok) {
-                alert('Question approved!');
+                toast.success('Question approved!');
                 fetchQuestions();
                 setSelectedQuestion(null);
             }
         } catch (error) {
             console.error('Error approving question:', error);
+            toast.error("Error approving question");
         }
     };
 
@@ -147,12 +149,13 @@ export default function QuestionsModeration() {
             });
 
             if (response.ok) {
-                alert('Question rejected');
+                toast.success('Question rejected');
                 fetchQuestions();
                 setSelectedQuestion(null);
             }
         } catch (error) {
             console.error('Error rejecting question:', error);
+            toast.error("Error rejecting question");
         }
     };
 
@@ -166,7 +169,7 @@ export default function QuestionsModeration() {
             });
 
             if (response.ok) {
-                alert('Question deleted');
+                toast.success('Question deleted');
                 fetchQuestions();
                 setSelectedQuestion(null);
             }
@@ -242,7 +245,7 @@ export default function QuestionsModeration() {
                                     <SelectValue placeholder="All Status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All Boards</SelectItem>
+                                    <SelectItem value="all">All Status</SelectItem>
                                     <SelectItem key={"pending"} value={"pending"}>
                                         pending
                                     </SelectItem>
@@ -292,7 +295,7 @@ export default function QuestionsModeration() {
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1">
                                                 <p className="font-medium text-gray-900 line-clamp-2">
-                                                    {question.question_text}
+                                                    {question.question}
                                                 </p>
                                                 <div className="flex gap-2 mt-2">
                           <span className="text-xs px-2 py-1 bg-gray-100 rounded">
@@ -302,7 +305,7 @@ export default function QuestionsModeration() {
                             {question.difficulty}
                           </span>
                                                     <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                            {question.question_type}
+                            {question.tier}
                           </span>
                                                 </div>
                                             </div>
@@ -344,7 +347,7 @@ export default function QuestionsModeration() {
                                         <>
                                             <div className="mb-4">
                                                 <p className="text-sm font-medium text-gray-700 mb-2">Question:</p>
-                                                <p className="text-gray-900">{selectedQuestion.question_text}</p>
+                                                <p className="text-gray-900">{selectedQuestion.question}</p>
                                             </div>
 
                                             <div className="mb-4">
@@ -381,17 +384,17 @@ export default function QuestionsModeration() {
                                                     <p className="text-sm text-gray-900">{selectedQuestion.subject}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-medium text-gray-700">Topic:</p>
-                                                    <p className="text-sm text-gray-900">{selectedQuestion.topic}</p>
+                                                    <p className="text-sm font-medium text-gray-700">Tier:</p>
+                                                    <p className="text-sm text-gray-900">{selectedQuestion.tier}</p>
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-medium text-gray-700">Difficulty:</p>
                                                     <p className="text-sm text-gray-900">{selectedQuestion.difficulty}</p>
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-700">Type:</p>
-                                                    <p className="text-sm text-gray-900">{selectedQuestion.question_type}</p>
-                                                </div>
+                                                {/*<div>*/}
+                                                {/*    <p className="text-sm font-medium text-gray-700">Type:</p>*/}
+                                                {/*    <p className="text-sm text-gray-900">{selectedQuestion.question_type}</p>*/}
+                                                {/*</div>*/}
                                             </div>
 
                                             {selectedQuestion.moderation_notes && (

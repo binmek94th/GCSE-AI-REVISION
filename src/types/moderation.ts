@@ -14,12 +14,12 @@ export interface StudyMaterial {
 
 export interface Question {
   id: string;
-  question_text: string;
+  question: string;
   options: string[] | { [key: string]: string };
   correct_answer: string;
   explanation?: string;
   subject: string;
-  topic: string;
+  tier: string;
   difficulty: 'easy' | 'medium' | 'hard';
   question_type: 'quiz' | 'mock_test';
   marks?: number;

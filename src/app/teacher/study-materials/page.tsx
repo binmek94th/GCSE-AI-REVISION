@@ -11,12 +11,14 @@ import {
 } from "@/app/components/ui/select";
 import {EXAM_DATA} from "@/app/onboarding/exam_data";
 import Spinner from "@/app/components/ui/Spinner";
+import {toast} from "sonner";
 
 export default function StudyMaterialsModeration() {
     const [materials, setMaterials] = useState<StudyMaterial[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedMaterial, setSelectedMaterial] = useState<StudyMaterial | null>(null);
     const [editMode, setEditMode] = useState(false);
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
     const [filters, setFilters] = useState({
         subject: '',
         examBoard: '',
@@ -37,6 +39,18 @@ export default function StudyMaterialsModeration() {
     useEffect(() => {
         fetchMaterials();
     }, [filters]);
+
+    // Handle ESC key to close fullscreen image
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && fullscreenImage) {
+                setFullscreenImage(null);
+            }
+        };
+
+        window.addEventListener('keydown', handleEscape);
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [fullscreenImage]);
 
     const fetchMaterials = async () => {
         setLoading(true);
@@ -103,7 +117,7 @@ export default function StudyMaterialsModeration() {
             const data = await response.json();
 
             if (data.success) {
-                alert('Material updated successfully!');
+                toast.success('Material updated successfully!');
                 fetchMaterials();
                 setSelectedMaterial(data.material);
                 setEditMode(false);
@@ -111,7 +125,7 @@ export default function StudyMaterialsModeration() {
             }
         } catch (error) {
             console.error('Error updating material:', error);
-            alert('Failed to update material');
+            toast.error('Failed to update material');
         }
     };
 
@@ -129,12 +143,13 @@ export default function StudyMaterialsModeration() {
             });
 
             if (response.ok) {
-                alert('Material approved!');
+                toast.success('Material approved!');
                 fetchMaterials();
                 setSelectedMaterial(null);
             }
         } catch (error) {
             console.error('Error approving material:', error);
+            toast.error("Error approving material");
         }
     };
 
@@ -155,12 +170,13 @@ export default function StudyMaterialsModeration() {
             });
 
             if (response.ok) {
-                alert('Material rejected');
+                toast.success('Material rejected');
                 fetchMaterials();
                 setSelectedMaterial(null);
             }
         } catch (error) {
             console.error('Error rejecting material:', error);
+            toast.error("Error rejecting material");
         }
     };
 
@@ -174,7 +190,7 @@ export default function StudyMaterialsModeration() {
             });
 
             if (response.ok) {
-                alert('Material deleted');
+                toast.success('Material deleted');
                 fetchMaterials();
                 setSelectedMaterial(null);
             }
@@ -262,10 +278,10 @@ export default function StudyMaterialsModeration() {
                                     <SelectValue placeholder="All Status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All Boards</SelectItem>
-                                        <SelectItem key={"pending"} value={"pending"}>
-                                            pending
-                                        </SelectItem>
+                                    <SelectItem value="all">All Status</SelectItem>
+                                    <SelectItem key={"pending"} value={"pending"}>
+                                        pending
+                                    </SelectItem>
                                     <SelectItem key={"approved"} value={"approved"}>
                                         approved
                                     </SelectItem>
@@ -314,9 +330,6 @@ export default function StudyMaterialsModeration() {
                                                 <h3 className="font-semibold text-gray-900">{material.title}</h3>
                                                 <p className="text-sm text-gray-600 mt-1">
                                                     {material.subject} - {material.exam_board}
-                                                </p>
-                                                <p className="text-xs text-gray-500 mt-1">
-                                                    {new Date(material.created_at?.toDate?.() || material.created_at).toLocaleDateString()}
                                                 </p>
                                             </div>
                                             <span
@@ -418,11 +431,9 @@ export default function StudyMaterialsModeration() {
                                                         onChange={(e) => setEditForm(prev => ({ ...prev, subject: e.target.value }))}
                                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                                     >
-                                                        <option value="Mathematics">Mathematics</option>
-                                                        <option value="English">English</option>
-                                                        <option value="Chemistry">Chemistry</option>
-                                                        <option value="Biology">Biology</option>
-                                                        <option value="Physics">Physics</option>
+                                                        {subjects.map(subject => (
+                                                            <option key={subject} value={subject}>{subject}</option>
+                                                        ))}
                                                     </select>
                                                 </div>
 
@@ -436,36 +447,101 @@ export default function StudyMaterialsModeration() {
                                                     />
                                                 </div>
 
+                                                {/* Image Preview Section */}
                                                 <div>
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                                         Images in Content ({imageUrls.length})
                                                     </label>
                                                     {imageUrls.length > 0 ? (
-                                                        <div className="space-y-2">
+                                                        <div className="space-y-3">
                                                             {imageUrls.map((url, index) => (
                                                                 <div
                                                                     key={index}
-                                                                    className={`flex items-center justify-between p-2 border rounded ${
-                                                                        editForm.imagesToRemove.includes(url) ? 'bg-red-50 border-red-300' : 'bg-white'
+                                                                    className={`border rounded-lg overflow-hidden transition-all ${
+                                                                        editForm.imagesToRemove.includes(url)
+                                                                            ? 'bg-red-50 border-red-300 opacity-60'
+                                                                            : 'bg-white border-gray-200'
                                                                     }`}
                                                                 >
-                                                                    <span className="text-xs text-gray-600 truncate flex-1">{url.substring(0, 60)}...</span>
-                                                                    <button
-                                                                        onClick={() => handleRemoveImage(url)}
-                                                                        disabled={editForm.imagesToRemove.includes(url)}
-                                                                        className={`ml-2 px-3 py-1 text-xs rounded ${
-                                                                            editForm.imagesToRemove.includes(url)
-                                                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                                                : 'bg-red-600 text-white hover:bg-red-700'
-                                                                        }`}
+                                                                    {/* Image Preview */}
+                                                                    <div
+                                                                        className="relative w-full h-48 bg-gray-100 flex items-center justify-center cursor-pointer transition-colors group overflow-hidden"
+                                                                        onClick={() => setFullscreenImage(url)}
                                                                     >
-                                                                        {editForm.imagesToRemove.includes(url) ? 'Marked' : 'Remove'}
-                                                                    </button>
+                                                                        <img
+                                                                            src={url}
+                                                                            alt={`Content image ${index + 1}`}
+                                                                            className="max-w-full max-h-full object-contain relative z-0"
+                                                                            onError={(e) => {
+                                                                                const target = e.currentTarget;
+                                                                                target.style.display = 'none';
+                                                                                if (target.parentElement) {
+                                                                                    const errorDiv = document.createElement('div');
+                                                                                    errorDiv.className = 'text-gray-400 text-sm flex items-center gap-2';
+                                                                                    errorDiv.innerHTML = '<span>⚠️</span><span>Image failed to load</span>';
+                                                                                    target.parentElement.appendChild(errorDiv);
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                        {/* Hover overlay - only show when not marked for removal */}
+                                                                        {!editForm.imagesToRemove.includes(url) && (
+                                                                            <div className="absolute inset-0  group-hover:bg-opacity-30 transition-all flex items-center justify-center pointer-events-none z-10">
+                                                                                <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-70 px-3 py-1 rounded text-sm pointer-events-none">
+                                                                                    Click to view full size
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                        {editForm.imagesToRemove.includes(url) && (
+                                                                            <div className="absolute inset-0 bg-red-500 bg-opacity-20 flex items-center justify-center pointer-events-none z-10">
+                                                                                <span className="text-red-700 font-semibold text-lg bg-white px-3 py-1 rounded">
+                                                                                    ✓ Marked for Removal
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Image Info & Actions */}
+                                                                    <div className="p-3 flex items-center justify-between gap-2 bg-gray-50">
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <p className="text-xs text-gray-500 mb-1 font-medium">
+                                                                                Image {index + 1}
+                                                                            </p>
+                                                                            <p className="text-xs text-gray-600 truncate font-mono bg-white px-2 py-1 rounded">
+                                                                                {url}
+                                                                            </p>
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation(); // Prevent opening fullscreen
+                                                                                handleRemoveImage(url);
+                                                                            }}
+                                                                            disabled={editForm.imagesToRemove.includes(url)}
+                                                                            className={`px-3 py-1.5 text-xs font-medium rounded whitespace-nowrap transition-colors ${
+                                                                                editForm.imagesToRemove.includes(url)
+                                                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                                                    : 'bg-red-600 text-white hover:bg-red-700'
+                                                                            }`}
+                                                                        >
+                                                                            {editForm.imagesToRemove.includes(url) ? '✓ Marked' : 'Remove'}
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                             ))}
+
+                                                            {/* Summary */}
+                                                            {editForm.imagesToRemove.length > 0 && (
+                                                                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                                                    <p className="text-sm text-amber-800">
+                                                                        <strong>{editForm.imagesToRemove.length}</strong> image(s) marked for removal.
+                                                                        Click &#34;Save Changes&#34; to apply.
+                                                                    </p>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     ) : (
-                                                        <p className="text-sm text-gray-500">No images found</p>
+                                                        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                                                            <p className="text-sm text-gray-500">No images found in this material</p>
+                                                        </div>
                                                     )}
                                                 </div>
 
@@ -486,12 +562,13 @@ export default function StudyMaterialsModeration() {
                                                         onChange={(e) => setEditForm(prev => ({ ...prev, moderation_notes: e.target.value }))}
                                                         rows={3}
                                                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                                        placeholder="Add notes about this material..."
                                                     />
                                                 </div>
 
                                                 <button
                                                     onClick={handleUpdateMaterial}
-                                                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
                                                 >
                                                     Save Changes
                                                 </button>
@@ -508,6 +585,49 @@ export default function StudyMaterialsModeration() {
                     </div>
                 </div>
             </div>
+
+            {/* Fullscreen Image Modal */}
+            {fullscreenImage && (
+                <div
+                    className="fixed inset-0 z-50 bg-black bg-opacity-95 flex items-center justify-center p-4 animate-fadeIn"
+                    onClick={() => setFullscreenImage(null)}
+                >
+                    {/* Close Button */}
+                    <button
+                        onClick={() => setFullscreenImage(null)}
+                        className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-70"
+                        aria-label="Close fullscreen image"
+                    >
+                        <svg
+                            className="w-8 h-8"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+
+                    {/* Instructions */}
+                    <div className="absolute top-4 left-4 text-white text-sm bg-black bg-opacity-60 px-4 py-2 rounded-lg flex items-center gap-2">
+                        <kbd className="px-2 py-1 bg-gray-700 rounded text-xs font-mono">ESC</kbd>
+                        <span>or click anywhere to close</span>
+                    </div>
+
+                    {/* Image */}
+                    <img
+                        src={fullscreenImage}
+                        alt="Fullscreen view"
+                        className="max-w-full max-h-full object-contain cursor-zoom-out"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     );
 }
