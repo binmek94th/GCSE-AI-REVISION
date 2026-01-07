@@ -30,7 +30,7 @@ export async function PUT(
 
         const materialRef = admin
             .firestore()
-            .collection('study_materials')
+            .collection('new_study_materials')
             .doc(materialId);
 
         const materialDoc = await materialRef.get();

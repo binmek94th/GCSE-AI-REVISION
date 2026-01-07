@@ -1,5 +1,5 @@
+import admin from "@/lib/firebaseAdmin";
 import { NextRequest, NextResponse } from 'next/server';
-import admin from "firebase-admin";
 
 export async function GET(request: NextRequest) {
     try {
@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
         const examBoard = searchParams.get('examBoard');
         const status = searchParams.get('status');
 
-        let query = admin.firestore().collection('study_materials');
+        let query = admin.firestore().collection('new_study_materials');
 
         // Apply filters
         if (subject && subject !== "all") {
