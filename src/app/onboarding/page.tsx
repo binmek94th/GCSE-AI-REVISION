@@ -52,7 +52,8 @@ function OnBoarding() {
 
     const [globalExamBoard, setGlobalExamBoard] = useState<string>('AQA');
     const [preferences, setPreferences] = useState({
-        hoursPerWeek: '10-15'
+        hoursPerWeek: '10-15',
+        examBoard: "AQA"
     });
 
     const gradeOptions = ["9", "8", "7", "6", "5", "4"];
@@ -115,6 +116,10 @@ function OnBoarding() {
             examBoard: board,
             subjects: []
         });
+        setPreferences((preferences) => ({
+            ...preferences,
+            examBoard: board,
+        }));
         setShowSelectionModal(false);
         setCurrentSubject('');
     };

@@ -4,10 +4,12 @@ import admin from "@/lib/firebaseAdmin";
 // ------------------------
 // Fetch materials with pagination
 // ------------------------
-async function getMaterialsByPack(packId: string, limit: number, page: number) {
+async function getMaterialsByPack(packId: string, examBoard: string, limit: number, page: number) {
+    console.log(packId)
     const collectionRef = admin
         .firestore()
         .collection("study_materials")
+        .where("exam_board", "==", examBoard)
         .where("study_pack_id", "==", packId)
         .orderBy("title");
 
@@ -69,8 +71,24 @@ export async function GET(req: Request) {
             );
         }
 
+        const userDoc = await admin
+            .firestore()
+            .collection("users")
+            .doc(userId)
+            .get();
+
+        const userData = userDoc.data();
+        const examBoard = userData?.preferences?.examBoard;
+
+        if (!examBoard) {
+            return NextResponse.json(
+                { message: "User exam board preference not set" },
+                { status: 400 }
+            );
+        }
+
         // Fetch materials
-        const { materials, total, hasMore } = await getMaterialsByPack(packId, limit, page);
+        const { materials, total, hasMore } = await getMaterialsByPack(packId, examBoard, limit, page);
 
         // Fetch user progress
         const progressDocRef = admin

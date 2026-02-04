@@ -12,29 +12,15 @@ import {
 } from "@/app/components/ui/select";
 
 export default function SubjectExamDisplay() {
-    // ------------------------------------------------------------
-    // 1️⃣ Extract unique exam boards
-    // ------------------------------------------------------------
     const examBoards = Array.from(
         new Set(EXAM_DATA.map(exam => exam.exam_board))
     );
 
-    // ------------------------------------------------------------
-    // 2️⃣ State for selected board (default = all)
-    // ------------------------------------------------------------
     const [selectedBoard, setSelectedBoard] = useState<string>("all");
-
-    // ------------------------------------------------------------
-    // 3️⃣ Filter exam data by selected board
-    // ------------------------------------------------------------
     const filteredData = useMemo(() => {
         if (selectedBoard === "all") return EXAM_DATA;
         return EXAM_DATA.filter(exam => exam.exam_board === selectedBoard);
     }, [selectedBoard]);
-
-    // ------------------------------------------------------------
-    // 4️⃣ Group filtered data by subject
-    // ------------------------------------------------------------
     const groupedMap = new Map<string, typeof EXAM_DATA[0][]>();
 
     filteredData.forEach(exam => {
@@ -47,9 +33,6 @@ export default function SubjectExamDisplay() {
     const groupedData = Object.fromEntries(groupedMap);
     const sortedSubjects = Object.keys(groupedData).sort();
 
-    // ------------------------------------------------------------
-    // UI helpers
-    // ------------------------------------------------------------
     const getTierBadgeColor = (tier: string) => {
         if (tier.includes('Higher')) return 'bg-purple-100 text-purple-700';
         if (tier.includes('Foundation')) return 'bg-blue-100 text-blue-700';

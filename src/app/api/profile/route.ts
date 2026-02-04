@@ -46,28 +46,63 @@ export async function GET(req: Request) {
         // Get user metadata from Firebase Auth
         const userRecord = await admin.auth().getUser(uid);
 
-        // Fetch study packs
-        const studyPacks = userData?.studyPacks || [];
+        // Fetch study packs from boughtPacks
+        const packRef = db.collection("users").doc(uid).collection("boughtPacks");
+        const packSnapshot = await packRef.get();
+        const studyPacks = packSnapshot.size;
 
-        // Calculate quiz statistics
-        const questionProgressRef = db.collection("question_progress");
-        const questionProgressQuery = questionProgressRef.where("userId", "==", uid);
-        const questionProgressSnapshot = await questionProgressQuery.get();
+        // Calculate quiz statistics from users/{uid}/question_progress/{subject} structure
+        const userProgressRef = db.collection("users").doc(uid).collection("question_progress");
+        const subjectsSnapshot = await userProgressRef.get();
 
         let totalQuestions = 0;
         let correctAnswers = 0;
-        const uniqueQuizzes = new Set();
+        const quizSessions = new Set<string>(); // Track unique quiz sessions by date
+        const subjectProgress: { [subject: string]: { total: number; correct: number; accuracy: number } } = {};
 
-        questionProgressSnapshot.forEach((doc) => {
-            const data = doc.data();
-            totalQuestions++;
-            if (data.isCorrect) {
-                correctAnswers++;
+        // Iterate through each subject document
+        for (const subjectDoc of subjectsSnapshot.docs) {
+            const subjectName = subjectDoc.id;
+            const subjectData = subjectDoc.data();
+
+            // Iterate through all question IDs in the subject map
+            for (const [questionId, progressData] of Object.entries(subjectData)) {
+                if (typeof progressData === 'object' && progressData !== null) {
+                    const data = progressData as any;
+                    totalQuestions++;
+
+                    // Initialize subject tracking if needed
+                    if (!subjectProgress[subjectName]) {
+                        subjectProgress[subjectName] = { total: 0, correct: 0, accuracy: 0 };
+                    }
+                    subjectProgress[subjectName].total++;
+
+                    // Check if answer was correct (using 'correct' field)
+                    if (data.correct === true) {
+                        correctAnswers++;
+                        subjectProgress[subjectName].correct++;
+                    }
+
+                    // Track quiz sessions using quizId if available, or create session ID from timestamp
+                    if (data.quizId) {
+                        quizSessions.add(data.quizId);
+                    } else if (data.answeredAt) {
+                        // Group questions answered within 1 hour as a single quiz session
+                        const timestamp = data.answeredAt.toDate ? data.answeredAt.toDate() : new Date(data.answeredAt);
+                        const sessionKey = `${subjectName}-${Math.floor(timestamp.getTime() / (60 * 60 * 1000))}`; // Hour-based grouping
+                        quizSessions.add(sessionKey);
+                    }
+                }
             }
-            if (data.quizId) {
-                uniqueQuizzes.add(data.quizId);
-            }
-        });
+        }
+
+        // Calculate accuracy for each subject
+        for (const subject in subjectProgress) {
+            const progress = subjectProgress[subject];
+            progress.accuracy = progress.total > 0
+                ? Math.round((progress.correct / progress.total) * 100)
+                : 0;
+        }
 
         const averageScore = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
@@ -83,6 +118,7 @@ export async function GET(req: Request) {
             createdAt: userRecord.metadata.creationTime,
             tokens: userData?.tokens ?? 1000,
             totalStudyHours: totalStudyHours,
+            preferences: userData?.preferences || null,
             subscription: subscription ? {
                 status: subscription.status,
                 plan: subscription.items?.[0]?.price?.product?.name || "Premium",
@@ -92,9 +128,11 @@ export async function GET(req: Request) {
             } : null,
             studyPacks: studyPacks,
             stats: {
-                quizzesCompleted: uniqueQuizzes.size,
+                quizzesCompleted: quizSessions.size,
                 averageScore: Math.round(averageScore * 10) / 10,
                 totalQuestions: totalQuestions,
+                correctAnswers: correctAnswers,
+                subjectProgress: subjectProgress,
                 aiInteractions: aiInteractions
             }
         };

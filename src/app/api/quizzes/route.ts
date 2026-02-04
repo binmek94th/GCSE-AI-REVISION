@@ -14,20 +14,27 @@ async function getQuestionsByPack(
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
             .join(" ");
     }
-    let formatedPackId = formatPackId(packId);
 
-    if (formatedPackId === "Art And Design")
-        formatedPackId = "Art & Design"
+    let formattedPackId = formatPackId(packId);
 
-    const questionsSnapshot = await admin
-        .firestore()
+    if (formattedPackId === "Art And Design")
+        formattedPackId = "Art and Design"
+
+    const db = admin.firestore();
+
+    // Get user preference
+    const userDoc = await db.collection("users").doc(userId).get();
+    const userPreferences = userDoc.exists ? userDoc.data()?.preferences : {};
+    const examBoard = userPreferences?.examBoard;
+
+    // Fetch all questions for the pack
+    const questionsSnapshot = await db
         .collection("questions")
-        .where("subject", "==",formatedPackId)
+        .where("subject", "==", formattedPackId)
         .orderBy("createdAt", "desc")
         .get();
 
-    const progressDocRef = admin
-        .firestore()
+    const progressDocRef = db
         .collection("users")
         .doc(userId)
         .collection("question_progress")
@@ -36,13 +43,17 @@ async function getQuestionsByPack(
     const progressDoc = await progressDocRef.get();
     const progressData = progressDoc.exists ? progressDoc.data() : {};
 
+    // Filter questions based on progress AND exam board preference
     const availableQuestions = questionsSnapshot.docs.filter((doc) => {
+        const question = doc.data();
         const questionId = doc.id;
         const progress = progressData?.[questionId];
 
-        return !progress || progress.correct !== true;
+        if (progress?.correct === true) return false;
+        return !question.examBoard || question.examBoard === examBoard;
     });
 
+    // Pagination
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;
     const paginatedDocs = availableQuestions.slice(startIndex, endIndex);
@@ -58,6 +69,7 @@ async function getQuestionsByPack(
         hasMore: endIndex < availableQuestions.length,
     };
 }
+
 
 export async function GET(req: Request) {
     try {
