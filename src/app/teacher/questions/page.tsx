@@ -17,6 +17,14 @@ export default function QuestionsModeration() {
         status: 'all',
     });
 
+    // Pagination state
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 20,
+        hasMore: false,
+        lastDocId: null as string | null,
+    });
+
     const [editForm, setEditForm] = useState({
         question_text: '',
         options: [] as string[],
@@ -32,26 +40,62 @@ export default function QuestionsModeration() {
     });
 
     useEffect(() => {
-        fetchQuestions();
+        // Reset pagination when filters change
+        setPagination({
+            page: 1,
+            limit: 20,
+            hasMore: false,
+            lastDocId: null,
+        });
+        fetchQuestions(1, null);
     }, [filters]);
 
-    const fetchQuestions = async () => {
+    const fetchQuestions = async (page: number = 1, lastDocId: string | null = null) => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
             if (filters.subject) params.append('subject', filters.subject);
             if (filters.status) params.append('status', filters.status);
+            params.append('page', page.toString());
+            params.append('limit', pagination.limit.toString());
+            if (lastDocId) params.append('lastDocId', lastDocId);
 
             const response = await fetch(`/api/teacher/questions?${params}`);
             const data = await response.json();
 
             if (data.success) {
                 setQuestions(data.questions);
+                setPagination({
+                    page,
+                    limit: pagination.limit,
+                    hasMore: data.pagination.hasMore,
+                    lastDocId: data.pagination.lastDocId,
+                });
             }
         } catch (error) {
             console.error('Error fetching questions:', error);
+            toast.error('Failed to fetch questions');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (pagination.hasMore && pagination.lastDocId) {
+            fetchQuestions(pagination.page + 1, pagination.lastDocId);
+        }
+    };
+
+    const handlePreviousPage = () => {
+        if (pagination.page > 1) {
+            // Reset to page 1 (limitation of cursor-based pagination)
+            setPagination({
+                page: 1,
+                limit: 20,
+                hasMore: false,
+                lastDocId: null,
+            });
+            fetchQuestions(1, null);
         }
     };
 
@@ -96,7 +140,7 @@ export default function QuestionsModeration() {
 
             if (data.success) {
                 toast.success('Question updated successfully!');
-                fetchQuestions();
+                fetchQuestions(pagination.page, pagination.lastDocId);
                 setSelectedQuestion(data.question);
                 setEditMode(false);
             } else {
@@ -123,7 +167,7 @@ export default function QuestionsModeration() {
 
             if (response.ok) {
                 toast.success('Question approved!');
-                fetchQuestions();
+                fetchQuestions(pagination.page, pagination.lastDocId);
                 setSelectedQuestion(null);
             }
         } catch (error) {
@@ -150,7 +194,7 @@ export default function QuestionsModeration() {
 
             if (response.ok) {
                 toast.success('Question rejected');
-                fetchQuestions();
+                fetchQuestions(pagination.page, pagination.lastDocId);
                 setSelectedQuestion(null);
             }
         } catch (error) {
@@ -170,7 +214,7 @@ export default function QuestionsModeration() {
 
             if (response.ok) {
                 toast.success('Question deleted');
-                fetchQuestions();
+                fetchQuestions(pagination.page, pagination.lastDocId);
                 setSelectedQuestion(null);
             }
         } catch (error) {
@@ -216,7 +260,7 @@ export default function QuestionsModeration() {
                                     setFilters(prev => ({ ...prev, subject: value }))
                                 }
                             >
-                                <SelectTrigger className="w-full">
+                                <SelectTrigger className="w-full cursor-pointer">
                                     <SelectValue placeholder="All Subjects" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -241,7 +285,7 @@ export default function QuestionsModeration() {
                                     setFilters(prev => ({ ...prev, status: value }))
                                 }
                             >
-                                <SelectTrigger className="w-full">
+                                <SelectTrigger className="w-full cursor-pointer">
                                     <SelectValue placeholder="All Status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -263,7 +307,7 @@ export default function QuestionsModeration() {
                         <div className="flex items-end">
                             <button
                                 onClick={() => setFilters({ subject: "all", status: "" })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 hover:bg-gray-100"
+                                className="w-full px-3 py-2 border cursor-pointer border-gray-300 rounded-md text-sm bg-gray-50 hover:bg-gray-100"
                             >
                                 Reset Filters
                             </button>
@@ -278,7 +322,7 @@ export default function QuestionsModeration() {
                         <div className="p-4 border-b">
                             <h2 className="text-xl font-semibold">Questions ({questions.length})</h2>
                         </div>
-                        <div className="overflow-y-auto max-h-[calc(100vh-300px)]">
+                        <div className="overflow-y-auto max-h-[calc(100vh-400px)]">
                             {loading ? (
                                 <Spinner></Spinner>
                             ) : questions.length === 0 ? (
@@ -325,6 +369,29 @@ export default function QuestionsModeration() {
                                 ))
                             )}
                         </div>
+
+                        {/* Pagination Controls */}
+                        <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
+                            <button
+                                onClick={handlePreviousPage}
+                                disabled={pagination.page === 1 || loading}
+                                className="px-4 py-2 text-sm font-medium cursor-pointer text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                ← Previous
+                            </button>
+
+                            <span className="text-sm text-gray-700">
+                                Page {pagination.page}
+                            </span>
+
+                            <button
+                                onClick={handleNextPage}
+                                disabled={!pagination.hasMore || loading}
+                                className="px-4 py-2 text-sm font-medium cursor-pointer text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Next →
+                            </button>
+                        </div>
                     </div>
 
                     {/* Question Details & Edit */}
@@ -335,7 +402,7 @@ export default function QuestionsModeration() {
                                     <h2 className="text-xl font-semibold">Question Details</h2>
                                     <button
                                         onClick={() => setEditMode(!editMode)}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                        className="px-4 py-2 cursor-pointer bg-blue-600 text-white rounded-md hover:bg-blue-700"
                                     >
                                         {editMode ? 'Cancel Edit' : 'Edit'}
                                     </button>
@@ -407,19 +474,19 @@ export default function QuestionsModeration() {
                                             <div className="flex gap-2 mt-6">
                                                 <button
                                                     onClick={handleApprove}
-                                                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                                                    className="flex-1 px-4 py-2 cursor-pointer bg-green-600 text-white rounded-md hover:bg-green-700"
                                                 >
                                                     Approve
                                                 </button>
                                                 <button
                                                     onClick={handleReject}
-                                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                                    className="flex-1 px-4 py-2 cursor-pointer bg-red-600 text-white rounded-md hover:bg-red-700"
                                                 >
                                                     Reject
                                                 </button>
                                                 <button
                                                     onClick={handleDelete}
-                                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                                    className="px-4 py-2 bg-gray-600 cursor-pointer text-white rounded-md hover:bg-gray-700"
                                                 >
                                                     Delete
                                                 </button>

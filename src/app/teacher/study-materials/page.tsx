@@ -25,6 +25,14 @@ export default function StudyMaterialsModeration() {
         status: 'all',
     });
 
+    // Pagination state
+    const [pagination, setPagination] = useState({
+        page: 1,
+        limit: 20,
+        hasMore: false,
+        lastDocId: null as string | null,
+    });
+
     const [editForm, setEditForm] = useState({
         title: '',
         content: '',
@@ -37,7 +45,14 @@ export default function StudyMaterialsModeration() {
     });
 
     useEffect(() => {
-        fetchMaterials();
+        // Reset pagination when filters change
+        setPagination({
+            page: 1,
+            limit: 20,
+            hasMore: false,
+            lastDocId: null,
+        });
+        fetchMaterials(1, null);
     }, [filters]);
 
     // Handle ESC key to close fullscreen image
@@ -52,24 +67,55 @@ export default function StudyMaterialsModeration() {
         return () => window.removeEventListener('keydown', handleEscape);
     }, [fullscreenImage]);
 
-    const fetchMaterials = async () => {
+    const fetchMaterials = async (page: number = 1, lastDocId: string | null = null) => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
             if (filters.subject) params.append('subject', filters.subject);
             if (filters.examBoard) params.append('examBoard', filters.examBoard);
             if (filters.status) params.append('status', filters.status);
+            params.append('page', page.toString());
+            params.append('limit', pagination.limit.toString());
+            if (lastDocId) params.append('lastDocId', lastDocId);
 
             const response = await fetch(`/api/teacher/study-materials?${params}`);
             const data = await response.json();
 
             if (data.success) {
                 setMaterials(data.materials);
+                setPagination({
+                    page,
+                    limit: pagination.limit,
+                    hasMore: data.pagination.hasMore,
+                    lastDocId: data.pagination.lastDocId,
+                });
             }
         } catch (error) {
             console.error('Error fetching materials:', error);
+            toast.error('Failed to fetch materials');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (pagination.hasMore && pagination.lastDocId) {
+            fetchMaterials(pagination.page + 1, pagination.lastDocId);
+        }
+    };
+
+    const handlePreviousPage = () => {
+        if (pagination.page > 1) {
+            // For previous page, we need to refetch from the beginning
+            // This is a limitation of cursor-based pagination
+            // We'll reset to page 1 for now
+            setPagination({
+                page: 1,
+                limit: 20,
+                hasMore: false,
+                lastDocId: null,
+            });
+            fetchMaterials(1, null);
         }
     };
 
@@ -118,7 +164,7 @@ export default function StudyMaterialsModeration() {
 
             if (data.success) {
                 toast.success('Material updated successfully!');
-                fetchMaterials();
+                fetchMaterials(pagination.page, pagination.lastDocId);
                 setSelectedMaterial(data.material);
                 setEditMode(false);
                 setEditForm(prev => ({ ...prev, imagesToRemove: [] }));
@@ -144,7 +190,7 @@ export default function StudyMaterialsModeration() {
 
             if (response.ok) {
                 toast.success('Material approved!');
-                fetchMaterials();
+                fetchMaterials(pagination.page, pagination.lastDocId);
                 setSelectedMaterial(null);
             }
         } catch (error) {
@@ -171,7 +217,7 @@ export default function StudyMaterialsModeration() {
 
             if (response.ok) {
                 toast.success('Material rejected');
-                fetchMaterials();
+                fetchMaterials(pagination.page, pagination.lastDocId);
                 setSelectedMaterial(null);
             }
         } catch (error) {
@@ -191,7 +237,7 @@ export default function StudyMaterialsModeration() {
 
             if (response.ok) {
                 toast.success('Material deleted');
-                fetchMaterials();
+                fetchMaterials(pagination.page, pagination.lastDocId);
                 setSelectedMaterial(null);
             }
         } catch (error) {
@@ -225,7 +271,7 @@ export default function StudyMaterialsModeration() {
                                     setFilters(prev => ({ ...prev, subject: value }))
                                 }
                             >
-                                <SelectTrigger className="w-full">
+                                <SelectTrigger className="w-full cursor-pointer">
                                     <SelectValue placeholder="All Subjects" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -250,7 +296,7 @@ export default function StudyMaterialsModeration() {
                                     setFilters(prev => ({ ...prev, examBoard: value }))
                                 }
                             >
-                                <SelectTrigger className="w-full">
+                                <SelectTrigger className="w-full cursor-pointer">
                                     <SelectValue placeholder="All Boards" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -274,7 +320,7 @@ export default function StudyMaterialsModeration() {
                                     setFilters(prev => ({ ...prev, status: value }))
                                 }
                             >
-                                <SelectTrigger className="w-full">
+                                <SelectTrigger className="w-full cursor-pointer">
                                     <SelectValue placeholder="All Status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -296,7 +342,7 @@ export default function StudyMaterialsModeration() {
                         <div className="flex items-end">
                             <button
                                 onClick={() => setFilters({ subject: "all", examBoard: "all", status: "" })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 hover:bg-gray-100"
+                                className="w-full px-3 py-2 border cursor-pointer border-gray-300 rounded-md text-sm bg-gray-50 hover:bg-gray-100"
                             >
                                 Reset Filters
                             </button>
@@ -311,7 +357,7 @@ export default function StudyMaterialsModeration() {
                         <div className="p-4 border-b">
                             <h2 className="text-xl font-semibold">Materials ({materials.length})</h2>
                         </div>
-                        <div className="overflow-y-auto max-h-[calc(100vh-300px)]">
+                        <div className="overflow-y-auto max-h-[calc(100vh-400px)]">
                             {loading ? (
                                 <Spinner></Spinner>
                             ) : materials.length === 0 ? (
@@ -348,6 +394,29 @@ export default function StudyMaterialsModeration() {
                                 ))
                             )}
                         </div>
+
+                        {/* Pagination Controls */}
+                        <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
+                            <button
+                                onClick={handlePreviousPage}
+                                disabled={pagination.page === 1 || loading}
+                                className="px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                ← Previous
+                            </button>
+
+                            <span className="text-sm text-gray-700">
+                                Page {pagination.page}
+                            </span>
+
+                            <button
+                                onClick={handleNextPage}
+                                disabled={!pagination.hasMore || loading}
+                                className="px-4 py-2 text-sm cursor-pointer font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Next →
+                            </button>
+                        </div>
                     </div>
 
                     {/* Material Details & Edit */}
@@ -358,7 +427,7 @@ export default function StudyMaterialsModeration() {
                                     <h2 className="text-xl font-semibold">Material Details</h2>
                                     <button
                                         onClick={() => setEditMode(!editMode)}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                        className="px-4 py-2 cursor-pointer bg-blue-600 text-white rounded-md hover:bg-blue-700"
                                     >
                                         {editMode ? 'Cancel Edit' : 'Edit'}
                                     </button>
@@ -392,19 +461,19 @@ export default function StudyMaterialsModeration() {
                                             <div className="flex gap-2 mt-6">
                                                 <button
                                                     onClick={handleApprove}
-                                                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                                                    className="flex-1 px-4 cursor-pointer py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
                                                 >
                                                     Approve
                                                 </button>
                                                 <button
                                                     onClick={handleReject}
-                                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                                    className="flex-1 px-4 cursor-pointer py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                                                 >
                                                     Reject
                                                 </button>
                                                 <button
                                                     onClick={handleDelete}
-                                                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                                    className="px-4 py-2 cursor-pointer bg-gray-600 text-white rounded-md hover:bg-gray-700"
                                                 >
                                                     Delete
                                                 </button>

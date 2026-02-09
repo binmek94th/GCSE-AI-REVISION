@@ -10,11 +10,10 @@ export async function GET(req: NextRequest) {
         }
 
         const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const userId = decodedToken.uid;
+        const userId = decodedToken.uid;0
 
         const db = admin.firestore();
 
-        // ---- Get Mood for Today ----
         const localNow = DateTime.now().setZone("Africa/Addis_Ababa");
         const startOfDay = localNow.startOf("day").toJSDate();
         const endOfDay = localNow.endOf("day").toJSDate();

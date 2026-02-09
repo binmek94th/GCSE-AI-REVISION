@@ -7,7 +7,6 @@ import {useRouter, useSearchParams} from "next/navigation";
 import {getAuth, onAuthStateChanged} from "firebase/auth";
 import {auth} from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
-import {loadStripe} from "@stripe/stripe-js";
 import StudyMaterialTab from "@/app/dashboard/study_materials/StudyMaterialTab";
 
 interface Subject {
