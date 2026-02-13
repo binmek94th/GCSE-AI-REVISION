@@ -24,6 +24,7 @@ export interface Question {
   question_type: 'quiz' | 'mock_test';
   marks?: number;
   created_at: any;
+  correctAnswer: string;
   updated_at: any;
   moderation_status?: 'pending' | 'approved' | 'rejected' | 'deleted';
   moderated_at?: any;

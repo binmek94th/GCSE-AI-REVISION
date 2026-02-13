@@ -32,7 +32,8 @@ if (!admin.apps.length) {
         console.log("🔥 Using local firebase-admin.json for Firebase Admin");
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-    });
+            storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'gcse-ai-revision.firebasestorage.app',
+        });
     }
     else {
         serviceAccount = JSON.parse(
@@ -41,6 +42,7 @@ if (!admin.apps.length) {
 
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+            storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'gcse-ai-revision.firebasestorage.app',
         });
     }
 }
