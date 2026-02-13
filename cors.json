@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:3000", "https://sapienu.io/"],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]
