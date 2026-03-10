@@ -49,7 +49,6 @@ if (!admin.apps.length) {
         try {
             serviceAccount = JSON.parse(serviceAccountKey);
 
-            // Validate that we have the required fields
             if (!serviceAccount?.project_id || !serviceAccount?.private_key || !serviceAccount?.client_email) {
                 throw new Error('Invalid service account JSON structure');
             }

@@ -35,10 +35,10 @@ export const EXAM_DATA = [
     { exam_board: "Eduqas", subject: "English Literature", tier: "Untiered" },
     { exam_board: "Eduqas", subject: "Music", tier: "NEA" },
 
-    // { exam_board: "WJEC", subject: "Maths", tier: "Higher Tier" },
-    // { exam_board: "WJEC", subject: "Maths", tier: "Foundation Tier" },
-    // { exam_board: "WJEC", subject: "Welsh Language", tier: "Untiered" },
-    // { exam_board: "WJEC", subject: "PE", tier: "NEA" },
+    { exam_board: "WJEC", subject: "Maths", tier: "Higher Tier" },
+    { exam_board: "WJEC", subject: "Maths", tier: "Foundation Tier" },
+    { exam_board: "WJEC", subject: "Welsh Language", tier: "Untiered" },
+    { exam_board: "WJEC", subject: "PE", tier: "NEA" },
 
     // CCEA
     { exam_board: "CCEA", subject: "Maths", tier: "Higher Tier" },
