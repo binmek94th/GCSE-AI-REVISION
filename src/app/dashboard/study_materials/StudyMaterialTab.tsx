@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react';
-import {FileText, Loader2, AlertCircle, BookOpen, ArrowLeft, ChevronRight, ChevronLeft} from 'lucide-react';
+import {FileText, Loader2, AlertCircle, BookOpen, ArrowLeft, ChevronRight, ChevronLeft, ChevronDown} from 'lucide-react';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {auth} from "@/lib/firebase";
 import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
@@ -13,12 +13,22 @@ interface Material {
     title: string;
     content: string;
     subject: string;
+    topic?: string;
     done: boolean;
 }
 
 interface Props {
     packId: string;
     unSelectPack: () => void;
+}
+
+function groupByTopic(materials: Material[]): Record<string, Material[]> {
+    return materials.reduce((acc, material) => {
+        const key = material.topic || 'General';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(material);
+        return acc;
+    }, {} as Record<string, Material[]>);
 }
 
 export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
@@ -28,6 +38,7 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
     const [error, setError] = useState<null | string>(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [collapsedTopics, setCollapsedTopics] = useState<Record<string, boolean>>({});
     const { incrementStreak } = useDashboard();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -86,14 +97,15 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
         fetchMaterials();
     }, [page, packId]);
 
-
-    const selectMaterial = (material: any) => {
+    const selectMaterial = (material: Material) => {
         setSelectedMaterial(material);
-
         const params = new URLSearchParams(searchParams.toString());
         params.set("materialId", material.id);
-
         router.push(`?${params.toString()}`);
+    };
+
+    const toggleTopic = (topic: string) => {
+        setCollapsedTopics(prev => ({ ...prev, [topic]: !prev[topic] }));
     };
 
     if (loading) {
@@ -151,27 +163,29 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                 },
                 body: JSON.stringify({ packId, materialId, done: true }),
             });
-
         } catch (error) {
             console.error("Error marking material done:", error);
         }
-        incrementStreak()
+        incrementStreak();
     };
 
     const unSelectMaterial = () => {
         setSelectedMaterial(null);
-
         const params = new URLSearchParams(searchParams.toString());
         params.delete("materialId");
         router.push(`?${params.toString()}`);
-    }
+    };
 
+    const grouped = groupByTopic(materials);
+    const topicKeys = Object.keys(grouped);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
             <div className="flex h-screen">
-                <div className="w-80 rounded-2xl bg-white border-r border-gray-200 overflow-y-auto shadow-sm">
-                    <div className="p-6 border-b flex justify-between border-gray-200 bg-gradient-to-r from-indigo-500 to-purple-500">
+                {/* Sidebar */}
+                <div className="w-80 rounded-2xl bg-white border-r border-gray-200 overflow-y-auto shadow-sm flex flex-col">
+                    {/* Header */}
+                    <div className="p-6 border-b flex justify-between border-gray-200 bg-gradient-to-r from-indigo-500 to-purple-500 flex-shrink-0">
                         <div className="flex items-center gap-3 text-white">
                             <BookOpen className="w-6 h-6" />
                             <h2 className="text-xl font-semibold">{materials[0]?.subject || 'Study Pack'}</h2>
@@ -183,7 +197,6 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                                 params.delete("materialId");
                                 params.delete("packId");
                                 router.push(`?${params.toString()}`);
-
                                 setSelectedMaterial(null);
                                 unSelectPack();
                             }}
@@ -193,70 +206,94 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                         </button>
                     </div>
 
+                    {/* Material list grouped by topic */}
                     {materials.length === 0 ? (
                         <div className="p-6 text-center">
                             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                             <p className="text-gray-600 text-sm">No materials available</p>
                         </div>
                     ) : (
-                        <div className="p-4 space-y-2">
-                            {materials.map((material) => (
-                                <button
-                                    key={material.id}
-                                    onClick={() => selectMaterial(material)}
-                                    className={`w-full text-left p-4 rounded-lg transition-all duration-200 flex items-start gap-3 ${
-                                        selectedMaterial?.id === material.id
-                                            ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md"
-                                            : "bg-gray-50 text-gray-900 hover:bg-gray-100 hover:shadow-sm"
-                                    }`}
-                                >
-                                    <div className="flex-shrink-0 mt-1">
-                                        {material.done ? (
-                                            <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white">
-                                                <svg
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    className="w-3 h-3"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    strokeWidth={3}
-                                                >
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            </div>
-                                        ) : (
-                                            <div
-                                                className={`w-5 h-5 rounded-full border-2 ${
-                                                    selectedMaterial?.id === material.id
-                                                        ? "border-white"
-                                                        : "border-gray-400"
-                                                }`}
-                                            />
-                                        )}
-                                    </div>
+                        <div className="flex-1 overflow-y-auto">
+                            <div className="p-3 space-y-1">
+                                {topicKeys.map((topic) => {
+                                    const topicMaterials = grouped[topic];
+                                    const isCollapsed = collapsedTopics[topic];
+                                    const doneCount = topicMaterials.filter(m => m.done).length;
+                                    const allDone = doneCount === topicMaterials.length;
 
-                                    <div className="flex-1 min-w-0">
-                                        <span className="font-medium text-sm block line-clamp-2">
-                                            {material.title}
-                                        </span>
-                                        <span
-                                            className={`text-xs mt-1 block ${
-                                                selectedMaterial?.id === material.id
-                                                    ? "text-indigo-100"
-                                                    : "text-gray-500"
-                                            }`}
-                                        >
-                                            {material.subject}
-                                        </span>
-                                    </div>
-                                </button>
-                            ))}
+                                    return (
+                                        <div key={topic} className="rounded-lg overflow-hidden border border-gray-100">
+                                            {/* Topic header */}
+                                            <button
+                                                onClick={() => toggleTopic(topic)}
+                                                className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors duration-150 text-left"
+                                            >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    {allDone ? (
+                                                        <div className="w-4 h-4 rounded-full bg-green-500 flex-shrink-0 flex items-center justify-center">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="w-4 h-4 rounded-full border-2 border-indigo-400 flex-shrink-0" />
+                                                    )}
+                                                    <span className="font-semibold text-sm text-gray-800 truncate">{topic}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                                    <span className="text-xs text-gray-500 bg-white border border-gray-200 rounded-full px-2 py-0.5">
+                                                        {doneCount}/{topicMaterials.length}
+                                                    </span>
+                                                    <ChevronDown
+                                                        className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                                                    />
+                                                </div>
+                                            </button>
 
+                                            {/* Materials under topic */}
+                                            {!isCollapsed && (
+                                                <div className="bg-white divide-y divide-gray-50">
+                                                    {topicMaterials.map((material) => (
+                                                        <button
+                                                            key={material.id}
+                                                            onClick={() => selectMaterial(material)}
+                                                            className={`w-full text-left px-4 py-3 transition-all duration-150 flex items-center gap-3 ${
+                                                                selectedMaterial?.id === material.id
+                                                                    ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white"
+                                                                    : "hover:bg-indigo-50 text-gray-700"
+                                                            }`}
+                                                        >
+                                                            <div className="flex-shrink-0">
+                                                                {material.done ? (
+                                                                    <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                        </svg>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className={`w-4 h-4 rounded-full border-2 ${
+                                                                        selectedMaterial?.id === material.id ? 'border-white' : 'border-gray-300'
+                                                                    }`} />
+                                                                )}
+                                                            </div>
+                                                            <span className="text-sm font-medium line-clamp-2 leading-snug">
+                                                                {material.title}
+                                                            </span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Pagination */}
                             <div className="flex justify-between items-center p-4 border-t border-gray-200">
                                 <button
                                     onClick={handlePrevPage}
                                     disabled={page === 1}
-                                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 transition"
+                                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 transition text-sm"
                                 >
                                     <ChevronLeft className="w-4 h-4" /> Prev
                                 </button>
@@ -264,7 +301,7 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                                 <button
                                     onClick={handleNextPage}
                                     disabled={!hasMore}
-                                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 transition"
+                                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 disabled:opacity-50 transition text-sm"
                                 >
                                     Next <ChevronRight className="w-4 h-4" />
                                 </button>
@@ -290,14 +327,7 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                                             : 'bg-green-600 hover:bg-green-700'
                                     }`}
                                 >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        className="w-4 h-4"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        strokeWidth={2}
-                                    >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
                                     {selectedMaterial.done ? 'Completed' : 'Mark as Done'}
@@ -316,6 +346,7 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                     )}
                 </div>
             </div>
+
             {selectedMaterial && (
                 <ContextualAiChat
                     materialId={selectedMaterial.id}

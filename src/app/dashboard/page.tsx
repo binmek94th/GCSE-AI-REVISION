@@ -10,7 +10,7 @@ import StudentAIChat  from "@/app/dashboard/chat/page";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ProgressData } from "@/hooks/useProgress";
 import {onAuthStateChanged, signOut} from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import {auth, db} from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
 import { useMoodChecker } from "@/hooks/useMoodChecker";
 import { MoodChecker } from "@/app/dashboard/MoodChecker";
@@ -20,6 +20,7 @@ import {Button} from "@/app/components/ui/button";
 import FriendsPage from "@/app/dashboard/friends/page";
 import ProfilePage from "@/app/dashboard/profile/page";
 import MockTests from "@/app/dashboard/mock-exam/page";
+import {doc, getDoc} from "@firebase/firestore";
 
 
 function Dashboard() {
@@ -44,6 +45,12 @@ function Dashboard() {
             if (!currentUser.emailVerified){
                 router.push("/verify-email");
                 return;
+            }
+            const userRef = doc(db, "users", currentUser.uid);
+            const userSnap = await getDoc(userRef);
+
+            if (!(userSnap.data() as any).onboardingComplete) {
+                router.push("/onboarding");
             }
 
             const token = await currentUser.getIdToken();

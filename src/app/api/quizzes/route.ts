@@ -31,6 +31,7 @@ async function getQuestionsByPack(
     const questionsSnapshot = await db
         .collection("questions")
         .where("subject", "==", formattedPackId)
+        .where("moderation_status", "==", "approved")
         .orderBy("createdAt", "desc")
         .get();
 
@@ -89,6 +90,9 @@ export async function GET(req: Request) {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
 
+        const studyPack = await admin.firestore().collection("study_packs")
+            .doc(packId).get();
+
         const boughtDoc = await admin
             .firestore()
             .collection("users")
@@ -105,7 +109,7 @@ export async function GET(req: Request) {
         }
 
         const { questions, total, hasMore } = await getQuestionsByPack(
-            packId,
+            studyPack.data().subject,
             userId,
             limit,
             page

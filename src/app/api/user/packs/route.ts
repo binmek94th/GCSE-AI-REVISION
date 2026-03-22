@@ -41,6 +41,7 @@ export async function GET(req: Request) {
                 // const packData = packDoc.exists ? packDoc.data() : {};
                 return {
                     id: packId,
+                    subject: doc.data().subject,
                 };
             })
         );

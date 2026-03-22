@@ -10,7 +10,8 @@ async function getMaterialsByPack(packId: string, examBoard: string, limit: numb
         .firestore()
         .collection("study_materials")
         .where("exam_board", "==", examBoard)
-        .where("study_pack_id", "==", packId)
+        .where("moderation_status", "==", "approved")
+        .where("subject", "==", packId)
         .orderBy("title");
 
     const allDocsSnapshot = await collectionRef.get();
@@ -70,6 +71,8 @@ export async function GET(req: Request) {
                 { status: 403 }
             );
         }
+        const studyPack = await admin.firestore().collection("study_packs")
+            .doc(packId).get();
 
         const userDoc = await admin
             .firestore()
@@ -87,8 +90,10 @@ export async function GET(req: Request) {
             );
         }
 
+        console.log(studyPack.data().subject);
+
         // Fetch materials
-        const { materials, total, hasMore } = await getMaterialsByPack(packId, examBoard, limit, page);
+        const { materials, total, hasMore } = await getMaterialsByPack(studyPack.data().subject, examBoard, limit, page);
 
         // Fetch user progress
         const progressDocRef = admin

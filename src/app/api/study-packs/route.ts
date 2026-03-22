@@ -26,8 +26,7 @@ export async function GET(req: Request) {
                 { status: 404 }
             );
         }
-
-        const { examBoard } = userDoc.data() ?? {};
+        const examBoard = userDoc.data()?.preferences?.examBoard;
 
         if (!examBoard) {
             return NextResponse.json(
@@ -58,7 +57,6 @@ export async function GET(req: Request) {
                 )
             );
 
-        /* 4️⃣ Get bought packs */
         const boughtSnapshot = await admin.firestore()
             .collection("users")
             .doc(userId)

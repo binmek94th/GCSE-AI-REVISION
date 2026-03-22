@@ -7,7 +7,7 @@ export const EXAM_DATA = [
     { exam_board: "AQA", subject: "English Language", tier: "Untiered" },
     { exam_board: "AQA", subject: "English Literature", tier: "Untiered" },
     { exam_board: "AQA", subject: "History", tier: "Untiered" },
-    { exam_board: "AQA", subject: "Art & Design", tier: "NEA" },
+    { exam_board: "AQA", subject: "Art and Design", tier: "NEA" },
 
     { exam_board: "AQA", subject: "Combined Science", tier: "Foundation", note: "Trilogy – counts as two GCSEs" },
     { exam_board: "AQA", subject: "Combined Science", tier: "Higher", note: "Trilogy – counts as two GCSEs" },
@@ -25,7 +25,7 @@ export const EXAM_DATA = [
     { exam_board: "OCR", subject: "Chemistry", tier: "Higher Tier" },
     { exam_board: "OCR", subject: "Chemistry", tier: "Foundation Tier" },
     { exam_board: "OCR", subject: "History", tier: "Untiered" },
-    { exam_board: "OCR", subject: "Art & Design", tier: "NEA" },
+    { exam_board: "OCR", subject: "Art and Design", tier: "NEA" },
 
     { exam_board: "OCR", subject: "Combined Science", tier: "Gateway Science", note: "Counts as two GCSEs" },
     { exam_board: "OCR", subject: "Combined Science", tier: "Twenty First Century Science", note: "Alternate spec naming" },

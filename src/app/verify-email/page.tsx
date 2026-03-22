@@ -17,6 +17,8 @@ export default function VerifyEmailPage() {
             if (user) {
                 setUserEmail(user.email);
                 if (user.emailVerified) {
+                    if (!(user as any).onboardingComplete)
+                        router.push("/onboarding");
                     router.push('/dashboard');
                 }
             } else {

@@ -71,6 +71,7 @@ export default function LoginPage() {
 
             const userDocRef = doc(db, "users", userCredential.user.uid);
             const userDocSnap = await getDoc(userDocRef);
+            localStorage.setItem('User', JSON.stringify(userDocSnap));
 
             if (userDocSnap.exists()) {
                 const userData = userDocSnap.data();

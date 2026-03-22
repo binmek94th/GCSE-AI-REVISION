@@ -30,6 +30,7 @@ interface Quiz {
 
 interface StudyPack {
     id: string;
+    subject: string;
 }
 
 interface Question {
@@ -109,7 +110,7 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                     const data = await response.json();
                     setAvailablePacks(data.packs || []);
                     if (data.packs && data.packs.length > 0) {
-                        setSelectedPackId(data.packs[0].id);
+                        setSelectedPackId(data.packs[0].subject);
                     }
                 }
             } catch (err) {
@@ -299,7 +300,7 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                                     <SelectLabel>Study Packs</SelectLabel>
 
                                     {availablePacks?.map((pack) => {
-                                        const formattedName = pack.id
+                                        const formattedName = pack.subject
                                             .replace(/_/g, " ")
                                             .split(" ")
                                             .map(word => word.charAt(0).toUpperCase() + word.slice(1))

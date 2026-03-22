@@ -146,7 +146,8 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
             // Get all study materials for this pack
             const materialsSnapshot = await admin.firestore()
                 .collection('study_materials')
-                .where('study_pack_id', '==', packId)
+                .where('subject', '==', packId)
+                .where("moderation_status", "==", "approved")
                 .get();
 
             const allMaterials: StudyMaterial[] = materialsSnapshot.docs.map(doc => ({

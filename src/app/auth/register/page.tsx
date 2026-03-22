@@ -107,7 +107,7 @@ export default function RegisterPage() {
                 data.password
             );
 
-            await setDoc(doc(db, "users", userCred.user.uid), {
+            const user = await setDoc(doc(db, "users", userCred.user.uid), {
                 username: data.username,
                 username_lowercase: data.username.toLowerCase().trim(),
                 parent_email: data.parent_email,
@@ -117,6 +117,7 @@ export default function RegisterPage() {
                 createdAt: new Date(),
                 tokens: 1000,
             });
+            localStorage.setItem('User', JSON.stringify(user));
 
             await sendEmailVerification(userCred.user);
             router.push('/verify-email');
