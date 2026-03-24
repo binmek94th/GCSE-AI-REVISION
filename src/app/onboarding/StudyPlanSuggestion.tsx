@@ -1,12 +1,10 @@
-
 'use client'
 
-import { BookOpen, TrendingUp, Target, Lightbulb, CheckCircle2, XCircle, X } from 'lucide-react';
+import { BookOpen, TrendingUp, Target, Lightbulb, CheckCircle2, XCircle, X, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
-import {QuizResultSuggestion, QuizSuggestionRecommendation} from "@/app/onboarding/Schema";
-import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
-import {useRouter} from "next/navigation";
-import {Button} from "@/app/components/ui/button";
+import { QuizResultSuggestion, QuizSuggestionRecommendation } from "@/app/onboarding/Schema";
+import { MarkdownContent } from "@/app/dashboard/study_materials/Markdown";
+import { useRouter } from "next/navigation";
 
 interface Props {
     data: QuizResultSuggestion;
@@ -18,45 +16,71 @@ export function QuizSuggestionsDisplay({ data, onMaterialClick }: Props) {
     const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
     const router = useRouter();
 
-    const getAccuracyColor = (accuracy: number) => {
-        if (accuracy >= 80) return 'text-green-600';
-        if (accuracy >= 60) return 'text-yellow-600';
-        return 'text-red-600';
-    };
-
-    const getAccuracyBgColor = (accuracy: number) => {
-        if (accuracy >= 80) return 'bg-green-50 border-green-200';
-        if (accuracy >= 60) return 'bg-yellow-50 border-yellow-200';
-        return 'bg-red-50 border-red-200';
-    };
-
-    const handleMaterialClick = (material: any) => {
-        setSelectedMaterial(material);
-        onMaterialClick?.(material.id);
-    };
-
-    const handleContinue = () => {
-        router.push("/dashboard");
-    }
+    const accuracyColor = (a: number) => a >= 80 ? '#0EA5E9' : a >= 60 ? '#D97706' : '#DC2626';
+    const accuracyBg = (a: number) => a >= 80 ? '#F0F9FF' : a >= 60 ? '#FFFBEB' : '#FEF2F2';
+    const accuracyBorder = (a: number) => a >= 80 ? '#BAE6FD' : a >= 60 ? '#FDE68A' : '#FECACA';
+    const barColor = (a: number) => a >= 80 ? '#0EA5E9' : a >= 60 ? '#F59E0B' : '#EF4444';
 
     return (
-        <>
-            {/* Material Modal */}
+        /* Force light mode */
+        <div style={{ colorScheme: 'light', backgroundColor: '#F8FAFC', minHeight: '100vh', padding: '2rem 0' }}>
+            {/* Material modal */}
             {selectedMaterial && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-300">
-                        {/* Modal Header */}
-                        <div className="flex items-start justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-                            <div className="flex-1">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    zIndex: 50,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 16,
+                    backgroundColor: 'rgba(0,0,0,0.3)'
+                }}>
+                    <div style={{
+                        backgroundColor: '#FFFFFF',
+                        borderRadius: 12,
+                        border: '1px solid #E2E8F0',
+                        maxWidth: 720,
+                        width: '100%',
+                        maxHeight: '90vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden'
+                    }}>
+                        {/* Modal header */}
+                        <div style={{
+                            padding: '20px 24px',
+                            borderBottom: '1px solid #E2E8F0',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start'
+                        }}>
+                            <div>
+                                <h2 style={{ fontSize: 17, fontWeight: 600, color: '#0F172A', marginBottom: 6 }}>
                                     {selectedMaterial.title}
                                 </h2>
-                                <div className="flex items-center gap-2">
-                                    <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                    <span style={{
+                                        backgroundColor: '#F0F9FF',
+                                        color: '#0C4A6E',
+                                        border: '1px solid #BAE6FD',
+                                        borderRadius: 99,
+                                        padding: '2px 10px',
+                                        fontSize: 12,
+                                        fontWeight: 500
+                                    }}>
                                         {selectedMaterial.subject}
                                     </span>
                                     {selectedMaterial.difficulty && (
-                                        <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">
+                                        <span style={{
+                                            backgroundColor: '#EFF6FF',
+                                            color: '#1D4ED8',
+                                            border: '1px solid #BFDBFE',
+                                            borderRadius: 99,
+                                            padding: '2px 10px',
+                                            fontSize: 12,
+                                            fontWeight: 500
+                                        }}>
                                             {selectedMaterial.difficulty}
                                         </span>
                                     )}
@@ -64,28 +88,48 @@ export function QuizSuggestionsDisplay({ data, onMaterialClick }: Props) {
                             </div>
                             <button
                                 onClick={() => setSelectedMaterial(null)}
-                                className="flex-shrink-0 ml-4 p-2 hover:bg-gray-200 rounded-full transition-colors"
+                                style={{
+                                    padding: 6,
+                                    borderRadius: 6,
+                                    border: '1px solid #E2E8F0',
+                                    backgroundColor: '#FFFFFF',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center'
+                                }}
                             >
-                                <X className="w-5 h-5 text-gray-600" />
+                                <X style={{ width: 16, height: 16, color: '#475569' }} />
                             </button>
                         </div>
 
-                        {/* Modal Content */}
-                        <div className="flex-1 overflow-y-auto p-6 bg-white">
-                            {selectedMaterial.content ? (
-                                <MarkdownContent content={selectedMaterial.content} />
-                            ) : (
-                                <p className="text-gray-500 text-center py-8">
-                                    No content available for this material.
-                                </p>
-                            )}
+                        {/* Modal body */}
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', backgroundColor: '#FFFFFF' }}>
+                            {selectedMaterial.content
+                                ? <MarkdownContent content={selectedMaterial.content} />
+                                : <p style={{ color: '#94A3B8', fontSize: 14, textAlign: 'center', paddingTop: 32 }}>No content available.</p>
+                            }
                         </div>
 
-                        {/* Modal Footer */}
-                        <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+                        {/* Modal footer */}
+                        <div style={{
+                            padding: '14px 24px',
+                            borderTop: '1px solid #E2E8F0',
+                            backgroundColor: '#F8FAFC',
+                            display: 'flex',
+                            justifyContent: 'flex-end'
+                        }}>
                             <button
                                 onClick={() => setSelectedMaterial(null)}
-                                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                                style={{
+                                    padding: '8px 20px',
+                                    borderRadius: 8,
+                                    border: 'none',
+                                    backgroundColor: '#0EA5E9',
+                                    color: '#FFFFFF',
+                                    fontSize: 14,
+                                    fontWeight: 500,
+                                    cursor: 'pointer'
+                                }}
                             >
                                 Close
                             </button>
@@ -94,94 +138,131 @@ export function QuizSuggestionsDisplay({ data, onMaterialClick }: Props) {
                 </div>
             )}
 
-            <div className="space-y-6">
-                {/* Overall Analysis Card */}
-                <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-200">
-                    <div className="flex items-start gap-3 mb-3">
-                        <div className="flex-shrink-0 w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center">
-                            <Lightbulb className="w-5 h-5 text-white" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Overall analysis */}
+                <div style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 12,
+                    padding: '20px 24px'
+                }}>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                        <div style={{
+                            flexShrink: 0,
+                            width: 36,
+                            height: 36,
+                            borderRadius: '50%',
+                            backgroundColor: '#F0F9FF',
+                            border: '1px solid #BAE6FD',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <Lightbulb style={{ width: 18, height: 18, color: '#0EA5E9' }} />
                         </div>
-                        <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                Overall Analysis
+                        <div>
+                            <h3 style={{ fontSize: 15, fontWeight: 600, color: '#0F172A', marginBottom: 6 }}>
+                                Overall analysis
                             </h3>
-                            <p className="text-gray-700 leading-relaxed">
+                            <p style={{ fontSize: 14, color: '#0F172A', lineHeight: 1.65 }}>
                                 {suggestions.overallAnalysis}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Performance Summary */}
-                <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-4">
-                        <TrendingUp className="w-5 h-5 text-indigo-600" />
-                        <h3 className="text-lg font-semibold text-gray-900">
-                            Performance by Subject
+                {/* Stats row */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: 12
+                }}>
+                    {[
+                        { label: 'Total questions', value: metadata.totalQuestions, color: '#0F172A' },
+                        { label: 'Correct', value: metadata.totalQuestions - metadata.incorrectCount, color: '#22C55E' },
+                        { label: 'Incorrect', value: metadata.incorrectCount, color: '#DC2626' },
+                        { label: 'Overall score', value: `${Math.round(((metadata.totalQuestions - metadata.incorrectCount) / metadata.totalQuestions) * 100)}%`, color: '#0EA5E9' },
+                    ].map(stat => (
+                        <div key={stat.label} style={{
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid #E2E8F0',
+                            borderRadius: 8,
+                            padding: '14px 16px',
+                            textAlign: 'center'
+                        }}>
+                            <div style={{ fontSize: 22, fontWeight: 600, color: stat.color, marginBottom: 2 }}>
+                                {stat.value}
+                            </div>
+                            <div style={{ fontSize: 12, color: '#94A3B8' }}>{stat.label}</div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Performance by subject */}
+                <div style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 12,
+                    padding: '20px 24px'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                        <TrendingUp style={{ width: 18, height: 18, color: '#0EA5E9' }} />
+                        <h3 style={{ fontSize: 15, fontWeight: 600, color: '#0F172A' }}>
+                            Performance by subject
                         </h3>
                     </div>
 
-                    <div className="grid gap-3">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {metadata.subjectAnalysis.map((subject, idx) => (
-                            <div
-                                key={idx}
-                                className={`p-4 rounded-lg border-2 transition-all ${getAccuracyBgColor(subject.accuracy)}`}
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                    <span className="font-semibold text-gray-900">
-                                        {subject.subject}
-                                    </span>
-                                        {subject.accuracy >= 70 ? (
-                                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                        ) : (
-                                            <XCircle className="w-4 h-4 text-red-600" />
-                                        )}
+                            <div key={idx} style={{
+                                padding: '14px 16px',
+                                borderRadius: 8,
+                                border: `1px solid ${accuracyBorder(subject.accuracy)}`,
+                                backgroundColor: accuracyBg(subject.accuracy)
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{ fontSize: 14, fontWeight: 600, color: '#0F172A' }}>
+                                            {subject.subject}
+                                        </span>
+                                        {subject.accuracy >= 70
+                                            ? <CheckCircle2 style={{ width: 14, height: 14, color: '#22C55E' }} />
+                                            : <XCircle style={{ width: 14, height: 14, color: '#DC2626' }} />
+                                        }
                                     </div>
-                                    <div className={`text-2xl font-bold ${getAccuracyColor(subject.accuracy)}`}>
+                                    <span style={{ fontSize: 18, fontWeight: 700, color: accuracyColor(subject.accuracy) }}>
                                         {subject.accuracy}%
-                                    </div>
+                                    </span>
                                 </div>
 
-                                <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
-                                <span>
-                                    <strong className="text-gray-900">{subject.correct}</strong> correct
-                                </span>
-                                    <span>•</span>
-                                    <span>
-                                    <strong className="text-gray-900">{subject.total - subject.correct}</strong> incorrect
-                                </span>
-                                    <span>•</span>
-                                    <span>
-                                    <strong className="text-gray-900">{subject.total}</strong> total
-                                </span>
+                                <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#475569', marginBottom: 8 }}>
+                                    <span><strong style={{ color: '#0F172A' }}>{subject.correct}</strong> correct</span>
+                                    <span>·</span>
+                                    <span><strong style={{ color: '#0F172A' }}>{subject.total - subject.correct}</strong> incorrect</span>
+                                    <span>·</span>
+                                    <span><strong style={{ color: '#0F172A' }}>{subject.total}</strong> total</span>
                                 </div>
 
-                                {/* Progress Bar */}
-                                <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                    <div
-                                        className={`h-full transition-all duration-500 ${
-                                            subject.accuracy >= 80
-                                                ? 'bg-green-500'
-                                                : subject.accuracy >= 60
-                                                    ? 'bg-yellow-500'
-                                                    : 'bg-red-500'
-                                        }`}
-                                        style={{ width: `${subject.accuracy}%` }}
-                                    ></div>
+                                <div style={{ height: 4, backgroundColor: 'rgba(0,0,0,0.08)', borderRadius: 99, overflow: 'hidden' }}>
+                                    <div style={{
+                                        height: '100%',
+                                        width: `${subject.accuracy}%`,
+                                        backgroundColor: barColor(subject.accuracy),
+                                        borderRadius: 99,
+                                        transition: 'width 0.6s ease'
+                                    }} />
                                 </div>
 
-                                {/* Show struggled questions if any */}
                                 {subject.incorrectQuestions.length > 0 && (
-                                    <div className="mt-3 pt-3 border-t border-gray-200">
-                                        <p className="text-xs font-medium text-gray-700 mb-1">
-                                            Areas needing attention:
+                                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                                        <p style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                            Areas needing attention
                                         </p>
-                                        <ul className="text-xs text-gray-600 space-y-1">
-                                            {subject.incorrectQuestions.map((q, qIdx) => (
-                                                <li key={qIdx} className="line-clamp-1">• {q}</li>
-                                            ))}
-                                        </ul>
+                                        {subject.incorrectQuestions.map((q, qIdx) => (
+                                            <p key={qIdx} style={{ fontSize: 12, color: '#475569', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                                                · {q}
+                                            </p>
+                                        ))}
                                     </div>
                                 )}
                             </div>
@@ -190,105 +271,150 @@ export function QuizSuggestionsDisplay({ data, onMaterialClick }: Props) {
                 </div>
 
                 {/* Recommendations */}
-                <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-                    <div className="flex items-center gap-2 mb-4">
-                        <BookOpen className="w-5 h-5 text-indigo-600" />
-                        <h3 className="text-lg font-semibold text-gray-900">
-                            Recommended Study Materials
+                <div style={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 12,
+                    padding: '20px 24px'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                        <BookOpen style={{ width: 18, height: 18, color: '#0EA5E9' }} />
+                        <h3 style={{ fontSize: 15, fontWeight: 600, color: '#0F172A' }}>
+                            Recommended study materials
                         </h3>
                     </div>
 
                     {suggestions.recommendations.length === 0 ? (
-                        <div className="text-center py-8">
-                            <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                            <p className="text-gray-600">
-                                Great job! You&#39;re doing well across all subjects.
-                            </p>
+                        <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                            <CheckCircle2 style={{ width: 40, height: 40, color: '#0EA5E9', margin: '0 auto 8px' }} />
+                            <p style={{ fontSize: 14, color: '#475569' }}>Great work — you're doing well across all subjects.</p>
                         </div>
                     ) : (
-                        <div className="space-y-6">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                             {suggestions.recommendations.map((rec: QuizSuggestionRecommendation, idx) => (
-                                <div
-                                    key={idx}
-                                    className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-5 border border-blue-200"
-                                >
-                                    <div className="flex items-start gap-3 mb-3">
-                                        <div className="flex-shrink-0 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                <div key={idx} style={{
+                                    border: '1px solid #E2E8F0',
+                                    borderRadius: 8,
+                                    padding: '16px 18px'
+                                }}>
+                                    <div style={{ display: 'flex', gap: 12, marginBottom: 10 }}>
+                                        <div style={{
+                                            flexShrink: 0,
+                                            width: 28,
+                                            height: 28,
+                                            borderRadius: '50%',
+                                            backgroundColor: '#0EA5E9',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                            color: '#FFFFFF'
+                                        }}>
                                             {idx + 1}
                                         </div>
-                                        <div className="flex-1">
-                                            <h4 className="font-semibold text-gray-900 text-lg mb-2">
+                                        <div>
+                                            <h4 style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', marginBottom: 4 }}>
                                                 {rec.subject}
                                             </h4>
-                                            <p className="text-sm text-gray-700 mb-4">
+                                            <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.55 }}>
                                                 {rec.reasoning}
                                             </p>
-
-                                            {rec.materials && rec.materials.length > 0 && (
-                                                <div className="space-y-2">
-                                                    <p className="text-xs font-medium text-gray-600 uppercase tracking-wide mb-2">
-                                                        Suggested Materials:
-                                                    </p>
-                                                    {rec.materials.map((material) => (
-                                                        <button
-                                                            key={material.id}
-                                                            onClick={() => handleMaterialClick(material)}
-                                                            className="w-full bg-white p-4 rounded-lg border-2 border-indigo-200 hover:border-indigo-400 hover:shadow-md transition-all text-left group"
-                                                        >
-                                                            <div className="flex items-start justify-between gap-3">
-                                                                <div className="flex-1">
-                                                                    <h5 className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors mb-1">
-                                                                        {material.title}
-                                                                    </h5>
-                                                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                                    <span className="bg-gray-100 px-2 py-1 rounded">
-                                                                        {material.subject}
-                                                                    </span>
-                                                                        {material.difficulty && (
-                                                                            <span className="bg-indigo-100 text-indigo-700 px-2 py-1 rounded">
-                                                                            {material.difficulty}
-                                                                        </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                                <svg
-                                                                    className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors flex-shrink-0"
-                                                                    fill="none"
-                                                                    viewBox="0 0 24 24"
-                                                                    stroke="currentColor"
-                                                                >
-                                                                    <path
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                        strokeWidth={2}
-                                                                        d="M9 5l7 7-7 7"
-                                                                    />
-                                                                </svg>
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
+
+                                    {rec.materials && rec.materials.length > 0 && (
+                                        <div style={{ paddingLeft: 40, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {rec.materials.map(material => (
+                                                <button
+                                                    key={material.id}
+                                                    onClick={() => { setSelectedMaterial(material); onMaterialClick?.(material.id); }}
+                                                    style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        padding: '12px 14px',
+                                                        borderRadius: 8,
+                                                        border: '1px solid #E2E8F0',
+                                                        backgroundColor: '#F8FAFC',
+                                                        cursor: 'pointer',
+                                                        textAlign: 'left',
+                                                        transition: 'all 0.15s'
+                                                    }}
+                                                    onMouseEnter={e => {
+                                                        (e.currentTarget as HTMLElement).style.borderColor = '#0EA5E9';
+                                                        (e.currentTarget as HTMLElement).style.backgroundColor = '#F0F9FF';
+                                                    }}
+                                                    onMouseLeave={e => {
+                                                        (e.currentTarget as HTMLElement).style.borderColor = '#E2E8F0';
+                                                        (e.currentTarget as HTMLElement).style.backgroundColor = '#F8FAFC';
+                                                    }}
+                                                >
+                                                    <div>
+                                                        <p style={{ fontSize: 13, fontWeight: 500, color: '#0F172A', marginBottom: 3 }}>
+                                                            {material.title}
+                                                        </p>
+                                                        <div style={{ display: 'flex', gap: 6 }}>
+                                                            <span style={{
+                                                                fontSize: 11,
+                                                                backgroundColor: '#F8FAFC',
+                                                                color: '#475569',
+                                                                borderRadius: 4,
+                                                                padding: '2px 8px'
+                                                            }}>
+                                                                {material.subject}
+                                                            </span>
+                                                            {material.difficulty && (
+                                                                <span style={{
+                                                                    fontSize: 11,
+                                                                    backgroundColor: '#EFF6FF',
+                                                                    color: '#3B82F6',
+                                                                    borderRadius: 4,
+                                                                    padding: '2px 8px'
+                                                                }}>
+                                                                    {material.difficulty}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <ArrowRight style={{ width: 16, height: 16, color: '#94A3B8', flexShrink: 0 }} />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
 
-                {/* Study Plan */}
+                {/* Study plan */}
                 {suggestions.studyPlan && (
-                    <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200">
-                        <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center">
-                                <Target className="w-5 h-5 text-white" />
+                    <div style={{
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 12,
+                        padding: '20px 24px'
+                    }}>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <div style={{
+                                flexShrink: 0,
+                                width: 36,
+                                height: 36,
+                                borderRadius: '50%',
+                                backgroundColor: '#FFFBEB',
+                                border: '1px solid #FDE68A',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <Target style={{ width: 18, height: 18, color: '#D97706' }} />
                             </div>
-                            <div className="flex-1">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                                    Your Personalized Study Plan
+                            <div>
+                                <h3 style={{ fontSize: 15, fontWeight: 600, color: '#0F172A', marginBottom: 6 }}>
+                                    Your personalised study plan
                                 </h3>
-                                <p className="text-gray-700 leading-relaxed">
+                                <p style={{ fontSize: 14, color: '#0F172A', lineHeight: 1.65 }}>
                                     {suggestions.studyPlan}
                                 </p>
                             </div>
@@ -296,42 +422,30 @@ export function QuizSuggestionsDisplay({ data, onMaterialClick }: Props) {
                     </div>
                 )}
 
-                {/* Summary Stats */}
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                    <div className="flex items-center justify-around text-center">
-                        <div>
-                            <div className="text-2xl font-bold text-gray-900">
-                                {metadata.totalQuestions}
-                            </div>
-                            <div className="text-xs text-gray-600">Total Questions</div>
-                        </div>
-                        <div className="w-px h-10 bg-gray-300"></div>
-                        <div>
-                            <div className="text-2xl font-bold text-green-600">
-                                {metadata.totalQuestions - metadata.incorrectCount}
-                            </div>
-                            <div className="text-xs text-gray-600">Correct</div>
-                        </div>
-                        <div className="w-px h-10 bg-gray-300"></div>
-                        <div>
-                            <div className="text-2xl font-bold text-red-600">
-                                {metadata.incorrectCount}
-                            </div>
-                            <div className="text-xs text-gray-600">Incorrect</div>
-                        </div>
-                        <div className="w-px h-10 bg-gray-300"></div>
-                        <div>
-                            <div className="text-2xl font-bold text-indigo-600">
-                                {Math.round(((metadata.totalQuestions - metadata.incorrectCount) / metadata.totalQuestions) * 100)}%
-                            </div>
-                            <div className="text-xs text-gray-600">Overall Score</div>
-                        </div>
-                    </div>
+                {/* Continue button */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                        onClick={() => router.push("/dashboard")}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '10px 24px',
+                            borderRadius: 8,
+                            border: 'none',
+                            backgroundColor: '#0EA5E9',
+                            color: '#FFFFFF',
+                            fontSize: 14,
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            transition: 'background-color 0.15s'
+                        }}
+                    >
+                        Go to dashboard
+                        <ArrowRight style={{ width: 16, height: 16 }} />
+                    </button>
                 </div>
             </div>
-            <div className={"flex justify-end mt-6"}>
-                <Button onClick={handleContinue}>Continue</Button>
-            </div>
-        </>
+        </div>
     );
 }

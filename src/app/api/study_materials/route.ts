@@ -90,7 +90,6 @@ export async function GET(req: Request) {
             );
         }
 
-        console.log(studyPack.data().subject);
 
         // Fetch materials
         const { materials, total, hasMore } = await getMaterialsByPack(studyPack.data().subject, examBoard, limit, page);

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { SubjectSelection } from '@/app/onboarding/Schema';
 import { Skeleton } from "@/app/components/ui/skeleton";
-import {StudyPlanLoading} from "@/app/onboarding/StudyPlanLoading";
+import { StudyPlanLoading } from "@/app/onboarding/StudyPlanLoading";
 
 interface Props {
     selectedSubjects: SubjectSelection;
@@ -15,15 +15,13 @@ interface QuizAnswer {
     question: string;
     selectedAnswer: string;
     correctAnswer: string;
-    subject?: string; // Add subject field
+    subject?: string;
 }
 
 interface Question {
     id: string;
     question: string;
-    options: {
-        [key: string]: string; // e.g., { "A": "HEH", "B": "EEE", "C": "DEH" }
-    };
+    options: { [key: string]: string };
     answer?: string;
     subject: string;
     exam_board: string;
@@ -36,29 +34,26 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [submitLoading, setSubmitLoading] = useState(false);
-    const [submitted, setSubmitted] = useState(false)
+    const [submitted, setSubmitted] = useState(false);
+
     useEffect(() => {
         const fetchQuestions = async () => {
             setLoading(true);
             setNextDisabled(true);
             setError(null);
-
             try {
                 const response = await fetch('/api/questions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ selections: selectedSubjects }),
                 });
-
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData?.message || 'Failed to fetch questions');
                 }
-
                 const data = await response.json();
                 setQuestions(data.questions || []);
             } catch (err: any) {
-                console.error('Error fetching questions:', err);
                 setError(err.message || 'An unexpected error occurred');
             } finally {
                 setLoading(false);
@@ -68,56 +63,33 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
     }, [selectedSubjects, setNextDisabled]);
 
     const handleAnswerSelect = (questionId: string, optionKey: string) => {
-        setAnswers((prev) => ({
-            ...prev,
-            [questionId]: optionKey,
-        }));
+        setAnswers(prev => ({ ...prev, [questionId]: optionKey }));
     };
 
     const handleSubmit = async () => {
-        // // Get auth token
-        // const user = auth.currentUser;
-        // if (!user) {
-        //     setError('You must be logged in to submit the quiz');
-        //     return;
-        // }
-        //
-        // const idToken = await user.getIdToken();
-
-        const payload: QuizAnswer[] = questions.map((q) => ({
+        const payload: QuizAnswer[] = questions.map(q => ({
             questionId: q.id,
             question: q.question,
             selectedAnswer: answers[q.id] || '',
             correctAnswer: q.answer || '',
             subject: q.subject || 'General',
         }));
-
         setSubmitLoading(true);
-
         try {
             const response = await fetch('/api/questions/submit', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // 'Authorization': `Bearer ${idToken}`
-                },
-                body: JSON.stringify({
-                    answers: payload,
-                    selectedSubjects: selectedSubjects
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answers: payload, selectedSubjects }),
             });
-
             if (!response.ok) {
                 const errData = await response.json();
                 throw new Error(errData?.message || 'Failed to submit quiz');
             }
-
             const data = await response.json();
             setPlan(data);
             setSubmitted(true);
             setNextDisabled(false);
         } catch (err: any) {
-            console.error('Error submitting quiz:', err);
             setError(err.message || 'Failed to submit quiz');
         } finally {
             setSubmitLoading(false);
@@ -125,64 +97,121 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
     };
 
     if (loading) return <Skeleton />;
-    if (error) return <p className="text-red-600">{error}</p>;
-    if (questions.length === 0) return <p>No questions available.</p>;
-
-    // Show loading component while submitting
-    if (submitLoading) {
-        return <StudyPlanLoading />;
-    }
+    if (error) return <p style={{ color: '#DC2626', fontSize: 14 }}>{error}</p>;
+    if (questions.length === 0) return <p style={{ color: '#475569', fontSize: 14 }}>No questions available.</p>;
+    if (submitLoading) return <StudyPlanLoading />;
 
     if (submitted) {
         return (
-            <div className="space-y-6">
-                <div className="bg-white p-8 rounded-lg shadow-lg border border-gray-200">
-                    <h2 className="text-2xl font-bold text-green-600 mb-4">Quiz Completed! 🎉</h2>
+            <div style={{
+                backgroundColor: '#F0F9FF',
+                border: '1px solid #BAE6FD',
+                borderRadius: 8,
+                padding: '24px',
+                textAlign: 'center'
+            }}>
+                <div style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    backgroundColor: '#0EA5E9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 12px'
+                }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
                 </div>
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0C4A6E', marginBottom: 4 }}>
+                    Quiz completed!
+                </h3>
+                <p style={{ fontSize: 14, color: '#0369A1' }}>
+                    Click Continue to see your study plan.
+                </p>
             </div>
         );
     }
 
+    const answeredCount = Object.keys(answers).length;
+
     return (
-        <div className="space-y-6">
+        <div>
             {questions.map((q, idx) => {
-                // Convert options object to array of entries [key, value]
                 const optionEntries = Object.entries(q.options || {}).sort((a, b) => a[0].localeCompare(b[0]));
 
                 return (
-                    <div key={q.id || idx} className="p-6 border rounded-lg bg-white shadow-sm">
-                        <div className="flex items-start gap-3 mb-4">
-                            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                                <span className="text-sm font-semibold text-blue-700">{idx + 1}</span>
+                    <div key={q.id || idx} style={{
+                        marginBottom: 16,
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 8,
+                        padding: '16px 18px',
+                        backgroundColor: '#FFFFFF'
+                    }}>
+                        {/* Question header */}
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+                            <div style={{
+                                flexShrink: 0,
+                                width: 26,
+                                height: 26,
+                                borderRadius: '50%',
+                                backgroundColor: '#F0F9FF',
+                                border: '1px solid #BAE6FD',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: '#0EA5E9' }}>{idx + 1}</span>
                             </div>
-                            <div className="flex-1">
-                                <h4 className="font-medium text-gray-900 mb-2">{q.question}</h4>
+                            <div style={{ flex: 1 }}>
+                                <p style={{ fontSize: 14, fontWeight: 500, color: '#0F172A', lineHeight: 1.5 }}>
+                                    {q.question}
+                                </p>
+                                <p style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>
+                                    {q.subject}
+                                </p>
                             </div>
                         </div>
 
-                        <div className="space-y-3 ml-11">
-                            {optionEntries.map(([optionKey, optionValue]) => {
-                                const isSelected = answers[q.id] === optionKey;
+                        {/* Options */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 38 }}>
+                            {optionEntries.map(([key, value]) => {
+                                const isSelected = answers[q.id] === key;
                                 return (
                                     <button
-                                        key={optionKey}
-                                        onClick={() => handleAnswerSelect(q.id, optionKey)}
-                                        className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${
-                                            isSelected
-                                                ? 'border-blue-600 bg-blue-50 shadow-sm'
-                                                : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                                        }`}
+                                        key={key}
+                                        onClick={() => handleAnswerSelect(q.id, key)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            padding: '10px 14px',
+                                            borderRadius: 6,
+                                            border: isSelected ? '1.5px solid #0EA5E9' : '1px solid #E2E8F0',
+                                            backgroundColor: isSelected ? '#F0F9FF' : '#F8FAFC',
+                                            cursor: 'pointer',
+                                            textAlign: 'left',
+                                            transition: 'all 0.15s'
+                                        }}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <span className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
-                                                isSelected
-                                                    ? 'border-blue-600 bg-blue-600 text-white'
-                                                    : 'border-gray-300 text-gray-600'
-                                            }`}>
-                                                {optionKey}
-                                            </span>
-                                            <span className="text-gray-700">{optionValue}</span>
-                                        </div>
+                                        <span style={{
+                                            flexShrink: 0,
+                                            width: 24,
+                                            height: 24,
+                                            borderRadius: '50%',
+                                            border: isSelected ? '1.5px solid #0EA5E9' : '1px solid #E2E8F0',
+                                            backgroundColor: isSelected ? '#0EA5E9' : '#FFFFFF',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: 11,
+                                            fontWeight: 600,
+                                            color: isSelected ? '#FFFFFF' : '#475569'
+                                        }}>
+                                            {key}
+                                        </span>
+                                        <span style={{ fontSize: 14, color: '#0F172A' }}>{value}</span>
                                     </button>
                                 );
                             })}
@@ -191,17 +220,24 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
                 );
             })}
 
-            <div className="flex justify-center mt-8">
+            {/* Submit */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
                 <button
                     onClick={handleSubmit}
-                    disabled={Object.keys(answers).length !== questions.length}
-                    className={`px-8 py-3 rounded-lg font-medium transition-all duration-200 ${
-                        Object.keys(answers).length === questions.length
-                            ? 'bg-green-500 text-white hover:bg-green-600 shadow-md hover:shadow-lg'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
+                    disabled={answeredCount !== questions.length}
+                    style={{
+                        padding: '10px 24px',
+                        borderRadius: 8,
+                        border: 'none',
+                        backgroundColor: answeredCount === questions.length ? '#0EA5E9' : '#E2E8F0',
+                        color: answeredCount === questions.length ? '#FFFFFF' : '#94A3B8',
+                        fontSize: 14,
+                        fontWeight: 500,
+                        cursor: answeredCount === questions.length ? 'pointer' : 'not-allowed',
+                        transition: 'all 0.2s'
+                    }}
                 >
-                    Submit Quiz ({Object.keys(answers).length}/{questions.length} answered)
+                    Submit quiz ({answeredCount}/{questions.length} answered)
                 </button>
             </div>
         </div>

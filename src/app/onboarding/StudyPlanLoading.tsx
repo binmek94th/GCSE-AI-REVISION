@@ -1,150 +1,156 @@
-// components/StudyPlanLoading.tsx
 'use client'
 
 import { Brain, Sparkles, BookOpen, Target } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const loadingSteps = [
-    { icon: Brain, text: "Analyzing your quiz results...", duration: 2000 },
-    { icon: Target, text: "Identifying areas for improvement...", duration: 2000 },
-    { icon: BookOpen, text: "Finding the best study materials...", duration: 2000 },
-    { icon: Sparkles, text: "Creating your personalized plan...", duration: 2000 }
+    { icon: Brain, text: "Analysing your quiz results..." },
+    { icon: Target, text: "Identifying areas for improvement..." },
+    { icon: BookOpen, text: "Finding the best study materials..." },
+    { icon: Sparkles, text: "Creating your personalised plan..." }
 ];
 
 export function StudyPlanLoading() {
     const [currentStep, setCurrentStep] = useState(0);
-    const [isVisible, setIsVisible] = useState(false);
+    const [visible, setVisible] = useState(false);
 
     useEffect(() => {
-        // Trigger fade-in animation
-        setTimeout(() => setIsVisible(true), 50);
+        const t = setTimeout(() => setVisible(true), 50);
+        return () => clearTimeout(t);
     }, []);
 
     useEffect(() => {
         if (currentStep < loadingSteps.length - 1) {
-            const timer = setTimeout(() => {
-                setCurrentStep(prev => prev + 1);
-            }, loadingSteps[currentStep].duration);
-
-            return () => clearTimeout(timer);
+            const t = setTimeout(() => setCurrentStep(s => s + 1), 2000);
+            return () => clearTimeout(t);
         }
     }, [currentStep]);
 
     return (
-        <div className={`flex py-5 items-center justify-center min-h-[400px] bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-xl transition-all duration-700 ease-out ${
-            isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-        }`}>
-            <div className="text-center max-w-md px-6">
-                {/* Animated Icon */}
-                <div className={`relative mb-8 transition-all duration-500 delay-100 ${
-                    isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'
-                }`}>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-24 h-24 bg-indigo-100 rounded-full animate-ping opacity-20"></div>
-                    </div>
-                    <div className="relative flex items-center justify-center">
-                        <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-                            {loadingSteps.map((step, index) => {
-                                const Icon = step.icon;
-                                return (
-                                    <Icon
-                                        key={index}
-                                        className={`w-10 h-10 text-white absolute transition-all duration-500 ${
-                                            index === currentStep
-                                                ? 'opacity-100 scale-100'
-                                                : 'opacity-0 scale-50'
-                                        }`}
-                                    />
-                                );
-                            })}
+        <div style={{
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderRadius: 12,
+            padding: '40px 32px',
+            textAlign: 'center',
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateY(0)' : 'translateY(8px)',
+            transition: 'opacity 0.5s ease, transform 0.5s ease'
+        }}>
+            {/* Icon */}
+            <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                backgroundColor: '#F0F9FF',
+                border: '1px solid #BAE6FD',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 20px',
+                position: 'relative'
+            }}>
+                {loadingSteps.map((step, i) => {
+                    const Icon = step.icon;
+                    return (
+                        <Icon
+                            key={i}
+                            style={{
+                                width: 24,
+                                height: 24,
+                                color: '#0EA5E9',
+                                position: 'absolute',
+                                opacity: i === currentStep ? 1 : 0,
+                                transform: i === currentStep ? 'scale(1)' : 'scale(0.6)',
+                                transition: 'all 0.4s ease'
+                            }}
+                        />
+                    );
+                })}
+            </div>
+
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0F172A', marginBottom: 4 }}>
+                Generating your study plan
+            </h3>
+            <p style={{ fontSize: 13, color: '#94A3B8', marginBottom: 24 }}>
+                This may take a moment...
+            </p>
+
+            {/* Steps */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360, margin: '0 auto 24px' }}>
+                {loadingSteps.map((step, i) => (
+                    <div key={i} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        border: i === currentStep
+                            ? '1px solid #BAE6FD'
+                            : i < currentStep
+                                ? '1px solid #E0F2FE'
+                                : '1px solid #E2E8F0',
+                        backgroundColor: i === currentStep
+                            ? '#F0F9FF'
+                            : i < currentStep
+                                ? '#F0F9FF'
+                                : '#F8FAFC',
+                        transition: 'all 0.3s ease'
+                    }}>
+                        <div style={{
+                            flexShrink: 0,
+                            width: 20,
+                            height: 20,
+                            borderRadius: '50%',
+                            backgroundColor: i < currentStep ? '#0EA5E9' : i === currentStep ? '#0EA5E9' : '#E2E8F0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'background-color 0.3s ease'
+                        }}>
+                            {i < currentStep ? (
+                                <svg width="10" height="10" viewBox="0 0 12 10" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="1.5,5 4.5,8 10.5,1.5" />
+                                </svg>
+                            ) : i === currentStep ? (
+                                <div style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: '50%',
+                                    backgroundColor: '#fff',
+                                    animation: 'pulse 1s infinite'
+                                }} />
+                            ) : (
+                                <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#94A3B8' }} />
+                            )}
                         </div>
+                        <span style={{
+                            fontSize: 13,
+                            color: i === currentStep ? '#0C4A6E' : i < currentStep ? '#0369A1' : '#94A3B8',
+                            fontWeight: i === currentStep ? 500 : 400
+                        }}>
+                            {step.text}
+                        </span>
                     </div>
-                </div>
+                ))}
+            </div>
 
-                {/* Main Message */}
-                <h3 className={`text-2xl font-bold text-gray-900 mb-2 transition-all duration-500 delay-200 ${
-                    isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                }`}>
-                    Generating Your Study Plan
-                </h3>
-                <p className={`text-gray-600 mb-6 transition-all duration-500 delay-300 ${
-                    isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                }`}>
-                    This may take a moment...
-                </p>
-
-                {/* Loading Steps */}
-                <div className={`space-y-3 transition-all duration-500 delay-400 ${
-                    isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                }`}>
-                    {loadingSteps.map((step, index) => (
-                        <div
-                            key={index}
-                            className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
-                                index === currentStep
-                                    ? 'bg-indigo-50 border-2 border-indigo-200'
-                                    : index < currentStep
-                                        ? 'bg-green-50 border-2 border-green-200'
-                                        : 'bg-gray-50 border-2 border-gray-200'
-                            }`}
-                        >
-                            <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-                                index < currentStep
-                                    ? 'bg-green-500'
-                                    : index === currentStep
-                                        ? 'bg-indigo-500'
-                                        : 'bg-gray-300'
-                            }`}>
-                                {index < currentStep ? (
-                                    <svg
-                                        className="w-4 h-4 text-white"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M5 13l4 4L19 7"
-                                        />
-                                    </svg>
-                                ) : index === currentStep ? (
-                                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                                ) : (
-                                    <div className="w-2 h-2 bg-white rounded-full"></div>
-                                )}
-                            </div>
-                            <span className={`text-sm font-medium ${
-                                index === currentStep
-                                    ? 'text-indigo-700'
-                                    : index < currentStep
-                                        ? 'text-green-700'
-                                        : 'text-gray-500'
-                            }`}>
-                                {step.text}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Progress Bar */}
-                <div className={`mt-6 w-full bg-gray-200 rounded-full h-2 overflow-hidden transition-all duration-500 delay-500 ${
-                    isVisible ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
-                }`}>
-                    <div
-                        className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full transition-all duration-500 ease-out"
-                        style={{
-                            width: `${((currentStep + 1) / loadingSteps.length) * 100}%`
-                        }}
-                    ></div>
-                </div>
-
-                <p className={`text-xs text-gray-500 mt-4 transition-all duration-500 delay-600 ${
-                    isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-                }`}>
-                    AI is analyzing your performance to create the perfect study plan for you
-                </p>
+            {/* Progress bar */}
+            <div style={{
+                height: 4,
+                backgroundColor: '#E2E8F0',
+                borderRadius: 99,
+                overflow: 'hidden',
+                maxWidth: 360,
+                margin: '0 auto'
+            }}>
+                <div style={{
+                    height: '100%',
+                    width: `${((currentStep + 1) / loadingSteps.length) * 100}%`,
+                    backgroundColor: '#0EA5E9',
+                    borderRadius: 99,
+                    transition: 'width 0.5s ease'
+                }} />
             </div>
         </div>
     );
