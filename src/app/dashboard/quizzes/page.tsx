@@ -110,7 +110,7 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                     const data = await response.json();
                     setAvailablePacks(data.packs || []);
                     if (data.packs && data.packs.length > 0) {
-                        setSelectedPackId(data.packs[0].subject);
+                        setSelectedPackId(data.packs[0].id);
                     }
                 }
             } catch (err) {
