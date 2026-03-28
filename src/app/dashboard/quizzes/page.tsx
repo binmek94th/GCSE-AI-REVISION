@@ -30,7 +30,7 @@ interface Quiz {
 
 interface StudyPack {
     id: string;
-    subject: string;
+    subject?: string;
 }
 
 interface Question {
@@ -46,6 +46,16 @@ interface QuizzesTabProps {
     initialPacks?: StudyPack[];
     studyPack: number;
 }
+
+/** Converts an id like "art_and_design" or a subject like "English Language" into a display label */
+const formatPackLabel = (pack: StudyPack): string => {
+    const raw = pack.subject ?? pack.id;
+    return raw
+        .replace(/_/g, ' ')
+        .split(' ')
+        .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+};
 
 function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
     const [loading, setLoading] = useState(false);
@@ -75,9 +85,7 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         try {
             const idToken = await user.getIdToken();
             const response = await fetch('/api/quiz-results?limit=5', {
-                headers: {
-                    'Authorization': `Bearer ${idToken}`,
-                },
+                headers: { 'Authorization': `Bearer ${idToken}` },
             });
 
             if (response.ok) {
@@ -93,7 +101,8 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
 
     const handleClick = () => {
         router.push(`/dashboard?tab=studypack`);
-    }
+    };
+
     useEffect(() => {
         const fetchAvailablePacks = async () => {
             if (!user || initialPacks) return;
@@ -101,43 +110,18 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
             try {
                 const idToken = await user.getIdToken();
                 const response = await fetch('/api/user/packs', {
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`,
-                    },
+                    headers: { 'Authorization': `Bearer ${idToken}` },
                 });
 
                 if (response.ok) {
                     const data = await response.json();
                     setAvailablePacks(data.packs || []);
-                    if (data.packs && data.packs.length > 0) {
+                    if (data.packs?.length > 0) {
                         setSelectedPackId(data.packs[0].id);
                     }
                 }
             } catch (err) {
                 console.error('Error fetching packs:', err);
-            }
-        };
-
-        const fetchRecentQuizzes = async () => {
-            if (!user) return;
-
-            setLoadingResults(true);
-            try {
-                const idToken = await user.getIdToken();
-                const response = await fetch('/api/quiz-results?limit=5', {
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`,
-                    },
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    setRecentQuizzes(data.quizResults || []);
-                }
-            } catch (err) {
-                console.error('Error fetching quiz results:', err);
-            } finally {
-                setLoadingResults(false);
             }
         };
 
@@ -151,37 +135,23 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         return (
             <div className="flex flex-col items-center justify-center h-full space-y-4">
                 <p className="text-gray-600">No subjects found. Please add study packs to see your progress.</p>
-                <Button onClick={handleClick}>
-                    Browse Study Packs
-                </Button>
+                <Button onClick={handleClick}>Browse Study Packs</Button>
             </div>
         );
     }
 
     const startQuiz = async () => {
-        if (!user) {
-            setError('Please log in to start a quiz');
-            return;
-        }
-
-        if (!selectedPackId) {
-            setError('Please select a study pack');
-            return;
-        }
+        if (!user) { setError('Please log in to start a quiz'); return; }
+        if (!selectedPackId) { setError('Please select a study pack'); return; }
 
         setLoading(true);
         setError(null);
 
         try {
             const idToken = await user.getIdToken();
-
             const response = await fetch(
                 `/api/quizzes?packId=${selectedPackId}&limit=10&page=1`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`,
-                    },
-                }
+                { headers: { 'Authorization': `Bearer ${idToken}` } }
             );
 
             if (!response.ok) {
@@ -189,28 +159,21 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                 throw new Error(data.message || 'Failed to fetch questions');
             }
 
-            const data = await response.json();
-            const { questions } = data;
+            const { questions } = await response.json();
 
             if (questions.length === 0) {
                 setError('No questions available. You may have completed all questions!');
-                setLoading(false);
                 return;
             }
 
             setQuizQuestions(questions);
             setIsQuizActive(true);
-
         } catch (err) {
             console.error('Error starting quiz:', err);
             setError(err instanceof Error ? err.message : 'Failed to start quiz');
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleQuizComplete = () => {
-        fetchRecentQuizzes();
     };
 
     const handleQuizExit = () => {
@@ -231,17 +194,12 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         fetchRecentQuizzes();
     };
 
-    const handleRetryQuizComplete = () => {
-        fetchRecentQuizzes();
-    };
-
-    // Show full-width quiz when either regular quiz or retry quiz is active
     if (isQuizActive && quizQuestions) {
         return (
             <QuizComponent
                 questions={quizQuestions}
                 packId={selectedPackId}
-                onComplete={handleQuizComplete}
+                onComplete={fetchRecentQuizzes}
                 onExit={handleQuizExit}
             />
         );
@@ -252,18 +210,10 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
             <QuizComponent
                 questions={retryQuizQuestions}
                 packId={selectedPackId}
-                onComplete={handleRetryQuizComplete}
+                onComplete={fetchRecentQuizzes}
                 onExit={handleRetryQuizExit}
             />
         );
-    }
-
-    const formatName = (id: string) => {
-        return id
-            .replace(/_/g, " ")
-            .split(" ")
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
     }
 
     return (
@@ -280,7 +230,6 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                         Test your knowledge with questions tailored to your learning level.
                     </p>
 
-                    {/* Pack Selection Dropdown */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">
                             Select Study Pack
@@ -298,20 +247,11 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                             <SelectContent>
                                 <SelectGroup>
                                     <SelectLabel>Study Packs</SelectLabel>
-
-                                    {availablePacks?.map((pack) => {
-                                        const formattedName = pack.subject
-                                            .replace(/_/g, " ")
-                                            .split(" ")
-                                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                                            .join(" ");
-
-                                        return (
-                                            <SelectItem key={pack.id} value={pack.id}>
-                                                {formattedName}
-                                            </SelectItem>
-                                        );
-                                    })}
+                                    {availablePacks.map((pack) => (
+                                        <SelectItem key={pack.id} value={pack.id}>
+                                            {formatPackLabel(pack)}
+                                        </SelectItem>
+                                    ))}
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
@@ -329,22 +269,15 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                         disabled={loading || !selectedPackId}
                     >
                         {loading ? (
-                            <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Loading Questions...
-                            </>
+                            <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Loading Questions...</>
                         ) : (
-                            <>
-                                <Play className="w-4 h-4 mr-2" />
-                                Start Quick Quiz
-                            </>
+                            <><Play className="w-4 h-4 mr-2" />Start Quick Quiz</>
                         )}
                     </Button>
 
-                    {/* Retry Incorrect Questions Button */}
                     <RetryIncorrectButton
                         packId={selectedPackId}
-                        onQuizComplete={handleRetryQuizComplete}
+                        onQuizComplete={fetchRecentQuizzes}
                         onQuizStart={handleRetryQuizStart}
                     />
                 </CardContent>
@@ -368,27 +301,35 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                             <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
                         </div>
                     ) : recentQuizzes.length > 0 ? (
-                        recentQuizzes.map((quiz, index) => (
-                            <div
-                                key={index}
-                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                            >
-                                <div className="flex-1">
-                                    <h4 className="text-gray-900 font-medium">{formatName(quiz.packId)}</h4>
-                                    <p className="text-sm text-gray-500">
-                                        {formatDate(quiz.date)} • {quiz.correctCount}/{quiz.totalCount} correct
-                                    </p>
+                        recentQuizzes.map((quiz, index) => {
+                            // Find the matching pack to get its proper label
+                            const matchedPack = availablePacks.find(p => p.id === quiz.packId);
+                            const displayName = matchedPack
+                                ? formatPackLabel(matchedPack)
+                                : formatPackLabel({ id: quiz.packId, subject: quiz.subject });
+
+                            return (
+                                <div
+                                    key={index}
+                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                                >
+                                    <div className="flex-1">
+                                        <h4 className="text-gray-900 font-medium">{displayName}</h4>
+                                        <p className="text-sm text-gray-500">
+                                            {formatDate(quiz.date)} • {quiz.correctCount}/{quiz.totalCount} correct
+                                        </p>
+                                    </div>
+                                    <span className={`px-3 py-1 rounded-full font-semibold ${
+                                        quiz.score >= 90 ? 'bg-green-100 text-green-700' :
+                                            quiz.score >= 80 ? 'bg-blue-100 text-blue-700' :
+                                                quiz.score >= 70 ? 'bg-yellow-100 text-yellow-700' :
+                                                    'bg-orange-100 text-orange-700'
+                                    }`}>
+                                        {quiz.score}%
+                                    </span>
                                 </div>
-                                <span className={`px-3 py-1 rounded-full font-semibold ${
-                                    quiz.score >= 90 ? 'bg-green-100 text-green-700' :
-                                        quiz.score >= 80 ? 'bg-blue-100 text-blue-700' :
-                                            quiz.score >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                                'bg-orange-100 text-orange-700'
-                                }`}>
-                                    {quiz.score}%
-                                </span>
-                            </div>
-                        ))
+                            );
+                        })
                     ) : (
                         <p className="text-gray-500 text-center py-8">
                             No quiz results yet. Start your first quiz!
@@ -400,4 +341,4 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
     );
 }
 
-export default QuizzesTab
+export default QuizzesTab;

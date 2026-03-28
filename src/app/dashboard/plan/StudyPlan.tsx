@@ -295,6 +295,8 @@ export default function StudyPlan() {
     const selectMaterial = (material: any) => {
         setSelectedMaterial(material);
 
+        console.log(material)
+
         const params = new URLSearchParams(searchParams.toString());
         params.set("materialId", material.id);
 
@@ -356,6 +358,8 @@ export default function StudyPlan() {
                                 cumulativeTime: cumulativeMinutes
                             });
                         });
+
+                        console.log(sessionGroups);
 
                         return sessionGroups.map((group, groupIndex) => {
                             const allCompleted = group.sessions.every(s => s.completed === true);

@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
 
             const studyPackData = studyPackDoc.data();
 
+
             // Query study materials collection to count materials for this study pack
             const materialsRef = admin.firestore().collection('study_materials');
             const materialsQuery = materialsRef.where('study_pack_id', '==', subjectId);
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
 
             subjectProgress.push({
                 subjectId,
-                subjectName: studyPackData?.name || subjectId,
+                subjectName: studyPackData?.subject || subjectId,
                 totalMaterials: totalSubjectMaterials,
                 finishedMaterials: finishedCount,
                 progress: progressPercentage,
