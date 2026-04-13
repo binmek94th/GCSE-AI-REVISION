@@ -1,25 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import admin from "../../../lib/firebaseAdmin";
 
-
 export async function GET(request: NextRequest) {
     try {
         const idToken = request.headers.get("Authorization")?.split("Bearer ")[1];
-
         if (!idToken) {
-            return NextResponse.json(
-                { error: 'Missing authorization token' },
-                { status: 401 }
-            );
+            return NextResponse.json({ error: 'Missing authorization token' }, { status: 401 });
         }
 
-        // Verify auth and get userId
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
 
+        // Get user's examBoard preference
+        const userDoc = await admin.firestore().collection('users').doc(userId).get();
+        const examBoard = userDoc.data()?.preferences?.examBoard ?? userDoc.data()?.examBoard ?? null;
+
         // Get all progress documents for the user
-        const progressRef = admin.firestore().collection('users').doc(userId).collection('progress');
-        const progressSnapshot = await progressRef.get();
+        const progressSnapshot = await admin
+            .firestore()
+            .collection('users')
+            .doc(userId)
+            .collection('progress')
+            .get();
 
         if (progressSnapshot.empty) {
             return NextResponse.json({
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
                 subjects: [],
                 overallProgress: 0,
                 totalMaterials: 0,
-                totalFinished: 0
+                totalFinished: 0,
             });
         }
 
@@ -35,60 +37,73 @@ export async function GET(request: NextRequest) {
         let totalMaterials = 0;
         let totalFinished = 0;
 
-        // Iterate through each subject in progress collection
         for (const doc of progressSnapshot.docs) {
-            const subjectId = doc.id;
-            const data = doc.data();
+            const packId = doc.id;
+            const progressData = doc.data();
 
-            // Get the study pack info
-            const studyPackRef = admin.firestore().collection('study_packs').doc(subjectId);
-            const studyPackDoc = await studyPackRef.get();
+            // Get the study pack to resolve the real subject name
+            const studyPackDoc = await admin
+                .firestore()
+                .collection('study_packs')
+                .doc(packId)
+                .get();
 
             if (!studyPackDoc.exists) {
-                console.log('Study pack not found for:', subjectId);
+                console.log('Study pack not found for:', packId);
                 continue;
             }
 
-            const studyPackData = studyPackDoc.data();
+            const subjectName = studyPackDoc.data()?.subject;
+            if (!subjectName) continue;
 
+            // ✅ Query materials the same way the study-materials GET does —
+            //    by subject name + examBoard + approved, NOT by packId
+            let materialsQuery = admin
+                .firestore()
+                .collection('study_materials')
+                .where('subject', '==', subjectName)
+                .where('moderation_status', '==', 'approved');
 
-            // Query study materials collection to count materials for this study pack
-            const materialsRef = admin.firestore().collection('study_materials');
-            const materialsQuery = materialsRef.where('study_pack_id', '==', subjectId);
+            if (examBoard) {
+                materialsQuery = materialsQuery.where('exam_board', '==', examBoard) as any;
+            }
+
             const materialsSnapshot = await materialsQuery.get();
             const totalSubjectMaterials = materialsSnapshot.size;
 
+            // Build a set of valid material IDs so we only count progress
+            // against materials that actually exist (avoids stale progress keys)
+            const validMaterialIds = new Set(materialsSnapshot.docs.map(d => d.id));
 
-            const finishedMaterialIds = Object.keys(data).filter(key => data[key] === true);
+            const finishedMaterialIds = Object.keys(progressData).filter(
+                key => progressData[key] === true && validMaterialIds.has(key)
+            );
             const finishedCount = finishedMaterialIds.length;
 
             const progressPercentage = totalSubjectMaterials > 0
                 ? Math.round((finishedCount / totalSubjectMaterials) * 100)
                 : 0;
 
-            const quizProgressRef = admin.firestore()
+            // Quiz progress / grade
+            const quizProgressDoc = await admin
+                .firestore()
                 .collection('users')
                 .doc(userId)
                 .collection('question_progress')
-                .doc(subjectId);
+                .doc(packId)
+                .get();
 
-            const quizProgressDoc = await quizProgressRef.get();
             let grade = 'N/A';
             let accuracyPercentage = 0;
 
             if (quizProgressDoc.exists) {
                 const quizData = quizProgressDoc.data();
 
-                // Convert the map to an array and sort by answeredAt timestamp (most recent first)
                 const answeredQuestions = Object.entries(quizData || {})
-                    .map(([questionId, answer]: [string, any]) => ({
-                        questionId,
-                        ...answer
-                    }))
+                    .map(([questionId, answer]: [string, any]) => ({ questionId, ...answer }))
                     .sort((a, b) => {
-                        // Handle Firestore Timestamp objects
-                        const timeA = a.answeredAt?._seconds || a.answeredAt?.seconds || 0;
-                        const timeB = b.answeredAt?._seconds || b.answeredAt?.seconds || 0;
+                        const timeA = a.answeredAt?._seconds ?? a.answeredAt?.seconds ?? 0;
+                        const timeB = b.answeredAt?._seconds ?? b.answeredAt?.seconds ?? 0;
                         return timeB - timeA;
                     })
                     .slice(0, 50);
@@ -97,25 +112,25 @@ export async function GET(request: NextRequest) {
                     const correctAnswers = answeredQuestions.filter(q => q.correct === true).length;
                     accuracyPercentage = Math.round((correctAnswers / answeredQuestions.length) * 100);
 
-                    if (accuracyPercentage >= 90) grade = 'A*';
+                    if      (accuracyPercentage >= 90) grade = 'A*';
                     else if (accuracyPercentage >= 80) grade = 'A';
                     else if (accuracyPercentage >= 70) grade = 'B';
                     else if (accuracyPercentage >= 60) grade = 'C';
                     else if (accuracyPercentage >= 50) grade = 'D';
                     else if (accuracyPercentage >= 40) grade = 'E';
-                    else if (accuracyPercentage < 40) grade = 'F';
-                    else grade = 'U';
+                    else                               grade = 'F';
                 }
             }
 
             subjectProgress.push({
-                subjectId,
-                subjectName: studyPackData?.subject || subjectId,
+                subjectId: packId,
+                subjectName,
                 totalMaterials: totalSubjectMaterials,
                 finishedMaterials: finishedCount,
                 progress: progressPercentage,
-                grade: grade,
-                finishedMaterialIds: finishedMaterialIds
+                grade,
+                accuracyPercentage,
+                finishedMaterialIds,
             });
 
             totalMaterials += totalSubjectMaterials;
@@ -131,22 +146,11 @@ export async function GET(request: NextRequest) {
             subjects: subjectProgress,
             overallProgress,
             totalMaterials,
-            totalFinished
+            totalFinished,
         });
 
     } catch (error) {
         console.error('Error fetching study pack progress:', error);
-
-        if (error instanceof Error && error.message.includes('auth')) {
-            return NextResponse.json(
-                { error: 'Invalid or expired token' },
-                { status: 401 }
-            );
-        }
-
-        return NextResponse.json(
-            { error: 'Failed to fetch progress data' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Failed to fetch progress data' }, { status: 500 });
     }
 }

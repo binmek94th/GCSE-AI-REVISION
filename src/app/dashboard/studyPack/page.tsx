@@ -3,45 +3,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/ca
 import { Button } from "@/app/components/ui/button";
 import { BookOpen } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import {useRouter, useSearchParams} from "next/navigation";
-import {getAuth, onAuthStateChanged} from "firebase/auth";
-import {auth} from "@/lib/firebase";
+import { useRouter, useSearchParams } from "next/navigation";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
 import StudyMaterialTab from "@/app/dashboard/study_materials/StudyMaterialTab";
 
 interface Subject {
     id: string;
     subject: string;
+    examBoard: string;
     progress: number;
-    bought: boolean;
+    enrolled: boolean;
     practiceQuestions: string;
     chapters: number;
     pastPapers: string;
     videoLessons: string;
-    price: number;
 }
-
-
 
 function StudyPackTab() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
-    const [selectedPack, setSelectedPack] = useState<Subject | null>(null)
-    const [modalOpen, setModalOpen] = useState(false)
-    const [processingPayment, setProcessingPayment] = useState(false);
-    const [packId, setPackId] = useState<string | null>()
+    const [packId, setPackId] = useState<string | null>(null);
     const searchParams = useSearchParams();
 
     useEffect(() => {
-        const packId = searchParams.get("packId");
-        if (packId && subjects) {
-            const subject =subjects.find(s => s.id === packId);
-            if (subject) {
-                setPackId(subject.id);
-            }
-        }
-    }, [searchParams, subjects]);
+        const paramPackId = searchParams.get("packId");
+        if (paramPackId) setPackId(paramPackId);
+    }, [searchParams]);
 
     useEffect(() => {
         setLoading(true);
@@ -53,7 +43,6 @@ function StudyPackTab() {
 
             try {
                 const idToken = await currentUser.getIdToken();
-
                 const res = await fetch("/api/study-packs", {
                     method: "GET",
                     headers: {
@@ -79,86 +68,47 @@ function StudyPackTab() {
         return () => unsubscribe();
     }, [router]);
 
-    if (loading) {
-        return <Spinner></Spinner>
-    }
+    if (loading) return <Spinner />;
 
-    const handleBuy = (pack: Subject) => {
-        setSelectedPack(pack);
-        setModalOpen(true);
-    };
-
-    const handleCheckout = async () => {
-        const auth = getAuth();
-        const user = auth.currentUser;
-
-        if (!user) {
-            router.push("/auth/login");
-            return;
-        }
-
-        const idToken = await user.getIdToken();
-        if (!idToken) {
-            router.push("/auth/login");
-            return;
-        }
-
+    const selectPack = async (subject: Subject) => {
         try {
-
-            console.log("🛒 Creating checkout for:", {
-                userId: user.uid,
-                packId: selectedPack.id,
-                subject: selectedPack.subject
-            });
-
-            const response = await fetch("/api/checkout-study-pack", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${idToken}`,
-                },
-                body: JSON.stringify({
-                    userId: user.uid,
-                    packId: selectedPack.id,
-                    subject: selectedPack.subject,
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                console.error("❌ API Error:", data);
-                throw new Error(data.error || "Failed to create checkout session");
+            const user = auth.currentUser;
+            if (user) {
+                const idToken = await user.getIdToken();
+                await fetch('/api/enroll-subject', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify({
+                        subject: subject.subject,
+                        examBoard: subject.examBoard,
+                        subjectId: subject.id,
+                    }),
+                });
+                if (!subject.enrolled) {
+                    setSubjects(prev =>
+                        prev.map(s => s.id === subject.id ? { ...s, enrolled: true } : s)
+                    );
+                }
             }
-
-            console.log("✅ Checkout session created:", data);
-
-            // Redirect to Stripe checkout
-            if (data.url) {
-                window.location.href = data.url;
-            } else {
-                throw new Error("No checkout URL received");
-            }
-        } catch (error: any) {
-            console.error("❌ Error creating checkout:", error);
-
-            alert(`Failed to start: ${error.message}`);
-            setProcessingPayment(null);
+        } catch (err) {
+            console.error('Failed to open subject:', err);
         }
-    };
 
-    const selectPack = (packId: any) => {
-        setPackId(packId);
-
+        setPackId(subject.id);
         const params = new URLSearchParams(searchParams.toString());
-        params.set("packId", packId);
-
+        params.set("packId", subject.id);
         router.push(`?${params.toString()}`);
     };
 
     const unSelectPack = () => {
         setPackId(null);
-    }
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("packId");
+        router.push(`?${params.toString()}`);
+    };
 
     if (packId) {
         return <StudyMaterialTab unSelectPack={unSelectPack} packId={packId} />;
@@ -179,67 +129,21 @@ function StudyPackTab() {
                             <div className="flex justify-between"><span>Practice Questions</span><span>{subject.practiceQuestions}</span></div>
                             <div className="flex justify-between"><span>Past Papers</span><span>{subject.pastPapers}</span></div>
                         </div>
-                        {subject.bought ? (
+                        <div className="flex justify-end">
                             <Button
-                                onClick={() => {
-                                    selectPack(subject.id);
-
-                                }}
-                                className={`w-full flex items-center justify-center hover:cursor-pointer
-                                        "bg-green-500 text-white hover:bg-green-600"
-                                }`}
+                                onClick={() => selectPack(subject)}
+                                size="sm"
+                                className="flex items-center gap-1.5 bg-green-500 text-white hover:bg-green-600"
                             >
-                                <BookOpen className="w-4 h-4 mr-2" />
-                                Open Study Pack
+                                <BookOpen className="w-3.5 h-3.5" />
+                                Open
                             </Button>
-                        ) :
-                            (
-                                <Button onClick={() => handleBuy(subject)} className={"w-full hover:cursor-pointer flex items-center justify-center  bg-blue-500 text-white hover:bg-blue-600"}>
-                                    <BookOpen className="w-4 h-4 mr-2" />
-                                    Buy Study Pack - £{subject.price}
-                                </Button>
-                            )}
+                        </div>
                     </CardContent>
                 </Card>
             ))}
-            {modalOpen && selectedPack && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity">
-                    <div className="bg-white rounded-xl shadow-2xl w-96 max-w-full p-6 animate-scaleIn">
-                        {/* Header */}
-                        <div className="flex flex-col items-start space-y-2">
-                            <h2 className="text-2xl font-bold text-gray-800">{selectedPack.subject}</h2>
-                            <p className="text-gray-600">Complete your purchase to unlock this study pack.</p>
-                        </div>
-
-                        {/* Price */}
-                        <div className="mt-4 flex items-center justify-between">
-                            <span className="text-gray-700 font-medium">Price:</span>
-                            <span className="text-lg font-semibold text-green-600">£{selectedPack.price}</span>
-                        </div>
-
-                        {/* Buttons */}
-                        <div className="mt-6 flex justify-end gap-3">
-                            <Button
-                                variant="outline"
-                                className="px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors rounded-lg"
-                                onClick={() => setModalOpen(false)}
-                                disabled={processingPayment}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                className={`px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center justify-center`}
-                                onClick={handleCheckout}
-                                disabled={processingPayment}
-                            >
-                                {processingPayment ? "Processing..." : "Pay with Stripe"}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
 
-export default StudyPackTab
+export default StudyPackTab;

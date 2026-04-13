@@ -93,21 +93,6 @@ export async function GET(req: Request) {
         const studyPack = await admin.firestore().collection("study_packs")
             .doc(packId).get();
 
-        const boughtDoc = await admin
-            .firestore()
-            .collection("users")
-            .doc(userId)
-            .collection("boughtPacks")
-            .doc(packId)
-            .get();
-
-        if (!boughtDoc.exists) {
-            return NextResponse.json(
-                { message: "Pack not purchased" },
-                { status: 403 }
-            );
-        }
-
         const { questions, total, hasMore } = await getQuestionsByPack(
             studyPack.data().subject,
             userId,

@@ -89,6 +89,7 @@ export async function GET(req: Request) {
         for (const packDoc of boughtPacksSnapshot.docs) {
             const packId = packDoc.id;
 
+
             const scoreData = await calculateQuizScore(userId, packId);
 
             if (scoreData) {
@@ -100,9 +101,11 @@ export async function GET(req: Request) {
 
                 const studyPackData = studyPackDoc.exists ? studyPackDoc.data() : {};
 
+                console.log(studyPackData)
+
                 quizResults.push({
                     packId,
-                    subject: studyPackData?.title || studyPackData?.name || "Unknown Pack",
+                    subject: studyPackData?.title || studyPackData?.name || studyPackData.subject || "Unknown Pack",
                     score: scoreData.score,
                     correctCount: scoreData.correctCount,
                     totalCount: scoreData.totalCount,

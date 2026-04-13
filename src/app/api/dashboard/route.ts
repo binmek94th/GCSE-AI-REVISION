@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         const studyPacksSnapshot = await db
             .collection('users')
             .doc(userId)
-            .collection('boughtPacks')
+            .collection('subjects')
             .get();
 
         const studyPacks = studyPacksSnapshot.docs.map(doc => ({

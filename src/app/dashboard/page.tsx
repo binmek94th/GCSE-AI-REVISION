@@ -21,6 +21,7 @@ import FriendsPage from "@/app/dashboard/friends/page";
 import ProfilePage from "@/app/dashboard/profile/page";
 import MockTests from "@/app/dashboard/mock-exam/page";
 import {doc, getDoc} from "@firebase/firestore";
+import {GatedFeature} from "@/app/components/GatedFeature";
 
 
 function Dashboard() {
@@ -253,35 +254,49 @@ function Dashboard() {
                         </TabsList>
 
                         <TabsContent value="plan">
-                            <PlanTab subjects={subjects} studyPack={dashboardData?.studyPacks.length || 0}/>
+                            <GatedFeature featureName="Study Plans">
+                                <PlanTab subjects={subjects} studyPack={dashboardData?.studyPacks.length || 0}/>
+                            </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="studypack">
-                            <StudyPackTab />
+                            <GatedFeature featureName="Study packs">
+                                <StudyPackTab />
+                            </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="quizzes">
-                            <QuizzesTab studyPack={dashboardData?.studyPacks.length || 0}/>
+                            <GatedFeature featureName={"Quizzes"}>
+                                <QuizzesTab studyPack={dashboardData?.studyPacks.length || 0}/>
+                            </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="tutor">
-                            <div className={'w-[80%] mx-auto'}>
-                                <StudentAIChat />
-                            </div>
+                            <GatedFeature featureName={"Tutors"}>
+                                <div className={'w-[80%] mx-auto'}>
+                                    <StudentAIChat />
+                                </div>
+                            </GatedFeature>
                         </TabsContent>
                         
                         <TabsContent value={"mocktests"}>
+                            <GatedFeature featureName={"Mock Tests"}>
                             <div className={'w-[100%] mx-auto'}>
                                 <MockTests initialPacks={dashboardData?.studyPacks} studyPack={dashboardData?.studyPacks.length}></MockTests>
                             </div>
+                            </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="challenges">
-                            <UserBadges></UserBadges>
+                            <GatedFeature featureName={"Challenges"}>
+                                <UserBadges></UserBadges>
+                            </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="friends">
-                            <FriendsPage></FriendsPage>
+                            <GatedFeature featureName={"Friends"}>
+                                <FriendsPage></FriendsPage>
+                            </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="profile">

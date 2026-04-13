@@ -39,23 +39,13 @@ interface Question {
 
 interface StudyPack {
     id: string;
+    subject: string;
 }
 
 interface MockTestsTabProps {
     initialPacks?: StudyPack[];
     studyPack: number;
 }
-
-// Available subjects for mock tests
-const SUBJECTS = [
-    { id: 'mathematics', name: 'Mathematics', color: 'blue' },
-    { id: 'english', name: 'English', color: 'green' },
-    { id: 'chemistry', name: 'Chemistry', color: 'purple' },
-    { id: 'biology', name: 'Biology', color: 'emerald' },
-    { id: 'physics', name: 'Physics', color: 'orange' },
-    { id: 'computer_science', name: 'Computer Science', color: 'indigo' },
-    { id: 'art_and_design', name: 'Art & Design', color: 'pink' },
-];
 
 const QUESTION_COUNTS = [
     { value: 10, label: '10 Questions (Quick)' },
@@ -64,17 +54,16 @@ const QUESTION_COUNTS = [
     { value: 50, label: '50 Questions (Full Mock)' },
 ];
 
-function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
+function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
     const [loading, setLoading] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [mockTestHistory, setMockTestHistory] = useState<MockTest[]>([]);
-    const [selectedSubject, setSelectedSubject] = useState<string>('');
+    const [selectedPaperId, setSelectedPaperId] = useState<string>('');
     const [questionCount, setQuestionCount] = useState<number>(20);
     const [user, setUser] = useState<any>(null);
     const [testQuestions, setTestQuestions] = useState<Question[] | null>(null);
     const [isTestActive, setIsTestActive] = useState(false);
-    const [availablePacks, setAvailablePacks] = useState<StudyPack[]>(initialPacks || []);
     const router = useRouter();
 
     useEffect(() => {
@@ -84,16 +73,12 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
 
     const fetchMockTestHistory = async () => {
         if (!user) return;
-
         setLoadingHistory(true);
         try {
             const idToken = await user.getIdToken();
             const response = await fetch('/api/mock-test-history?limit=10', {
-                headers: {
-                    'Authorization': `Bearer ${idToken}`,
-                },
+                headers: { 'Authorization': `Bearer ${idToken}` },
             });
-
             if (response.ok) {
                 const data = await response.json();
                 setMockTestHistory(data.mockTests || []);
@@ -106,54 +91,8 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
     };
 
     useEffect(() => {
-        const fetchMockTestHistory = async () => {
-            if (!user) return;
-
-            setLoadingHistory(true);
-            try {
-                const idToken = await user.getIdToken();
-                const response = await fetch('/api/mock-test-history?limit=10', {
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`,
-                    },
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    setMockTestHistory(data.mockTests || []);
-                }
-            } catch (err) {
-                console.error('Error fetching mock exam history:', err);
-            } finally {
-                setLoadingHistory(false);
-            }
-        };
-
-        const fetchAvailablePacks = async () => {
-            if (!user || initialPacks) return;
-
-            try {
-                const idToken = await user.getIdToken();
-                const response = await fetch('/api/user/packs', {
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`,
-                    },
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    setAvailablePacks(data.packs || []);
-                }
-            } catch (err) {
-                console.error('Error fetching packs:', err);
-            }
-        };
-
-        if (user) {
-            fetchAvailablePacks();
-            fetchMockTestHistory();
-        }
-    }, [ initialPacks, user]);
+        if (user) fetchMockTestHistory();
+    }, [user]);
 
     const handleClick = () => {
         router.push(`/dashboard?tab=studypack`);
@@ -163,37 +102,23 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
         return (
             <div className="flex flex-col items-center justify-center h-full space-y-4">
                 <p className="text-gray-600">No subjects found. Please add study packs to take mock exam.</p>
-                <Button onClick={handleClick}>
-                    Browse Study Packs
-                </Button>
+                <Button onClick={handleClick}>Browse Study Packs</Button>
             </div>
         );
     }
 
     const startMockTest = async () => {
-        if (!user) {
-            setError('Please log in to start a mock exam');
-            return;
-        }
-
-        if (!selectedSubject) {
-            setError('Please select a subject');
-            return;
-        }
+        if (!user) { setError('Please log in to start a mock exam'); return; }
+        if (!selectedPaperId) { setError('Please select a paper'); return; }
 
         setLoading(true);
         setError(null);
 
         try {
             const idToken = await user.getIdToken();
-
             const response = await fetch(
-                `/api/mock-test?subject=${selectedSubject}&questionCount=${questionCount}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`,
-                    },
-                }
+                `/api/mock-test?paperId=${selectedPaperId}&questionCount=${questionCount}`,
+                { headers: { 'Authorization': `Bearer ${idToken}` } }
             );
 
             if (!response.ok) {
@@ -205,7 +130,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
             const { questions, metadata } = data;
 
             if (questions.length === 0) {
-                setError('No questions available for this subject. Please try another subject or add study materials.');
+                setError('No questions available for this paper.');
                 setLoading(false);
                 return;
             }
@@ -213,7 +138,6 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
             console.log('Mock exam metadata:', metadata);
             setTestQuestions(questions);
             setIsTestActive(true);
-
         } catch (err) {
             console.error('Error starting mock exam:', err);
             setError(err instanceof Error ? err.message : 'Failed to start mock exam');
@@ -222,9 +146,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
         }
     };
 
-    const handleTestComplete = () => {
-        fetchMockTestHistory();
-    };
+    const handleTestComplete = () => fetchMockTestHistory();
 
     const handleTestExit = () => {
         setIsTestActive(false);
@@ -233,41 +155,24 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
         fetchMockTestHistory();
     };
 
-    // Show test if active
     if (isTestActive && testQuestions) {
-        const subjectName = SUBJECTS.find(s => s.id === selectedSubject)?.name || selectedSubject;
+        const selectedPaper = initialPacks.find(p => p.id === selectedPaperId);
         return (
             <MockTestComponent
                 questions={testQuestions}
-                subject={subjectName}
+                subject={selectedPaper?.subject ?? selectedPaperId}
                 onComplete={handleTestComplete}
                 onExit={handleTestExit}
             />
         );
     }
 
-    const formatName = (id: string) => {
-        return id
-            .replace(/_/g, " ")
-            .split(" ")
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(" ");
-    };
-
     const formatTime = (seconds: number): string => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
-
-        if (hours > 0) {
-            return `${hours}h ${minutes}m`;
-        }
+        if (hours > 0) return `${hours}h ${minutes}m`;
         return `${minutes}m`;
     };
-
-    // Get available subjects based on user's packs
-    const availableSubjects = SUBJECTS.filter(subject =>
-        availablePacks.some(pack => pack.id.toLowerCase() === subject.id.toLowerCase())
-    );
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -284,28 +189,25 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                         Take a comprehensive mock exam to assess your knowledge and exam readiness.
                     </p>
 
-                    {/* Subject Selection */}
+                    {/* Paper Selection */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-gray-700">
-                            Select Subject
+                            Select Paper
                         </label>
-
                         <Select
-                            value={selectedSubject}
-                            onValueChange={setSelectedSubject}
+                            value={selectedPaperId}
+                            onValueChange={setSelectedPaperId}
                             disabled={loading || initialPacks.length === 0}
                         >
                             <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Choose a subject..." />
+                                <SelectValue placeholder="Choose a paper..." />
                             </SelectTrigger>
-
                             <SelectContent>
                                 <SelectGroup>
-                                    <SelectLabel>Subjects</SelectLabel>
-
-                                    {initialPacks.map((subject) => (
-                                        <SelectItem key={subject.id} value={subject.id}>
-                                            {formatName(subject.id)}
+                                    <SelectLabel>Past Papers</SelectLabel>
+                                    {initialPacks.map((paper) => (
+                                        <SelectItem key={paper.id} value={paper.id}>
+                                            {paper.subject}
                                         </SelectItem>
                                     ))}
                                 </SelectGroup>
@@ -318,7 +220,6 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                         <label className="text-sm font-medium text-gray-700">
                             Exam Length
                         </label>
-
                         <Select
                             value={String(questionCount)}
                             onValueChange={(val) => setQuestionCount(parseInt(val))}
@@ -327,11 +228,9 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Select exam length" />
                             </SelectTrigger>
-
                             <SelectContent>
                                 <SelectGroup>
                                     <SelectLabel>Exam Length</SelectLabel>
-
                                     {QUESTION_COUNTS.map((option) => (
                                         <SelectItem key={option.value} value={String(option.value)}>
                                             {option.label}
@@ -342,8 +241,6 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                         </Select>
                     </div>
 
-
-                    {/* Test Info */}
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-800">
                             <strong>Note:</strong> Questions are intelligently selected based on your performance:
@@ -364,7 +261,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                     <Button
                         className="w-full bg-blue-600 hover:bg-blue-700"
                         onClick={startMockTest}
-                        disabled={loading || !selectedSubject}
+                        disabled={loading || !selectedPaperId}
                     >
                         {loading ? (
                             <>
@@ -385,12 +282,7 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Recent Mock Exams</CardTitle>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={fetchMockTestHistory}
-                        disabled={loadingHistory}
-                    >
+                    <Button variant="ghost" size="sm" onClick={fetchMockTestHistory} disabled={loadingHistory}>
                         <RefreshCw className={`w-4 h-4 ${loadingHistory ? 'animate-spin' : ''}`} />
                     </Button>
                 </CardHeader>
@@ -402,14 +294,11 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                     ) : mockTestHistory.length > 0 ? (
                         <div className="space-y-3">
                             {mockTestHistory.map((test) => (
-                                <div
-                                    key={test.id}
-                                    className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                                >
+                                <div key={test.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <h4 className="text-gray-900 font-semibold">{formatName(test.subject)}</h4>
+                                                <h4 className="text-gray-900 font-semibold">{test.subject}</h4>
                                                 <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
                                                     test.score >= 90 ? 'bg-green-100 text-green-700' :
                                                         test.score >= 80 ? 'bg-blue-100 text-blue-700' :
@@ -447,15 +336,13 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                     ) : (
                         <div className="text-center py-8">
                             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500">
-                                No mock exams completed yet. Start your first mock exam!
-                            </p>
+                            <p className="text-gray-500">No mock exams completed yet. Start your first mock exam!</p>
                         </div>
                     )}
                 </CardContent>
             </Card>
 
-            {/* Statistics Overview Card */}
+            {/* Statistics Overview */}
             {mockTestHistory.length > 0 && (
                 <Card className="lg:col-span-2">
                     <CardHeader>
@@ -470,21 +357,19 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
                             <div className="p-4 bg-green-50 rounded-lg">
                                 <p className="text-sm text-gray-600 mb-1">Average Score</p>
                                 <p className="text-2xl font-bold text-green-600">
-                                    {Math.round(
-                                        mockTestHistory.reduce((acc, test) => acc + test.score, 0) / mockTestHistory.length
-                                    )}%
+                                    {Math.round(mockTestHistory.reduce((acc, t) => acc + t.score, 0) / mockTestHistory.length)}%
                                 </p>
                             </div>
                             <div className="p-4 bg-purple-50 rounded-lg">
                                 <p className="text-sm text-gray-600 mb-1">Best Score</p>
                                 <p className="text-2xl font-bold text-purple-600">
-                                    {Math.max(...mockTestHistory.map(test => test.score))}%
+                                    {Math.max(...mockTestHistory.map(t => t.score))}%
                                 </p>
                             </div>
                             <div className="p-4 bg-orange-50 rounded-lg">
                                 <p className="text-sm text-gray-600 mb-1">Total Questions</p>
                                 <p className="text-2xl font-bold text-orange-600">
-                                    {mockTestHistory.reduce((acc, test) => acc + test.totalCount, 0)}
+                                    {mockTestHistory.reduce((acc, t) => acc + t.totalCount, 0)}
                                 </p>
                             </div>
                         </div>
@@ -495,4 +380,4 @@ function MockTests({ initialPacks, studyPack }: MockTestsTabProps) {
     );
 }
 
-export default MockTests
+export default MockTests;

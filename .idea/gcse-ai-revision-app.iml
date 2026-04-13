@@ -11,6 +11,7 @@
       <excludeFolder url="file://$MODULE_DIR$/temp" />
       <excludeFolder url="file://$MODULE_DIR$/tmp" />
       <excludeFolder url="file://$MODULE_DIR$/src/lib/python scripts/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/src/lib/python scripts/claude/.venv" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

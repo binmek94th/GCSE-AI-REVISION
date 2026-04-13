@@ -4,20 +4,12 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
-import {
-    useSubscription,
-    formatCurrency,
-    formatDate,
-    getStatusColor,
-    getStatusText
-} from '@/hooks/useSubscription';
+import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import {
     CreditCard,
-    Calendar,
     CheckCircle2,
     XCircle,
     AlertCircle,
-    RefreshCw,
     ChevronRight,
     Crown,
     Loader2
@@ -27,80 +19,100 @@ import Spinner from '@/app/components/ui/Spinner';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
+
+function formatCurrency(amount: number, currency: string) {
+    return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: currency.toUpperCase(),
+    }).format(amount / 100);
+}
+
+function formatDate(date: Date | null) {
+    if (!date) return '—';
+    return new Intl.DateTimeFormat('en-GB', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    }).format(date);
+}
+
+function getStatusColor(status: string) {
+    switch (status) {
+        case 'active':    return 'bg-green-100 text-green-800';
+        case 'trialing':  return 'bg-blue-100 text-blue-800';
+        case 'canceled':
+        case 'past_due':  return 'bg-red-100 text-red-800';
+        default:          return 'bg-gray-100 text-gray-800';
+    }
+}
+
+function getStatusText(status: string, cancelAtPeriodEnd: boolean) {
+    if (cancelAtPeriodEnd) return 'Canceling';
+    switch (status) {
+        case 'active':   return 'Active';
+        case 'trialing': return 'Trial';
+        case 'canceled': return 'Canceled';
+        case 'past_due': return 'Past Due';
+        default:         return status;
+    }
+}
+
+function daysUntil(date: Date | null): number {
+    if (!date) return 0;
+    return Math.max(0, Math.ceil((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function SubscriptionContent() {
-    const { subscription, isLoading, error, hasSubscription, daysUntilRenewal, isExpiringSoon, refresh } = useSubscription();
+    const { isLoading, hasAccess, subscription, refresh } = useSubscriptionGate();
     const [canceling, setCanceling] = useState(false);
-    const [resuming, setResuming] = useState(false);
+    const [resuming, setResuming]   = useState(false);
     const router = useRouter();
 
-    const handleCancelSubscription = async () => {
-        if (!confirm('Are you sure you want to cancel your subscription? You will still have access until the end of your billing period.')) {
-            return;
-        }
+    const days         = daysUntil(subscription?.currentPeriodEnd ?? null);
+    const expiringSoon = days > 0 && days <= 7;
 
+    // ── Cancel ──────────────────────────────────────────────────────────────
+    const handleCancelSubscription = async () => {
+        if (!confirm('Are you sure you want to cancel? You will keep access until the end of your billing period.')) return;
         setCanceling(true);
         try {
-            const user = auth.currentUser;
-            if (!user) {
-                throw new Error('No authenticated user');
-            }
-            const idToken = await user.getIdToken();
-            const response = await fetch('/api/cancel-subscription', {
+            const idToken = await auth.currentUser?.getIdToken();
+            const res = await fetch('/api/cancel-subscription', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`,
-                },
+                headers: { 'Authorization': `Bearer ${idToken}` },
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to cancel subscription');
-            }
-
-            toast.success('Subscription canceled successfully. You will have access until the end of your billing period.');
-            await refresh();
-        } catch (error: any) {
-            console.error('Error canceling subscription:', error);
-            toast.error(`Failed to cancel subscription: ${error.message}`);
+            if (!res.ok) throw new Error('Failed to cancel subscription');
+            toast.success('Subscription canceled. You still have access until your billing period ends.');
+            refresh();
+        } catch (err: any) {
+            toast.error(`Failed to cancel: ${err.message}`);
         } finally {
             setCanceling(false);
         }
     };
 
-    const handleBuy = async () => {
-        router.push('/token');
-    };
-
+    // ── Resume ───────────────────────────────────────────────────────────────
     const handleResumeSubscription = async () => {
         setResuming(true);
         try {
-            const user = auth.currentUser;
-            if (!user) {
-                throw new Error('No authenticated user');
-            }
-            const idToken = await user.getIdToken();
-            const response = await fetch('/api/resume-subscription', {
+            const idToken = await auth.currentUser?.getIdToken();
+            const res = await fetch('/api/resume-subscription', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${idToken}`,
-                },
+                headers: { 'Authorization': `Bearer ${idToken}` },
             });
-
-            if (!response.ok) {
-                throw new Error('Failed to resume subscription');
-            }
-
-            toast.success('Subscription resumed successfully!');
-            await refresh();
-        } catch (error: any) {
-            console.error('Error resuming subscription:', error);
-            toast.error(`Failed to resume subscription: ${error.message}`);
+            if (!res.ok) throw new Error('Failed to resume subscription');
+            toast.success('Subscription resumed!');
+            refresh();
+        } catch (err: any) {
+            toast.error(`Failed to resume: ${err.message}`);
         } finally {
             setResuming(false);
         }
     };
 
+    // ── Loading ───────────────────────────────────────────────────────────────
     if (isLoading) {
         return (
             <div className="min-h-screen bg-bg-subtle flex items-center justify-center">
@@ -109,27 +121,8 @@ export default function SubscriptionContent() {
         );
     }
 
-    if (error) {
-        return (
-            <div className="min-h-screen bg-bg-subtle flex items-center justify-center p-4">
-                <Card className="max-w-md w-full">
-                    <CardContent className="p-6 text-center">
-                        <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                        <h2 className="text-xl font-semibold text-text-main mb-2">
-                            Error Loading Subscription
-                        </h2>
-                        <p className="text-text-muted mb-4">{error}</p>
-                        <Button onClick={refresh}>
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Try Again
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
-    if (!hasSubscription) {
+    // ── No subscription ───────────────────────────────────────────────────────
+    if (!hasAccess) {
         return (
             <div className="bg-bg-subtle py-8">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -140,11 +133,11 @@ export default function SubscriptionContent() {
                                 No Active Subscription
                             </h2>
                             <p className="text-text-muted mb-6 max-w-md mx-auto">
-                                Subscribe to unlock unlimited AI tutoring sessions and premium study resources.
+                                Subscribe to unlock unlimited AI tutoring, quizzes, study plans, and all premium study resources.
                             </p>
                             <Button
                                 size="lg"
-                                onClick={handleBuy}
+                                onClick={() => router.push('/subscribe')}
                                 className="bg-primary hover:bg-primary-dark"
                             >
                                 View Subscription Plans
@@ -157,32 +150,29 @@ export default function SubscriptionContent() {
         );
     }
 
+    const sub = subscription!;
+
     return (
         <div className="bg-bg-subtle py-8">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
                 {/* Header */}
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-text-main mb-2">
-                        Subscription Management
-                    </h1>
-                    <p className="text-text-muted">
-                        Manage your subscription and billing information
-                    </p>
+                    <h1 className="text-3xl font-bold text-text-main mb-2">Subscription Management</h1>
+                    <p className="text-text-muted">Manage your subscription and billing information</p>
                 </div>
 
-                {/* Status Alert */}
-                {subscription.cancelAtPeriodEnd && (
+                {/* Canceling alert */}
+                {sub.cancelAtPeriodEnd && (
                     <Card className="mb-6 border-yellow-200 bg-yellow-50">
                         <CardContent className="p-6">
                             <div className="flex items-start gap-4">
                                 <AlertCircle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-yellow-900 mb-1">
-                                        Subscription Ending
-                                    </h3>
+                                    <h3 className="font-semibold text-yellow-900 mb-1">Subscription Ending</h3>
                                     <p className="text-yellow-800 text-sm mb-4">
-                                        Your subscription will end on {formatDate(subscription.currentPeriodEnd)}.
-                                        You can resume it at any time before then to continue your access.
+                                        Your subscription ends on {formatDate(sub.currentPeriodEnd)}.
+                                        Resume it any time before then to keep your access.
                                     </p>
                                     <Button
                                         size="sm"
@@ -190,14 +180,9 @@ export default function SubscriptionContent() {
                                         disabled={resuming}
                                         className="bg-yellow-600 hover:bg-yellow-700"
                                     >
-                                        {resuming ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                Resuming...
-                                            </>
-                                        ) : (
-                                            <>Resume Subscription</>
-                                        )}
+                                        {resuming
+                                            ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Resuming...</>
+                                            : 'Resume Subscription'}
                                     </Button>
                                 </div>
                             </div>
@@ -205,17 +190,16 @@ export default function SubscriptionContent() {
                     </Card>
                 )}
 
-                {isExpiringSoon && !subscription.cancelAtPeriodEnd && (
+                {/* Expiring soon alert */}
+                {expiringSoon && !sub.cancelAtPeriodEnd && (
                     <Card className="mb-6 border-blue-200 bg-blue-50">
                         <CardContent className="p-6">
                             <div className="flex items-start gap-4">
                                 <AlertCircle className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
                                 <div>
-                                    <h3 className="font-semibold text-blue-900 mb-1">
-                                        Renewal Coming Soon
-                                    </h3>
+                                    <h3 className="font-semibold text-blue-900 mb-1">Renewal Coming Soon</h3>
                                     <p className="text-blue-800 text-sm">
-                                        Your subscription will automatically renew in {daysUntilRenewal} day{daysUntilRenewal !== 1 ? 's' : ''}.
+                                        Your subscription renews in {days} day{days !== 1 ? 's' : ''}.
                                     </p>
                                 </div>
                             </div>
@@ -223,19 +207,20 @@ export default function SubscriptionContent() {
                     </Card>
                 )}
 
-                {/* Main Subscription Card */}
+                {/* Main card */}
                 <Card className="mb-6">
                     <CardHeader className="border-b border-border">
                         <CardTitle className="flex items-center justify-between">
                             <span>Current Plan</span>
-                            <Badge className={getStatusColor(subscription.subscriptionStatus)}>
-                                {getStatusText(subscription.subscriptionStatus, subscription.cancelAtPeriodEnd)}
+                            <Badge className={getStatusColor(sub.status)}>
+                                {getStatusText(sub.status, sub.cancelAtPeriodEnd)}
                             </Badge>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-6">
                         <div className="grid md:grid-cols-2 gap-6">
-                            {/* Plan Details */}
+
+                            {/* Plan details */}
                             <div>
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="p-3 bg-primary/10 rounded-lg">
@@ -243,123 +228,100 @@ export default function SubscriptionContent() {
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-text-main capitalize">
-                                            {subscription.planInterval}ly Plan
+                                            {sub.plan ?? 'Premium'} Plan
                                         </h3>
-                                        <p className="text-2xl font-bold text-primary">
-                                            {formatCurrency(subscription.planAmount, subscription.currency)}
-                                            <span className="text-sm font-normal text-text-muted">
-                                                /{subscription.planInterval}
-                                            </span>
-                                        </p>
+                                        {sub.planAmount && sub.currency && (
+                                            <p className="text-2xl font-bold text-primary">
+                                                {formatCurrency(sub.planAmount, sub.currency)}
+                                                <span className="text-sm font-normal text-text-muted">
+                                                    /{sub.planInterval ?? 'month'}
+                                                </span>
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-
                                 <div className="space-y-3">
-                                    <div className="flex items-center gap-2 text-sm">
-                                        <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                        <span className="text-text-muted">Unlimited AI tutoring sessions</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm">
-                                        <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                        <span className="text-text-muted">Access to all study materials</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-sm">
-                                        <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                        <span className="text-text-muted">Priority support</span>
-                                    </div>
+                                    {[
+                                        'Unlimited AI tutoring sessions',
+                                        'Access to all study materials',
+                                        'Quizzes & mock tests',
+                                        'Personalised study plans',
+                                    ].map((f) => (
+                                        <div key={f} className="flex items-center gap-2 text-sm">
+                                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                            <span className="text-text-muted">{f}</span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 
-                            {/* Billing Details */}
+                            {/* Billing details */}
                             <div className="space-y-4">
-                                <div className="flex items-start gap-3">
-                                    <Calendar className="w-5 h-5 text-text-muted mt-0.5" />
-                                    <div>
-                                        <p className="text-sm font-medium text-text-main">
-                                            Current Period
-                                        </p>
-                                        <p className="text-sm text-text-muted">
-                                            {formatDate(subscription.currentPeriodStart)} - {formatDate(subscription.currentPeriodEnd)}
-                                        </p>
+                                {sub.currentPeriodEnd && (
+                                    <div className="flex items-start gap-3">
+                                        <CreditCard className="w-5 h-5 text-text-muted mt-0.5" />
+                                        <div>
+                                            <p className="text-sm font-medium text-text-main">
+                                                {sub.cancelAtPeriodEnd ? 'Access ends' : 'Next billing date'}
+                                            </p>
+                                            <p className="text-sm text-text-muted">
+                                                {formatDate(sub.currentPeriodEnd)}
+                                            </p>
+                                            <p className="text-xs text-text-muted mt-1">
+                                                {sub.cancelAtPeriodEnd
+                                                    ? `${days} days of access remaining`
+                                                    : `${days} days until renewal`}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
-                                <div className="flex items-start gap-3">
-                                    <CreditCard className="w-5 h-5 text-text-muted mt-0.5" />
-                                    <div>
-                                        <p className="text-sm font-medium text-text-main">
-                                            {subscription.cancelAtPeriodEnd ? 'Ends On' : 'Next Billing Date'}
-                                        </p>
-                                        <p className="text-sm text-text-muted">
-                                            {formatDate(subscription.currentPeriodEnd)}
-                                        </p>
-                                        <p className="text-xs text-text-muted mt-1">
-                                            {subscription.cancelAtPeriodEnd
-                                                ? `${daysUntilRenewal} days of access remaining`
-                                                : `${daysUntilRenewal} days until renewal`
-                                            }
-                                        </p>
+                                {sub.subscriptionId && (
+                                    <div className="flex items-start gap-3">
+                                        <CheckCircle2 className="w-5 h-5 text-text-muted mt-0.5" />
+                                        <div>
+                                            <p className="text-sm font-medium text-text-main">Subscription ID</p>
+                                            <p className="text-xs text-text-muted font-mono">{sub.subscriptionId}</p>
+                                        </div>
                                     </div>
-                                </div>
-
-                                <div className="flex items-start gap-3">
-                                    <CheckCircle2 className="w-5 h-5 text-text-muted mt-0.5" />
-                                    <div>
-                                        <p className="text-sm font-medium text-text-main">
-                                            Subscription ID
-                                        </p>
-                                        <p className="text-xs text-text-muted font-mono">
-                                            {subscription.subscriptionId}
-                                        </p>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* Actions */}
-                <Card>
-                    <CardHeader className="border-b border-border">
-                        <CardTitle>Manage Subscription</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                        <div className="space-y-4">
-                            {/* Cancel/Resume Subscription */}
-                            {!subscription.cancelAtPeriodEnd ? (
-                                <div className="flex items-center justify-between p-4 bg-bg-subtle rounded-lg">
-                                    <div className="flex items-center gap-3">
-                                        <XCircle className="w-5 h-5 text-text-muted" />
-                                        <div>
-                                            <p className="font-medium text-text-main">
-                                                Cancel Subscription
-                                            </p>
-                                            <p className="text-sm text-text-muted">
-                                                You&#39;ll have access until {formatDate(subscription.currentPeriodEnd)}
-                                            </p>
-                                        </div>
+                {!sub.cancelAtPeriodEnd && (
+                    <Card>
+                        <CardHeader className="border-b border-border">
+                            <CardTitle>Manage Subscription</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <div className="flex items-center justify-between p-4 bg-bg-subtle rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <XCircle className="w-5 h-5 text-text-muted" />
+                                    <div>
+                                        <p className="font-medium text-text-main">Cancel Subscription</p>
+                                        <p className="text-sm text-text-muted">
+                                            You&#39;ll keep access until {formatDate(sub.currentPeriodEnd)}
+                                        </p>
                                     </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleCancelSubscription}
-                                        disabled={canceling}
-                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                        {canceling ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                Canceling...
-                                            </>
-                                        ) : (
-                                            'Cancel Plan'
-                                        )}
-                                    </Button>
                                 </div>
-                            ) : null}
-                        </div>
-                    </CardContent>
-                </Card>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleCancelSubscription}
+                                    disabled={canceling}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                    {canceling
+                                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Canceling...</>
+                                        : 'Cancel Plan'}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </div>
     );

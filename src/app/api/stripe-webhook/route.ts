@@ -80,6 +80,7 @@ const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
 };
 
 /** Handle one-time study pack purchase */
+// TODO: update this
 const handleStudyPackPurchaseFromPaymentLink = async (ref: any) => {
     try {
         const uid = ref.userId;

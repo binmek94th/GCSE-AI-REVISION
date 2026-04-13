@@ -26,7 +26,8 @@ interface QuestionResult {
 interface PackAnalysis {
     packId: string;
     packName: string;
-    subject: string;
+    subject: string;        // the resolved subject name, e.g. "Biology"
+    examBoard: string;
     totalMaterials: number;
     completedMaterials: number;
     incompleteMaterials: StudyMaterial[];
@@ -64,10 +65,6 @@ interface StudyPlan {
     error?: string;
 }
 
-/**
- * Build a lookup map: packId -> materialId -> StudyMaterial
- * Used to validate and enrich AI-returned sessions.
- */
 function buildMaterialLookup(
     packAnalyses: PackAnalysis[]
 ): Map<string, Map<string, StudyMaterial>> {
@@ -82,18 +79,11 @@ function buildMaterialLookup(
     return lookup;
 }
 
-/**
- * After the AI returns a plan, validate every session and:
- *  - Replace hallucinated / missing materialIds with a real one from the pack
- *  - Populate the `material` field from the actual Firestore data
- *  - Drop sessions whose packId doesn't exist in our data
- */
 function enrichAndValidateSessions(
     sessions: StudySession[],
     packAnalyses: PackAnalysis[],
     lookup: Map<string, Map<string, StudyMaterial>>
 ): StudySession[] {
-    // Round-robin pointer per pack so we don't keep reusing index 0 for fallbacks
     const fallbackPointers = new Map<string, number>();
     for (const pack of packAnalyses) {
         fallbackPointers.set(pack.packId, 0);
@@ -104,18 +94,14 @@ function enrichAndValidateSessions(
     for (const session of sessions) {
         const packMaterials = lookup.get(session.packId);
 
-        // Drop session entirely if the packId is unknown
         if (!packMaterials) {
             console.warn(`Session dropped – unknown packId: ${session.packId}`);
             continue;
         }
 
         const pack = packAnalyses.find(p => p.packId === session.packId)!;
-
-        // Try to find the exact material the AI referenced
         let material = packMaterials.get(session.materialId) ?? null;
 
-        // If not found (hallucinated ID like TBD1, N/A, etc.) pick the next unused real material
         if (!material) {
             const ptr = fallbackPointers.get(session.packId) ?? 0;
             const available = pack.incompleteMaterials;
@@ -130,7 +116,7 @@ function enrichAndValidateSessions(
 
             console.warn(
                 `AI used invalid materialId "${session.materialId}" for pack "${session.packId}". ` +
-                `Replaced with real material: "${material.id}" (${material.title})`
+                `Replaced with: "${material.id}" (${material.title})`
             );
         }
 
@@ -139,17 +125,13 @@ function enrichAndValidateSessions(
             materialId: material.id,
             materialTitle: material.title,
             difficulty: material.difficulty || session.difficulty || 'medium',
-            material,          // ← the actual Firestore document data
+            material,
         });
     }
 
     return validated;
 }
 
-/**
- * If the AI returned fewer sessions than minSessions, pad with real materials
- * using a round-robin across all packs.
- */
 function padSessions(
     sessions: StudySession[],
     packAnalyses: PackAnalysis[],
@@ -198,22 +180,20 @@ export async function generateDailyStudyPlans(): Promise<{
 
     try {
         console.log('Starting daily study plan generation...');
-
         const usersSnapshot = await admin.firestore().collection('users').get();
 
         const promises = usersSnapshot.docs.map(async (userDoc) => {
             try {
                 await generateStudyPlanForUser(userDoc.id);
             } catch (error) {
-                const errorMessage = `Failed for user ${userDoc.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
-                errors.push(errorMessage);
-                console.error(errorMessage);
+                const msg = `Failed for user ${userDoc.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+                errors.push(msg);
+                console.error(msg);
             }
         });
 
         await Promise.allSettled(promises);
         console.log('Daily study plan generation completed!');
-
         return { success: true, usersProcessed: usersSnapshot.size, errors };
     } catch (error) {
         console.error('Error in generateDailyStudyPlans:', error);
@@ -231,48 +211,77 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
         const userData = userDoc.data();
         const preferences: UserPreferences = userData?.preferences || {};
 
-        const boughtPacksSnapshot = await admin.firestore()
-            .collection('users').doc(userId).collection('boughtPacks').get();
+        // ── Resolve examBoard — same fallback chain as enroll-subject ──────────
+        const examBoard: string =
+            userData?.examBoard ??
+            userData?.preferences?.examBoard ??
+            null;
 
-        if (boughtPacksSnapshot.empty) {
-            console.log(`User ${userId} has no bought packs. Skipping.`);
+        // ── Load user's enrolled subjects from users/{uid}/subjects ────────────
+        const subjectsSnapshot = await admin.firestore()
+            .collection('users').doc(userId).collection('subjects').get();
+
+        if (subjectsSnapshot.empty) {
+            console.log(`User ${userId} has no enrolled subjects. Skipping.`);
             return;
         }
 
         const packAnalyses: PackAnalysis[] = [];
 
-        for (const packDoc of boughtPacksSnapshot.docs) {
-            const packId = packDoc.id;
-            const packData = packDoc.data();
+        for (const subjectDoc of subjectsSnapshot.docs) {
+            const packId = subjectDoc.id;
+            const subjectData = subjectDoc.data();
 
-            const materialsSnapshot = await admin.firestore()
+            // ── Resolve the real subject name from study_packs ─────────────────
+            // study_materials.subject stores names like "Biology", not pack IDs
+            const studyPackDoc = await admin.firestore()
+                .collection('study_packs').doc(packId).get();
+
+            const subjectName: string =
+                studyPackDoc.exists
+                    ? (studyPackDoc.data()?.subject ?? subjectData.subject ?? packId)
+                    : (subjectData.subject ?? packId);
+
+            // ── Fetch materials the same way /api/study-materials does ─────────
+            let materialsQuery = admin.firestore()
                 .collection('study_materials')
-                .where('subject', '==', packId)
-                .where('moderation_status', '==', 'approved')
-                .get();
+                .where('subject', '==', subjectName)
+                .where('moderation_status', '==', 'approved');
+
+            if (examBoard) {
+                materialsQuery = (materialsQuery as any).where('exam_board', '==', examBoard);
+            }
+
+            const materialsSnapshot = await materialsQuery.get();
 
             const allMaterials: StudyMaterial[] = materialsSnapshot.docs.map(doc => ({
                 id: doc.id,
-                ...doc.data()
+                subject_pack_id: packId,
+                ...doc.data(),
             } as StudyMaterial));
 
-            const progressSnapshot = await admin.firestore()
+            // ── Progress: which materials has the user completed? ──────────────
+            const progressDoc = await admin.firestore()
                 .collection('users').doc(userId).collection('progress').doc(packId).get();
 
-            const progressData = progressSnapshot.exists ? progressSnapshot.data() : {};
+            const progressData = progressDoc.exists ? progressDoc.data() : {};
+
+            // Only count progress against materials that actually exist + are approved
+            const validMaterialIds = new Set(allMaterials.map(m => m.id));
             const completedMaterialIds = Object.keys(progressData || {}).filter(
-                key => progressData![key] === true
+                key => progressData![key] === true && validMaterialIds.has(key)
             );
 
             const incompleteMaterials = allMaterials.filter(
-                material => !completedMaterialIds.includes(material.id)
+                m => !completedMaterialIds.includes(m.id)
             );
 
-            const questionProgressSnapshot = await admin.firestore()
+            // ── Question progress ──────────────────────────────────────────────
+            const questionProgressDoc = await admin.firestore()
                 .collection('users').doc(userId).collection('question_progress').doc(packId).get();
 
-            const questionProgressData = questionProgressSnapshot.exists
-                ? questionProgressSnapshot.data() : {};
+            const questionProgressData = questionProgressDoc.exists
+                ? questionProgressDoc.data() : {};
 
             const incorrectQuestions: QuestionResult[] = [];
             let totalQuestions = 0;
@@ -280,16 +289,16 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
 
             if (questionProgressData) {
                 Object.keys(questionProgressData).forEach(questionId => {
-                    const questionData = questionProgressData[questionId];
+                    const q = questionProgressData[questionId];
                     totalQuestions++;
-                    if (questionData.correct) {
+                    if (q.correct) {
                         correctQuestions++;
                     } else {
                         incorrectQuestions.push({
                             questionId,
-                            answeredAt: questionData.answeredAt?.toDate() || new Date(),
-                            correct: questionData.correct,
-                            userAnswer: questionData.userAnswer,
+                            answeredAt: q.answeredAt?.toDate() || new Date(),
+                            correct: q.correct,
+                            userAnswer: q.userAnswer,
                         });
                     }
                 });
@@ -301,8 +310,9 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
 
             packAnalyses.push({
                 packId,
-                packName: packData.name || packData.subject || 'Unnamed Pack',
-                subject: packData.subject || 'General',
+                packName: subjectData.subject || subjectName,
+                subject: subjectName,
+                examBoard: examBoard ?? subjectData.examBoard ?? 'Unknown',
                 totalMaterials: allMaterials.length,
                 completedMaterials: completedMaterialIds.length,
                 incompleteMaterials,
@@ -322,20 +332,12 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
             return;
         }
 
-        // ── Step 1: generate raw plan from AI ──────────────────────────
         const rawPlan = await generateStudyPlanWithAI(preferences, activePacks);
-
-        // ── Step 2: build lookup and validate/enrich every session ──────
         const lookup = buildMaterialLookup(activePacks);
         const validatedSessions = enrichAndValidateSessions(rawPlan.sessions, activePacks, lookup);
-
-        // ── Step 3: pad to minimum if AI under-generated ───────────────
         const finalSessions = padSessions(validatedSessions, activePacks, 8, 20);
 
-        const studyPlan: StudyPlan = {
-            ...rawPlan,
-            sessions: finalSessions,
-        };
+        const studyPlan: StudyPlan = { ...rawPlan, sessions: finalSessions };
 
         const localDate = DateTime.now().setZone("Africa/Addis_Ababa");
         const today = new Date();
@@ -352,7 +354,7 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                 status: 'active',
             });
 
-        console.log(`Study plan generated for user: ${userId} with ${finalSessions.length} sessions`);
+        console.log(`Study plan generated for user: ${userId} | sessions: ${finalSessions.length} | packs: ${activePacks.length}`);
     } catch (error) {
         console.error(`Error generating study plan for user ${userId}:`, error);
         throw error;
@@ -370,17 +372,17 @@ async function generateStudyPlanWithAI(
 
     try {
         const hoursPerWeek = preferences.hoursPerWeek || '10-15';
-        const [minHours, maxHours] = hoursPerWeek.split('-').map((h) => parseInt(h));
+        const [minHours, maxHours] = hoursPerWeek.split('-').map(h => parseInt(h));
         const avgDailyHours = ((minHours + maxHours) / 2) / 7;
 
-        const packsContext = packAnalyses.map((pack) => ({
+        const packsContext = packAnalyses.map(pack => ({
             packId: pack.packId,
             subject: pack.subject,
             packName: pack.packName,
+            examBoard: pack.examBoard,
             progressPercent: pack.progressPercent,
             totalMaterials: pack.totalMaterials,
             completedMaterials: pack.completedMaterials,
-            // Only send what the AI needs — real IDs and titles
             incompleteMaterials: pack.incompleteMaterials.map(m => ({
                 id: m.id,
                 title: m.title,
@@ -436,7 +438,7 @@ Respond ONLY with a JSON object in this exact shape:
             messages: [
                 {
                     role: 'system',
-                    content: `You are an expert educational planner. Always respond with valid JSON only. 
+                    content: `You are an expert educational planner. Always respond with valid JSON only.
 Never invent material IDs — only use IDs from the incompleteMaterials arrays provided.
 Create at least ${minSessions} sessions rotating across all subjects.`,
                 },
@@ -451,14 +453,13 @@ Create at least ${minSessions} sessions rotating across all subjects.`,
     } catch (error) {
         console.error('Error calling OpenAI API:', error);
 
-        // Fallback: build a real plan directly from Firestore data — no AI needed
+        // Fallback: build plan directly from real Firestore data
         const sessions: StudySession[] = [];
         const timeSlots = ['Morning', 'Late Morning', 'Afternoon', 'Evening'];
         let sessionCount = 0;
 
         while (sessionCount < minSessions) {
-            const packIndex = sessionCount % packAnalyses.length;
-            const pack = packAnalyses[packIndex];
+            const pack = packAnalyses[sessionCount % packAnalyses.length];
             const materialIndex = Math.floor(sessionCount / packAnalyses.length);
 
             if (materialIndex < pack.incompleteMaterials.length) {
@@ -473,7 +474,7 @@ Create at least ${minSessions} sessions rotating across all subjects.`,
                     timeSlot: timeSlots[sessionCount % timeSlots.length],
                     objectives: [`Study ${material.title}`],
                     focusArea: 'new_material',
-                    material,              // ← always populated in fallback
+                    material,
                 });
                 sessionCount++;
             } else {

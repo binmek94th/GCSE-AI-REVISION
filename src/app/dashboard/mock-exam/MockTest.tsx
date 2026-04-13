@@ -5,12 +5,23 @@ import { Button } from "@/app/components/ui/button";
 import { CheckCircle, XCircle, ChevronRight, Trophy, Clock, AlertCircle } from 'lucide-react';
 import { useDashboard } from "@/contexts/DashboardContext";
 
+interface Choice {
+    option: string;   // "A", "B", "C", "D"
+    text: string;
+    isCorrect: boolean;
+    why?: string;
+}
+
 interface Question {
     id: string;
-    question: string;
-    options: Record<string, string> | string[];
-    correctAnswer: string;
+    questionText: string;
+    choices: Choice[];
     explanation?: string;
+    marks?: number;
+    topic?: string;
+    imageUrl?: string | null;
+    imageDescription?: string | null;
+    hasImage?: boolean;
     [key: string]: any;
 }
 
@@ -19,6 +30,16 @@ interface MockTestComponentProps {
     subject: string;
     onComplete: (score: number, correctCount: number, totalCount: number) => void;
     onExit: () => void;
+}
+
+// Derive the correct answer key from choices
+function getCorrectKey(question: Question): string {
+    return question.choices?.find(c => c.isCorrect)?.option ?? '';
+}
+
+// Get display text for a given option key
+function getOptionText(question: Question, key: string): string {
+    return question.choices?.find(c => c.option === key)?.text ?? key;
 }
 
 export function MockTestComponent({ questions, subject, onComplete, onExit }: MockTestComponentProps) {
@@ -37,41 +58,24 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
     const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
     const answeredCount = Object.keys(answers).length;
 
-
-
     useEffect(() => {
         if (showResults || reviewMode) return;
-
         const timer = setInterval(() => {
             setTimeElapsed(Math.floor((Date.now() - startTime) / 1000));
         }, 1000);
-
         return () => clearInterval(timer);
     }, [startTime, showResults, reviewMode]);
-
 
     const formatTime = (seconds: number): string => {
         const hours = Math.floor(seconds / 3600);
         const minutes = Math.floor((seconds % 3600) / 60);
         const secs = seconds % 60;
-
-        if (hours > 0) {
-            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
+        if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
     };
 
     const handleAnswerSelect = (answerKey: string) => {
-        if (!reviewMode) {
-            setSelectedAnswer(answerKey);
-        }
-    };
-
-    const getOptionText = (question: Question, key: string): string => {
-        if (Array.isArray(question.options)) {
-            return key;
-        }
-        return question.options[key] || key;
+        if (!reviewMode) setSelectedAnswer(answerKey);
     };
 
     const handleSaveAnswer = () => {
@@ -82,19 +86,19 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
             setStreakUpdated(true);
         }
 
-        const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+        const correctKey = getCorrectKey(currentQuestion);
+        const isCorrect = selectedAnswer === correctKey;
         const selectedText = getOptionText(currentQuestion, selectedAnswer);
 
         setAnswers(prev => ({
             ...prev,
             [currentQuestion.id]: {
                 selected: selectedAnswer,
-                selectedText: selectedText,
+                selectedText,
                 correct: isCorrect,
             }
         }));
 
-        // Auto-advance to next question
         if (currentQuestionIndex < questions.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
             setSelectedAnswer(null);
@@ -104,19 +108,15 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
     const handleToggleFlag = () => {
         setFlaggedQuestions(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(currentQuestionIndex)) {
-                newSet.delete(currentQuestionIndex);
-            } else {
-                newSet.add(currentQuestionIndex);
-            }
+            if (newSet.has(currentQuestionIndex)) newSet.delete(currentQuestionIndex);
+            else newSet.add(currentQuestionIndex);
             return newSet;
         });
     };
 
     const handleNavigateToQuestion = (index: number) => {
         setCurrentQuestionIndex(index);
-        const existingAnswer = answers[questions[index].id];
-        setSelectedAnswer(existingAnswer?.selected || null);
+        setSelectedAnswer(answers[questions[index].id]?.selected || null);
     };
 
     const handleSubmitTest = async () => {
@@ -124,12 +124,10 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
         const totalCount = questions.length;
         const score = Math.round((correctCount / totalCount) * 100);
 
-        // Submit results to API
         try {
             const user = await import('@/lib/firebase').then(m => m.auth.currentUser);
             if (user) {
                 const idToken = await user.getIdToken();
-
                 const results = questions.map(q => ({
                     questionId: q.id,
                     correct: answers[q.id]?.correct || false,
@@ -166,7 +164,7 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
         setShowResults(false);
     };
 
-    // Results Screen
+    // ── Results Screen ─────────────────────────────────────────────────────────
     if (showResults && !reviewMode) {
         const correctCount = Object.values(answers).filter(a => a.correct).length;
         const totalCount = questions.length;
@@ -205,8 +203,6 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                                             '📚 Review the material and try again!'}
                         </p>
                     </div>
-
-                    {/* Quick Stats */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-green-50 rounded-lg">
                             <p className="text-sm text-gray-600">Correct</p>
@@ -217,19 +213,11 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                             <p className="text-2xl font-bold text-red-600">{totalCount - correctCount}</p>
                         </div>
                     </div>
-
                     <div className="flex gap-3">
-                        <Button
-                            onClick={handleReviewAnswers}
-                            variant="outline"
-                            className="flex-1"
-                        >
+                        <Button onClick={handleReviewAnswers} variant="outline" className="flex-1">
                             Review Answers
                         </Button>
-                        <Button
-                            onClick={onExit}
-                            className="flex-1 bg-purple-600 hover:bg-purple-700"
-                        >
+                        <Button onClick={onExit} className="flex-1 bg-purple-600 hover:bg-purple-700">
                             Back to Dashboard
                         </Button>
                     </div>
@@ -238,30 +226,23 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
         );
     }
 
-    // Review Mode Screen
+    // ── Review Mode ────────────────────────────────────────────────────────────
     if (reviewMode) {
         const answer = answers[currentQuestion.id];
-        const correctAnswerText = getOptionText(currentQuestion, currentQuestion.correctAnswer);
+        const correctKey = getCorrectKey(currentQuestion);
+        const choices = currentQuestion.choices ?? [];
 
         return (
             <div className="space-y-6">
-                {/* Review Header */}
                 <Card>
                     <CardHeader>
                         <div className="flex items-center justify-between">
                             <CardTitle>Review Mode</CardTitle>
-                            <Button
-                                onClick={onExit}
-                                variant="outline"
-                                size="sm"
-                            >
-                                Exit Review
-                            </Button>
+                            <Button onClick={onExit} variant="outline" size="sm">Exit Review</Button>
                         </div>
                     </CardHeader>
                 </Card>
 
-                {/* Question Review */}
                 <Card>
                     <CardHeader>
                         <div className="space-y-2">
@@ -270,82 +251,82 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                                 <div className="flex items-center gap-2">
                                     {answer?.correct ? (
                                         <span className="flex items-center gap-1 text-green-600 font-semibold">
-                                            <CheckCircle className="w-5 h-5" />
-                                            Correct
+                                            <CheckCircle className="w-5 h-5" /> Correct
                                         </span>
                                     ) : (
                                         <span className="flex items-center gap-1 text-red-600 font-semibold">
-                                            <XCircle className="w-5 h-5" />
-                                            Incorrect
+                                            <XCircle className="w-5 h-5" /> Incorrect
                                         </span>
                                     )}
                                 </div>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${progress}%` }}
-                                />
+                                <div className="bg-purple-600 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {/* Question */}
+                        {/* Question image */}
+                        {currentQuestion.hasImage && currentQuestion.imageUrl && (
+                            <img
+                                src={currentQuestion.imageUrl}
+                                alt={currentQuestion.imageDescription ?? 'Question image'}
+                                className="rounded-lg border w-full object-contain max-h-64"
+                            />
+                        )}
+
                         <div className="p-4 bg-purple-50 rounded-lg">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                                {currentQuestion.question}
-                            </h3>
+                            <h3 className="text-lg font-semibold text-gray-900">{currentQuestion.questionText}</h3>
+                            {currentQuestion.marks && (
+                                <p className="text-sm text-purple-600 mt-1">[{currentQuestion.marks} mark{currentQuestion.marks !== 1 ? 's' : ''}]</p>
+                            )}
                         </div>
 
-                        {/* Answer Options */}
                         <div className="space-y-3">
-                            {(() => {
-                                const optionsArray = Array.isArray(currentQuestion.options)
-                                    ? currentQuestion.options.map((opt, idx) => ({ key: String.fromCharCode(65 + idx), value: opt }))
-                                    : Object.entries(currentQuestion.options).map(([key, value]) => ({ key, value }));
+                            {choices.map((choice) => {
+                                const isCorrect = choice.option === correctKey;
+                                const isUserAnswer = answer?.selected === choice.option;
 
-                                return optionsArray.map((option, index) => {
-                                    const isCorrect = option.key === currentQuestion.correctAnswer;
-                                    const isUserAnswer = answer?.selected === option.key;
-
-                                    return (
-                                        <div
-                                            key={index}
-                                            className={`w-full p-4 rounded-lg border-2 ${
-                                                isCorrect
-                                                    ? 'bg-green-50 border-green-500'
-                                                    : isUserAnswer
-                                                        ? 'bg-red-50 border-red-500'
-                                                        : 'bg-white border-gray-200'
-                                            }`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                                        {option.key}
-                                                    </span>
-                                                    <span className="font-medium text-gray-900">{option.value}</span>
-                                                </div>
-                                                {isCorrect && (
-                                                    <div className="flex items-center gap-2">
-                                                        <CheckCircle className="w-5 h-5 text-green-600" />
-                                                        <span className="text-sm text-green-700 font-semibold">Correct Answer</span>
-                                                    </div>
-                                                )}
-                                                {isUserAnswer && !isCorrect && (
-                                                    <div className="flex items-center gap-2">
-                                                        <XCircle className="w-5 h-5 text-red-600" />
-                                                        <span className="text-sm text-red-700 font-semibold">Your Answer</span>
-                                                    </div>
-                                                )}
+                                return (
+                                    <div
+                                        key={choice.option}
+                                        className={`w-full p-4 rounded-lg border-2 ${
+                                            isCorrect
+                                                ? 'bg-green-50 border-green-500'
+                                                : isUserAnswer
+                                                    ? 'bg-red-50 border-red-500'
+                                                    : 'bg-white border-gray-200'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                                    {choice.option}
+                                                </span>
+                                                <span className="font-medium text-gray-900">{choice.text}</span>
                                             </div>
+                                            {isCorrect && (
+                                                <div className="flex items-center gap-2">
+                                                    <CheckCircle className="w-5 h-5 text-green-600" />
+                                                    <span className="text-sm text-green-700 font-semibold">Correct Answer</span>
+                                                </div>
+                                            )}
+                                            {isUserAnswer && !isCorrect && (
+                                                <div className="flex items-center gap-2">
+                                                    <XCircle className="w-5 h-5 text-red-600" />
+                                                    <span className="text-sm text-red-700 font-semibold">Your Answer</span>
+                                                </div>
+                                            )}
                                         </div>
-                                    );
-                                });
-                            })()}
+                                        {/* Show why for the correct or selected answer */}
+                                        {(isCorrect || isUserAnswer) && choice.why && (
+                                            <p className="text-sm text-gray-600 mt-2 ml-9">{choice.why}</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
 
-                        {/* Explanation */}
                         {currentQuestion.explanation && (
                             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                 <p className="text-sm font-semibold text-blue-900 mb-1">Explanation:</p>
@@ -353,7 +334,6 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                             </div>
                         )}
 
-                        {/* Navigation */}
                         <div className="flex justify-between">
                             <Button
                                 onClick={() => handleNavigateToQuestion(Math.max(0, currentQuestionIndex - 1))}
@@ -372,30 +352,23 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                     </CardContent>
                 </Card>
 
-                {/* Question Navigator */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Question Navigator</CardTitle>
-                    </CardHeader>
+                    <CardHeader><CardTitle>Question Navigator</CardTitle></CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
                             {questions.map((_, index) => {
                                 const isAnswered = answers[questions[index].id];
                                 const isCurrent = index === currentQuestionIndex;
                                 const isCorrect = isAnswered?.correct;
-
                                 return (
                                     <button
                                         key={index}
                                         onClick={() => handleNavigateToQuestion(index)}
                                         className={`p-2 rounded-lg font-semibold transition-all ${
-                                            isCurrent
-                                                ? 'bg-purple-600 text-white'
-                                                : isCorrect
-                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                    : isAnswered
-                                                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            isCurrent ? 'bg-purple-600 text-white' :
+                                                isCorrect ? 'bg-green-100 text-green-700 hover:bg-green-200' :
+                                                    isAnswered ? 'bg-red-100 text-red-700 hover:bg-red-200' :
+                                                        'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                         }`}
                                     >
                                         {index + 1}
@@ -409,10 +382,11 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
         );
     }
 
-    // Test Taking Screen
+    // ── Test Taking Screen ─────────────────────────────────────────────────────
+    const choices = currentQuestion.choices ?? [];
+
     return (
         <div className="space-y-6">
-            {/* Test Header */}
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -427,37 +401,37 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                                 <Clock className="w-5 h-5" />
                                 <span className="font-mono font-semibold">{formatTime(timeElapsed)}</span>
                             </div>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={onExit}
-                            >
-                                Exit Test
-                            </Button>
+                            <Button variant="ghost" size="sm" onClick={onExit}>Exit Test</Button>
                         </div>
                     </div>
                 </CardHeader>
             </Card>
 
-            {/* Question Card */}
             <Card>
                 <CardHeader>
-                    <div className="space-y-2">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                                className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${progress}%` }}
-                            />
-                        </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                            className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${progress}%` }}
+                        />
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {/* Question */}
+                    {/* Question image */}
+                    {currentQuestion.hasImage && currentQuestion.imageUrl && (
+                        <img
+                            src={currentQuestion.imageUrl}
+                            alt={currentQuestion.imageDescription ?? 'Question image'}
+                            className="rounded-lg border w-full object-contain max-h-64"
+                        />
+                    )}
+
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 p-4 bg-purple-50 rounded-lg">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                                {currentQuestion.question}
-                            </h3>
+                            <h3 className="text-lg font-semibold text-gray-900">{currentQuestion.questionText}</h3>
+                            {currentQuestion.marks && (
+                                <p className="text-sm text-purple-600 mt-1">[{currentQuestion.marks} mark{currentQuestion.marks !== 1 ? 's' : ''}]</p>
+                            )}
                         </div>
                         <Button
                             variant={flaggedQuestions.has(currentQuestionIndex) ? "default" : "outline"}
@@ -469,48 +443,38 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                         </Button>
                     </div>
 
-                    {/* Answer Options */}
                     <div className="space-y-3">
-                        {(() => {
-                            const optionsArray = Array.isArray(currentQuestion.options)
-                                ? currentQuestion.options.map((opt, idx) => ({ key: String.fromCharCode(65 + idx), value: opt }))
-                                : Object.entries(currentQuestion.options).map(([key, value]) => ({ key, value }));
+                        {choices.map((choice) => {
+                            const isSelected = selectedAnswer === choice.option;
+                            const isPreviouslySelected = answers[currentQuestion.id]?.selected === choice.option;
 
-                            return optionsArray.map((option, index) => {
-                                const isSelected = selectedAnswer === option.key;
-                                const existingAnswer = answers[currentQuestion.id];
-                                const isPreviouslySelected = existingAnswer?.selected === option.key;
-
-                                return (
-                                    <button
-                                        key={index}
-                                        onClick={() => handleAnswerSelect(option.key)}
-                                        className={`w-full p-4 text-left rounded-lg border-2 transition-all cursor-pointer ${
-                                            isSelected || isPreviouslySelected
-                                                ? 'bg-purple-50 border-purple-500'
-                                                : 'bg-white border-gray-200 hover:border-purple-300'
-                                        }`}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                                {option.key}
-                                            </span>
-                                            <span className="font-medium text-gray-900">{option.value}</span>
-                                        </div>
-                                    </button>
-                                );
-                            });
-                        })()}
+                            return (
+                                <button
+                                    key={choice.option}
+                                    onClick={() => handleAnswerSelect(choice.option)}
+                                    className={`w-full p-4 text-left rounded-lg border-2 transition-all cursor-pointer ${
+                                        isSelected || isPreviouslySelected
+                                            ? 'bg-purple-50 border-purple-500'
+                                            : 'bg-white border-gray-200 hover:border-purple-300'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                            {choice.option}
+                                        </span>
+                                        <span className="font-medium text-gray-900">{choice.text}</span>
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
 
-                    {/* Action Buttons */}
                     <div className="flex justify-between">
                         <Button
                             onClick={() => {
                                 if (currentQuestionIndex > 0) {
                                     setCurrentQuestionIndex(prev => prev - 1);
-                                    const prevAnswer = answers[questions[currentQuestionIndex - 1].id];
-                                    setSelectedAnswer(prevAnswer?.selected || null);
+                                    setSelectedAnswer(answers[questions[currentQuestionIndex - 1].id]?.selected || null);
                                 }
                             }}
                             disabled={currentQuestionIndex === 0}
@@ -520,10 +484,7 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                         </Button>
                         <div className="flex gap-2">
                             {selectedAnswer && !answers[currentQuestion.id] && (
-                                <Button
-                                    onClick={handleSaveAnswer}
-                                    className="bg-purple-600 hover:bg-purple-700"
-                                >
+                                <Button onClick={handleSaveAnswer} className="bg-purple-600 hover:bg-purple-700">
                                     Save & Continue
                                 </Button>
                             )}
@@ -531,13 +492,11 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                                 <Button
                                     onClick={() => {
                                         setCurrentQuestionIndex(prev => prev + 1);
-                                        const nextAnswer = answers[questions[currentQuestionIndex + 1].id];
-                                        setSelectedAnswer(nextAnswer?.selected || null);
+                                        setSelectedAnswer(answers[questions[currentQuestionIndex + 1].id]?.selected || null);
                                     }}
                                     variant="outline"
                                 >
-                                    Skip
-                                    <ChevronRight className="w-4 h-4 ml-2" />
+                                    Skip <ChevronRight className="w-4 h-4 ml-2" />
                                 </Button>
                             )}
                         </div>
@@ -545,7 +504,6 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                 </CardContent>
             </Card>
 
-            {/* Question Navigator */}
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -584,17 +542,14 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                                 const isAnswered = answers[questions[index].id];
                                 const isCurrent = index === currentQuestionIndex;
                                 const isFlagged = flaggedQuestions.has(index);
-
                                 return (
                                     <button
                                         key={index}
                                         onClick={() => handleNavigateToQuestion(index)}
                                         className={`p-2 rounded-lg font-semibold transition-all relative ${
-                                            isCurrent
-                                                ? 'bg-purple-600 text-white'
-                                                : isAnswered
-                                                    ? 'bg-green-100 text-green-700 border-2 border-green-500 hover:bg-green-200'
-                                                    : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
+                                            isCurrent ? 'bg-purple-600 text-white' :
+                                                isAnswered ? 'bg-green-100 text-green-700 border-2 border-green-500 hover:bg-green-200' :
+                                                    'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:bg-gray-200'
                                         }`}
                                     >
                                         {index + 1}

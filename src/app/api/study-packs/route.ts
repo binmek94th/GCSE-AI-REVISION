@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import admin from "../../../lib/firebaseAdmin";
-import {EXAM_DATA} from "@/app/onboarding/exam_data";
+import { EXAM_DATA } from "@/app/onboarding/exam_data";
 
 export async function GET(req: Request) {
     try {
@@ -21,11 +21,9 @@ export async function GET(req: Request) {
             .get();
 
         if (!userDoc.exists) {
-            return NextResponse.json(
-                { error: "User not found" },
-                { status: 404 }
-            );
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
+
         const examBoard = userDoc.data()?.preferences?.examBoard;
 
         if (!examBoard) {
@@ -45,10 +43,7 @@ export async function GET(req: Request) {
             .get();
 
         const studyPacks = snapshot.docs
-            .map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-            }))
+            .map((doc) => ({ id: doc.id, ...doc.data() }))
             .filter((pack: any) =>
                 allowedCombos.some(
                     (combo) =>
@@ -57,19 +52,21 @@ export async function GET(req: Request) {
                 )
             );
 
-        const boughtSnapshot = await admin.firestore()
+        // Check which subjects the user is actively learning
+        const subjectsSnapshot = await admin.firestore()
             .collection("users")
             .doc(userId)
-            .collection("boughtPacks")
+            .collection("subjects")
             .get();
 
-        const boughtIds = new Set(
-            boughtSnapshot.docs.map((doc) => doc.id)
+        // Build a set of subject names the user is enrolled in (lowercase for safe comparison)
+        const enrolledSubjects = new Set(
+            subjectsSnapshot.docs.map((doc) => doc.data().subject?.toLowerCase())
         );
 
         const result = studyPacks.map((pack: any) => ({
             ...pack,
-            bought: boughtIds.has(pack.id),
+            enrolled: enrolledSubjects.has(pack.subject?.toLowerCase()),
         }));
 
         return NextResponse.json(result);
