@@ -28,7 +28,8 @@ export function Navigation({ currentPage }: NavigationProps) {
     const navLinks = [
         { label: 'Free Planner', href: '/onboarding' },
         { label: 'Subjects', href: '/subjects' },
-        // { label: 'Pricing', href: '/pricing' }
+        { label: 'Support', href: '/support' },
+        { label: 'Plan', href: '/subscribe' }
     ];
 
     const handleNavigate = (href: string) => {
@@ -48,7 +49,7 @@ export function Navigation({ currentPage }: NavigationProps) {
 
     const pathname = usePathname();
 
-    const showNavigation = ["/auth/login", "/auth/register", '/onboarding', "/subjects", "/"].includes(pathname);
+    const showNavigation = ["/auth/login", "/auth/register", '/onboarding', "/subjects", "/subscribe", "/support", "/"].includes(pathname);
 
     if (!showNavigation) return null;
 

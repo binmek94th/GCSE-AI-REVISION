@@ -28,7 +28,18 @@ function decodeClientReferenceId(encoded: string | null): any | null {
 const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
     try {
         const customerId = subscription.customer as string;
+        console.log("🔍 handleSubscriptionUpdate called:", {
+            subscriptionId: subscription.id,
+            status: subscription.status,
+            customerId,
+        });
+
         const customer = await stripe.customers.retrieve(customerId);
+        console.log("👤 Customer retrieved:", {
+            id: customer.id,
+            deleted: customer.deleted,
+            metadata: "metadata" in customer ? customer.metadata : "NO METADATA",
+        });
 
         if (!("metadata" in customer)) {
             console.warn(`⚠ Customer ${customerId} missing metadata`);
@@ -36,6 +47,8 @@ const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
         }
 
         const uid = (customer.metadata as any).firebaseUID;
+        console.log("🔑 firebaseUID from metadata:", uid);
+
         if (!uid) {
             console.warn("⚠ firebaseUID missing in customer metadata");
             return;
@@ -63,7 +76,7 @@ const handleSubscriptionUpdate = async (subscription: Stripe.Subscription) => {
         await admin.firestore().collection("users").doc(uid).collection("subscriptions")
             .doc(subscription.id).set({
                 subscriptionId: subscription.id,
-                subscriptionStatus: subscription.status,
+                status: subscription.status,
                 currentPeriodEnd: currentPeriodEnd,
                 currentPeriodStart: currentPeriodStart,
                 priceId: subscription.items.data[0]?.price?.id ?? null,

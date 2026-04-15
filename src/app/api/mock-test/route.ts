@@ -4,7 +4,7 @@ import admin from "firebase-admin";
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
-        const packId = searchParams.get("paperId"); // frontend sends study pack ID as "paperId"
+        const packId = searchParams.get("paperId");
         const questionCount = parseInt(searchParams.get("questionCount") || "20", 10);
         const idToken = req.headers.get("Authorization")?.split("Bearer ")[1];
 
@@ -26,52 +26,25 @@ export async function GET(req: Request) {
         const subjectName: string = studyPackDoc.data()?.subject ?? packId;
         console.log(`Resolved pack "${packId}" → subject "${subjectName}"`);
 
-        // ── Step 2: Find past papers matching this subject ─────────────────────
-        const papersQuery = await admin
+        // ── Step 2: Fetch questions directly from questions collection ─────────
+        const questionsSnapshot = await admin
             .firestore()
-            .collection("pastPapersNew")
+            .collection("questions")
             .where("subject", "==", subjectName)
             .get();
 
-        if (papersQuery.empty) {
-            return NextResponse.json(
-                { message: `No past papers found for subject: ${subjectName}` },
-                { status: 404 }
-            );
-        }
-
-        console.log(`Found ${papersQuery.size} past paper(s) for subject "${subjectName}"`);
-
-        // ── Step 3: Fetch questions from all matching papers ───────────────────
-        const allQuestionDocs: admin.firestore.QueryDocumentSnapshot[] = [];
-
-        await Promise.all(
-            papersQuery.docs.map(async (paperDoc) => {
-                const questionsSnapshot = await admin
-                    .firestore()
-                    .collection("pastPapersNew")
-                    .doc(paperDoc.id)
-                    .collection("questions")
-                    .get();
-
-                questionsSnapshot.docs.forEach((qDoc) => {
-                    allQuestionDocs.push(qDoc);
-                });
-
-                console.log(`  Paper "${paperDoc.id}": ${questionsSnapshot.size} questions`);
-            })
-        );
-
-        if (allQuestionDocs.length === 0) {
+        if (questionsSnapshot.empty) {
             return NextResponse.json(
                 { message: `No questions found for subject: ${subjectName}` },
                 { status: 404 }
             );
         }
 
-        console.log(`Total questions fetched: ${allQuestionDocs.length}`);
+        console.log(`Found ${questionsSnapshot.size} questions for subject "${subjectName}"`);
 
-        // ── Step 4: User's question progress — keyed by packId ────────────────
+        const allQuestionDocs = questionsSnapshot.docs;
+
+        // ── Step 3: User's question progress — keyed by packId ────────────────
         const progressDoc = await admin
             .firestore()
             .collection("users")
@@ -83,7 +56,7 @@ export async function GET(req: Request) {
         const progressData = progressDoc.exists ? progressDoc.data() : {};
         console.log(`Progress for "${packId}": ${Object.keys(progressData ?? {}).length} answered`);
 
-        // ── Step 5: Categorise questions ──────────────────────────────────────
+        // ── Step 4: Categorise questions ──────────────────────────────────────
         const incorrectQuestions: any[] = [];
         const unstudiedQuestions: any[] = [];
         const correctQuestions: any[] = [];
@@ -115,7 +88,7 @@ export async function GET(req: Request) {
             return a;
         };
 
-        // ── Step 6: Build test: incorrect → unstudied → correct ───────────────
+        // ── Step 5: Build test: incorrect → unstudied → correct ───────────────
         let mockTestQuestions: any[] = shuffle(incorrectQuestions);
 
         if (mockTestQuestions.length < questionCount) {
@@ -140,7 +113,6 @@ export async function GET(req: Request) {
             metadata: {
                 packId,
                 subject: subjectName,
-                paperCount: papersQuery.size,
                 totalAvailable: allQuestionDocs.length,
                 incorrectCount: incorrectQuestions.length,
                 unstudiedCount: unstudiedQuestions.length,

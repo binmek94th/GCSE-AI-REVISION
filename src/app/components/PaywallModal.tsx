@@ -43,7 +43,7 @@ export function PaywallModal({ isOpen, onClose, featureName }: PaywallModalProps
 
     const handleUpgrade = () => {
         onClose();
-        router.push('/dashboard/subscription');
+        router.push('/subscribe');
     };
 
     return (

@@ -14,8 +14,8 @@ interface Choice {
 
 interface Question {
     id: string;
-    questionText: string;
-    choices: Choice[];
+    question: string;
+    options: string[];
     explanation?: string;
     marks?: number;
     topic?: string;
@@ -428,7 +428,7 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
 
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 p-4 bg-purple-50 rounded-lg">
-                            <h3 className="text-lg font-semibold text-gray-900">{currentQuestion.questionText}</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">{currentQuestion.question}</h3>
                             {currentQuestion.marks && (
                                 <p className="text-sm text-purple-600 mt-1">[{currentQuestion.marks} mark{currentQuestion.marks !== 1 ? 's' : ''}]</p>
                             )}
@@ -444,14 +444,14 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                     </div>
 
                     <div className="space-y-3">
-                        {choices.map((choice) => {
-                            const isSelected = selectedAnswer === choice.option;
-                            const isPreviouslySelected = answers[currentQuestion.id]?.selected === choice.option;
+                        {Object.entries(currentQuestion.options).map(([key, value]) => {
+                            const isSelected = selectedAnswer === key;
+                            const isPreviouslySelected = answers[currentQuestion.id]?.selected === key;
 
                             return (
                                 <button
-                                    key={choice.option}
-                                    onClick={() => handleAnswerSelect(choice.option)}
+                                    key={key}
+                                    onClick={() => handleAnswerSelect(key)}
                                     className={`w-full p-4 text-left rounded-lg border-2 transition-all cursor-pointer ${
                                         isSelected || isPreviouslySelected
                                             ? 'bg-purple-50 border-purple-500'
@@ -459,10 +459,10 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                                     }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                            {choice.option}
-                                        </span>
-                                        <span className="font-medium text-gray-900">{choice.text}</span>
+                <span className="text-sm font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    {key}
+                </span>
+                                        <span className="font-medium text-gray-900">{value}</span>
                                     </div>
                                 </button>
                             );
