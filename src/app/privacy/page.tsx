@@ -6,8 +6,8 @@ const PrivacyPolicyPage = () => {
     const effectiveDate = "1 January 2025";
 
     const companyDetails = {
-        legalName: "Studycedo Ltd",
-        tradingAs: "Studycedo",
+        legalName: "StudyCedo Ltd",
+        tradingAs: "StudyCedo",
         postalAddress: "Office address to be provided, United Kingdom",
         privacyEmail: "privacy@Studycedo.com",
         supportEmail: "support@Studycedo.com",
@@ -27,7 +27,7 @@ const PrivacyPolicyPage = () => {
             <header className="bg-white border-b border-slate-200">
                 <div className="max-w-5xl mx-auto px-6 py-4">
                     <Link href="/" className="text-blue-600 hover:text-blue-700 font-semibold">
-                        ← Back to Studycedo
+                        ← Back to StudyCedo
                     </Link>
                 </div>
             </header>

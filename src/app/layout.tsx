@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GCSE AI Revision",
-  description: "GCSE AI Revision",
+  title: "StudyCedo",
+  description: "StudyCedo AI Revision",
 };
 
 export default function RootLayout({

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react';
-import { Button } from './components/ui/button';
-import { Badge } from './components/ui/badge';
+import { motion } from 'motion/react';
 import {
     Star,
     CheckCircle,
@@ -25,9 +24,13 @@ import {
     Instagram,
     Linkedin,
     ChevronDown,
+    Upload,
+    FileText,
+    Lightbulb,
+    Award,
+    Zap,
 } from 'lucide-react';
-import { SubjectCard } from "@/app/components/SubjectCard";
-import { useRouter } from "next/navigation";
+import { useRouter } from 'next/navigation';
 
 function HomePage() {
     const router = useRouter();
@@ -35,52 +38,40 @@ function HomePage() {
     const [activeTab, setActiveTab] = useState('plan');
     const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-    const subjects = [
-        { subject: 'Maths', description: 'Master algebra, calculus, and problem-solving with AI-predicted questions' },
-        { subject: 'English Literature', description: 'Ace your essays with model answers and exam technique' },
-        { subject: 'Combined Science', description: 'Triple your science knowledge with interactive content' },
-        { subject: 'English Language', description: 'Perfect your language analysis and creative writing' },
-        { subject: 'Biology', description: 'From cells to ecosystems - visual learning made simple' },
-        { subject: 'Chemistry', description: 'Chemical reactions, equations, and practical skills' },
-        { subject: 'Physics', description: 'Forces, energy, and waves explained clearly' },
-        { subject: 'History', description: 'Timeline mastery with source analysis practice' },
-        { subject: 'Geography', description: 'Physical and human geography with case studies' },
-        { subject: 'French', description: 'Speaking, listening, reading, and writing skills' },
-        { subject: 'Spanish', description: 'Comprehensive language learning with cultural context' },
-        { subject: 'Computer Science', description: 'Programming, algorithms, and computational thinking' }
-    ];
-
     const adaptiveCards = [
         {
             icon: Smile,
-            title: "Adapts to your mood",
-            defaultLine: "Plans around your energy and focus.",
-            expandedCopy: "Good day? Do more. Stressful day? We'll consolidate your learning instead."
+            title: 'Adapts to your mood',
+            defaultLine: 'Plans around your energy and focus.',
+            expandedCopy: "Good day? Do more. Stressful day? We'll consolidate your learning instead.",
         },
         {
             icon: Calendar,
-            title: "Plans like a coach",
-            defaultLine: "Builds your best next step.",
-            expandedCopy: "Creates personalised schedules that prioritise your weak areas and make the best use of your study time."
+            title: 'Plans like a coach',
+            defaultLine: 'Builds your best next step.',
+            expandedCopy:
+                'Creates personalised schedules that prioritise your weak areas and make the best use of your study time.',
         },
         {
-            icon: GraduationCap,
-            title: "Teaches like a tutor",
-            defaultLine: "Explains until it clicks.",
-            expandedCopy: "Explains concepts in different ways until you understand, adapting to how you learn best."
+            icon: Lightbulb,
+            title: 'Teaches like a tutor',
+            defaultLine: 'Explains until it clicks.',
+            expandedCopy:
+                'Explains concepts in different ways until you understand, adapting to how you learn best.',
         },
         {
-            icon: Target,
-            title: "Tests like an exam board",
-            defaultLine: "Prepares you for the real thing.",
-            expandedCopy: "Combines real past-paper practice with AI-predicted questions based on curriculum patterns."
+            icon: Award,
+            title: 'Tests like an exam board',
+            defaultLine: 'Prepares you for the real thing.',
+            expandedCopy:
+                'Combines real past-paper practice with AI-predicted questions based on curriculum patterns.',
         },
         {
-            icon: Gamepad2,
-            title: "Engages like a game",
-            defaultLine: "Keeps revision motivating.",
-            expandedCopy: "Rewards your progress and streaks so revision feels easier to stick to."
-        }
+            icon: Zap,
+            title: 'Engages like a game',
+            defaultLine: 'Keeps revision motivating.',
+            expandedCopy: 'Rewards your progress and streaks so revision feels easier to stick to.',
+        },
     ];
 
     const tabs = [
@@ -91,30 +82,63 @@ function HomePage() {
         { id: 'progress', label: 'Progress' },
     ];
 
+    const experts = [
+        {
+            name: 'Sarah K.',
+            role: 'GCSE Maths Reviewer',
+            bio: '12 years teaching GCSE Maths',
+        },
+        {
+            name: 'James T.',
+            role: 'A Level Biology Reviewer',
+            bio: 'Former sixth-form teacher and exam prep specialist',
+        },
+        {
+            name: 'Amira H.',
+            role: 'English Literature Reviewer',
+            bio: 'Specialist in essay structure and text analysis',
+        },
+        {
+            name: 'Daniel R.',
+            role: 'GCSE Chemistry Reviewer',
+            bio: 'Experienced subject teacher focused on exam technique',
+        },
+        {
+            name: 'Leah M.',
+            role: 'A Level Psychology Reviewer',
+            bio: 'Subject specialist in memory, research methods, and essay answers',
+        },
+        {
+            name: 'Marcus B.',
+            role: 'GCSE Physics Reviewer',
+            bio: 'Physics teacher with strong focus on problem-solving and exam confidence',
+        },
+    ];
+
     const faqs = [
         {
-            q: "What makes GCSE AI Revision different?",
-            a: "We combine premium revision content with a personalised study path, weak-area focus, quizzes, past papers, and AI support all in one system tailored to your exam board."
+            q: 'What makes Binaym different?',
+            a: 'Binaym combines premium revision content with a personalised study path, weak-area focus, quizzes, mocks, and AI support all in one system tailored to your exam board.',
         },
         {
-            q: "Which exam boards do you support?",
-            a: "We support AQA, Edexcel, OCR, and WJEC across all major GCSE subjects."
+            q: 'Is it for GCSE and A Level?',
+            a: 'Yes. Binaym is built for secondary students and supports both GCSE and A Level study.',
         },
         {
-            q: "Can I try it for free?",
-            a: "Yes. Start with a free AI revision plan and explore the platform before purchasing a subject pack."
+            q: 'Can I try it for free?',
+            a: 'Yes. You can start with a free study plan and explore the platform before upgrading.',
         },
         {
-            q: "How is it personalised?",
-            a: "Your plan is built around your subjects, exam date, weak areas, and learning activity over time — and even adapts to how you're feeling each day."
+            q: 'How is it personalised?',
+            a: 'Your plan is built around your subjects, exam date, weak areas, and learning activity over time — and even adapts to how you\'re feeling each day.',
         },
         {
-            q: "Is the content reliable?",
-            a: "All content is reviewed for clarity, structure, and relevance to real exam preparation, and aligned to official GCSE specifications."
+            q: 'Can I upload my own notes?',
+            a: 'Yes, where enabled. Binaym can turn your notes and materials into revision content and learning paths.',
         },
         {
-            q: "Do I need a subscription?",
-            a: "No. Subject packs are a one-time purchase with lifetime access. Your free plan is always free."
+            q: 'Is the content reliable?',
+            a: 'Binaym is designed to provide structured, exam-focused learning support with strong quality control and grounded explanations.',
         },
     ];
 
@@ -123,233 +147,169 @@ function HomePage() {
     };
 
     return (
-        <div style={{ minHeight: '100vh', background: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white" style={{ fontFamily: 'system-ui, sans-serif' }}>
 
             {/* ── HERO ── */}
-            <section style={{
-                position: 'relative',
-                minHeight: '90vh',
-                display: 'flex',
-                alignItems: 'center',
-                overflow: 'hidden',
-                background: 'linear-gradient(135deg, #EFF6FF 0%, #F0FDF4 50%, #EFF6FF 100%)',
-            }}>
-                <div style={{
-                    maxWidth: 1280,
-                    margin: '0 auto',
-                    padding: '80px 24px',
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: 64,
-                    alignItems: 'center',
-                    width: '100%',
-                }}>
+            <section className="relative min-h-[90svh] flex items-center overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-100/50 via-purple-50/30 to-blue-50/50" />
+                <div className="relative max-w-7xl mx-auto px-6 py-20 grid lg:grid-cols-2 gap-12 items-center w-full">
                     {/* Left */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                        <div style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            background: 'rgba(14,165,233,0.1)',
-                            color: '#0EA5E9',
-                            padding: '6px 16px',
-                            borderRadius: 999,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            width: 'fit-content',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.05em',
-                        }}>
-                            <Star style={{ width: 14, height: 14 }} />
-                            GCSE revision, personalised by AI
-                        </div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6 }}
+                        className="space-y-6"
+                    >
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2, duration: 0.6 }}
+                            className="text-purple-600 font-medium tracking-wide uppercase text-sm"
+                        >
+                            GCSE &amp; A Level, personalised by AI
+                        </motion.p>
 
-                        <h1 style={{
-                            fontSize: 'clamp(2.5rem, 5vw, 3.75rem)',
-                            fontWeight: 800,
-                            color: '#0F172A',
-                            lineHeight: 1.1,
-                            margin: 0,
-                        }}>
-                            Revision content that{' '}
-                            <span style={{
-                                background: 'linear-gradient(90deg, #0EA5E9, #22C55E)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                            }}>
-                                adapts to you
-                            </span>
-                        </h1>
+                        <motion.h1
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3, duration: 0.6 }}
+                            className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight"
+                        >
+                            Revision content that adapts to you
+                        </motion.h1>
 
-                        <p style={{ fontSize: 20, color: '#475569', lineHeight: 1.7, margin: 0 }}>
-                            Get a personalised revision plan in 2 minutes. Free AI planner + premium subject packs with past papers and predicted 2026 questions — personalised to your exam board, weak topics, and learning pace.
-                        </p>
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.4, duration: 0.6 }}
+                            className="text-xl text-gray-600 leading-relaxed"
+                        >
+                            Binaym gives you premium notes, quizzes, mocks, and AI support — all personalised to your exam date, weak topics, learning pace, and even how you're feeling that day.
+                        </motion.p>
 
-                        <p style={{ fontSize: 15, color: '#94A3B8', margin: 0 }}>
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.5, duration: 0.6 }}
+                            className="text-base text-gray-500"
+                        >
                             Start with a free study plan. See your weak areas. Know exactly what to study next.
-                        </p>
+                        </motion.p>
 
-                        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                            <Button
-                                size="lg"
+                        <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.6, duration: 0.6 }}
+                            className="flex flex-col sm:flex-row gap-4 pt-4"
+                        >
+                            <button
                                 onClick={() => onNavigate('/onboarding')}
-                                style={{
-                                    background: '#0EA5E9',
-                                    color: '#fff',
-                                    borderRadius: 999,
-                                    padding: '14px 32px',
-                                    fontSize: 16,
-                                    fontWeight: 600,
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 8px 24px rgba(14,165,233,0.35)',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                    height: 'auto',
-                                }}
+                                className="px-8 py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors shadow-lg"
+                                style={{ boxShadow: '0 8px 24px rgba(147,51,234,0.3)' }}
                             >
-                                Start Free Revision Plan
-                                <ArrowRight style={{ width: 18, height: 18 }} />
-                            </Button>
-                            <Button
-                                variant="ghost"
+                                Start Free Study Plan
+                            </button>
+                            <button
                                 onClick={() => onNavigate('/subjects')}
-                                style={{
-                                    borderRadius: 999,
-                                    padding: '14px 24px',
-                                    fontSize: 16,
-                                    color: '#0EA5E9',
-                                    border: '2px solid rgba(14,165,233,0.3)',
-                                    background: '#fff',
-                                    cursor: 'pointer',
-                                    height: 'auto',
-                                }}
+                                className="px-8 py-4 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors border-2 border-purple-200"
                             >
                                 See How It Works
-                            </Button>
-                        </div>
+                            </button>
+                        </motion.div>
 
-                        <p style={{ fontSize: 13, color: '#94A3B8', margin: 0 }}>
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.7, duration: 0.6 }}
+                            className="text-sm text-gray-500 pt-2"
+                        >
                             No card required to get started.
-                        </p>
-                    </div>
+                        </motion.p>
+                    </motion.div>
 
                     {/* Right — floating UI card */}
-                    <div style={{ position: 'relative' }}>
-                        <div style={{
-                            background: '#fff',
-                            borderRadius: 24,
-                            boxShadow: '0 24px 64px rgba(0,0,0,0.12)',
-                            padding: 32,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 24,
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <h3 style={{ fontWeight: 700, fontSize: 18, margin: 0, color: '#0F172A' }}>Your Study Plan</h3>
-                                <span style={{
-                                    background: '#F0FDF4',
-                                    color: '#22C55E',
-                                    borderRadius: 999,
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    padding: '4px 12px',
-                                }}>On Track</span>
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.4, duration: 0.8 }}
+                        className="relative"
+                    >
+                        <div className="bg-white rounded-3xl shadow-2xl p-8 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-semibold text-lg text-gray-900">Your Study Plan</h3>
+                                <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">On Track</span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                {[
-                                    { color: '#0EA5E9', label: 'GCSE Maths: Quadratic Equations' },
-                                    { color: '#22C55E', label: 'Biology: Cell Structure Review' },
-                                    { color: '#CBD5E1', label: 'Chemistry: Atomic Structure', dim: true },
-                                ].map((item, i) => (
-                                    <div key={i} style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 12,
-                                        padding: '12px 16px',
-                                        background: item.dim ? '#F8FAFC' : `${item.color}10`,
-                                        borderRadius: 12,
-                                        opacity: item.dim ? 0.5 : 1,
-                                    }}>
-                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-                                        <span style={{ fontSize: 14, color: '#0F172A' }}>{item.label}</span>
-                                    </div>
-                                ))}
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
+                                    <div className="w-2 h-2 bg-blue-600 rounded-full" />
+                                    <span className="text-sm text-gray-900">GCSE Maths: Quadratic Equations</span>
+                                </div>
+                                <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
+                                    <div className="w-2 h-2 bg-purple-600 rounded-full" />
+                                    <span className="text-sm text-gray-900">Biology: Cell Structure Review</span>
+                                </div>
+                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl opacity-50">
+                                    <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                                    <span className="text-sm text-gray-900">Chemistry: Atomic Structure</span>
+                                </div>
                             </div>
-                            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 16 }}>
-                                <p style={{ fontWeight: 600, fontSize: 13, color: '#0F172A', marginBottom: 12 }}>Weak Areas Detected</p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <span style={{ fontSize: 13, color: '#475569' }}>Algebra fundamentals</span>
-                                        <span style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600 }}>Focus needed</span>
+                            <div className="border-t pt-4">
+                                <h4 className="font-semibold text-sm mb-3 text-gray-900">Weak Areas Detected</h4>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-gray-600">Algebra fundamentals</span>
+                                        <span className="text-xs text-orange-600 font-medium">Focus needed</span>
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <span style={{ fontSize: 13, color: '#475569' }}>Graph interpretation</span>
-                                        <span style={{ fontSize: 12, color: '#F59E0B', fontWeight: 600 }}>Practice more</span>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-gray-600">Graph interpretation</span>
+                                        <span className="text-xs text-yellow-600 font-medium">Practice more</span>
                                     </div>
                                 </div>
                             </div>
-                            <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>Exam Readiness</span>
-                                    <span style={{ fontSize: 13, fontWeight: 700, color: '#0EA5E9' }}>68%</span>
+                            <div className="border-t pt-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-medium text-gray-900">Exam Readiness</span>
+                                    <span className="text-sm font-semibold text-purple-600">68%</span>
                                 </div>
-                                <div style={{ height: 8, background: '#E2E8F0', borderRadius: 999, overflow: 'hidden' }}>
-                                    <div style={{ height: '100%', width: '68%', background: 'linear-gradient(90deg, #0EA5E9, #22C55E)', borderRadius: 999 }} />
+                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-purple-600 to-blue-600 rounded-full"
+                                        style={{ width: '68%' }}
+                                    />
                                 </div>
                             </div>
                         </div>
 
                         {/* Floating AI badge */}
-                        <div style={{
-                            position: 'absolute',
-                            bottom: -24,
-                            right: -24,
-                            background: '#fff',
-                            borderRadius: 16,
-                            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-                            padding: '14px 16px',
-                            width: 240,
-                            display: 'flex',
-                            gap: 12,
-                            alignItems: 'flex-start',
-                        }}>
-                            <div style={{
-                                width: 36,
-                                height: 36,
-                                background: 'rgba(14,165,233,0.1)',
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                            }}>
-                                <Sparkles style={{ width: 16, height: 16, color: '#0EA5E9' }} />
-                            </div>
-                            <div>
-                                <p style={{ fontSize: 12, fontWeight: 700, color: '#0F172A', margin: '0 0 4px' }}>AI Tutor Available</p>
-                                <p style={{ fontSize: 11, color: '#475569', margin: 0 }}>Ask me anything about quadratic equations...</p>
+                        <div className="absolute -bottom-6 -right-6 bg-white rounded-2xl shadow-xl p-4 w-64">
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Sparkles className="w-4 h-4 text-purple-600" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-gray-900">AI Tutor Available</p>
+                                    <p className="text-xs text-gray-500">Ask me anything about quadratic equations...</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             </section>
 
             {/* ── TRUST BAR ── */}
-            <section style={{ background: '#fff', borderTop: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0' }}>
-                <div style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 24px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 24, textAlign: 'center' }}>
+            <section className="bg-white border-y">
+                <div className="max-w-7xl mx-auto px-6 py-6">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
                         {[
-                            { icon: GraduationCap, label: 'GCSE focused' },
-                            { icon: CheckCircle2, label: 'Exam board aligned' },
-                            { icon: Target, label: 'Personalised plans' },
+                            { icon: GraduationCap, label: 'GCSE & A Level support' },
+                            { icon: CheckCircle2, label: 'Teacher-reviewed content' },
+                            { icon: Target, label: 'Personalised study plans' },
                             { icon: Sparkles, label: 'AI tutor, quizzes & mocks' },
                             { icon: BookOpen, label: 'Free to start' },
                         ].map(({ icon: Icon, label }, i) => (
-                            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                                <Icon style={{ width: 20, height: 20, color: '#0EA5E9' }} />
-                                <span style={{ fontSize: 13, color: '#475569' }}>{label}</span>
+                            <div key={i} className="flex flex-col items-center gap-2">
+                                <Icon className="w-5 h-5 text-purple-600" />
+                                <span className="text-sm text-gray-600">{label}</span>
                             </div>
                         ))}
                     </div>
@@ -357,165 +317,248 @@ function HomePage() {
             </section>
 
             {/* ── PROBLEM / VALUE ── */}
-            <section style={{ padding: '96px 24px' }}>
-                <div style={{ maxWidth: 896, margin: '0 auto', textAlign: 'center' }}>
-                    <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0F172A', lineHeight: 1.2, marginBottom: 32 }}>
+            <section className="py-24 px-6">
+                <div className="max-w-4xl mx-auto text-center space-y-8">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight"
+                    >
                         Most students don't need more content. They need to know what to study next.
-                    </h2>
-                    <p style={{ fontSize: 18, color: '#475569', lineHeight: 1.7, marginBottom: 16 }}>
-                        There are already plenty of notes, videos, and revision resources online. The hard part is knowing where to start, what matters most, and how to stay on track.
-                    </p>
-                    <p style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', marginBottom: 40 }}>
-                        GCSE AI Revision turns revision into a clear, personalised learning path.
-                    </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, textAlign: 'left' }}>
+                    </motion.h2>
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.2, duration: 0.6 }}
+                        className="space-y-6 text-lg text-gray-600"
+                    >
+                        <p>
+                            There are already plenty of notes, videos, and revision resources online. The hard part is
+                            knowing where to start, what matters most, and how to stay on track.
+                        </p>
+                        <p className="font-semibold text-gray-900">
+                            Binaym turns revision into a clear, personalised learning path.
+                        </p>
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.4, duration: 0.6 }}
+                        className="grid sm:grid-cols-2 gap-6 pt-8 text-left"
+                    >
                         {[
                             'Find your weak topics quickly',
                             'Get a study plan built around your exam date',
                             'Learn with premium revision content and AI support',
                             'Improve over time with quizzes, mocks, and progress tracking',
                         ].map((item, i) => (
-                            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                                <CheckCircle2 style={{ width: 22, height: 22, color: '#22C55E', flexShrink: 0, marginTop: 2 }} />
-                                <span style={{ fontSize: 16, color: '#475569' }}>{item}</span>
+                            <div key={i} className="flex gap-3">
+                                <CheckCircle2 className="w-6 h-6 text-purple-600 flex-shrink-0" />
+                                <p className="text-gray-700">{item}</p>
                             </div>
                         ))}
-                    </div>
+                    </motion.div>
                 </div>
             </section>
 
             {/* ── ADAPTIVE USP ── */}
-            <section style={{ padding: '96px 24px', background: 'linear-gradient(180deg, #fff 0%, #EFF6FF 100%)' }}>
-                <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-                    <div style={{ textAlign: 'center', marginBottom: 64 }}>
-                        <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0F172A', marginBottom: 16 }}>
+            <section className="py-24 px-6 bg-gradient-to-b from-white to-blue-50">
+                <div className="max-w-6xl mx-auto">
+                    <div className="text-center space-y-4 mb-16">
+                        <motion.h2
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            className="text-4xl lg:text-5xl font-bold text-gray-900"
+                        >
                             Designed to adapt like a real coach, tutor, and study partner
-                        </h2>
-                        <p style={{ fontSize: 18, color: '#475569', maxWidth: 768, margin: '0 auto' }}>
-                            The platform responds to your weak areas, learning pace, and even how you're feeling that day — so revision feels more realistic, manageable, and effective.
-                        </p>
+                        </motion.h2>
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.2 }}
+                            className="text-xl text-gray-600 max-w-4xl mx-auto"
+                        >
+                            Binaym responds to your weak areas, learning pace, and even how you're feeling that day — so
+                            revision feels more realistic, manageable, and effective.
+                        </motion.p>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 20, marginBottom: 32 }}>
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
                         {adaptiveCards.map((card, idx) => {
                             const isActive = activeCard === idx;
                             const Icon = card.icon;
                             return (
-                                <div
+                                <motion.div
                                     key={idx}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
+                                    transition={{ delay: idx * 0.05, duration: 0.6 }}
+                                    onClick={() => setActiveCard(isActive ? null : idx)}
                                     onMouseEnter={() => setActiveCard(idx)}
                                     onMouseLeave={() => setActiveCard(null)}
-                                    style={{
-                                        background: '#fff',
-                                        borderRadius: 20,
-                                        padding: 24,
-                                        cursor: 'pointer',
-                                        boxShadow: isActive
-                                            ? '0 16px 48px rgba(14,165,233,0.18)'
-                                            : '0 2px 12px rgba(0,0,0,0.06)',
-                                        transform: isActive ? 'translateY(-4px) scale(1.02)' : 'none',
-                                        transition: 'all 0.3s ease',
-                                        border: isActive ? '1.5px solid rgba(14,165,233,0.3)' : '1.5px solid #E2E8F0',
-                                    }}
+                                    className={`bg-white rounded-2xl p-6 transition-all duration-300 cursor-pointer ${
+                                        isActive ? 'shadow-xl scale-[1.02]' : 'shadow-md hover:shadow-lg'
+                                    }`}
                                 >
-                                    <div style={{
-                                        width: 52,
-                                        height: 52,
-                                        borderRadius: 14,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        marginBottom: 16,
-                                        background: isActive ? 'linear-gradient(135deg, #0EA5E9, #22C55E)' : 'rgba(14,165,233,0.1)',
-                                        transition: 'all 0.3s ease',
-                                    }}>
-                                        <Icon style={{ width: 24, height: 24, color: isActive ? '#fff' : '#0EA5E9' }} />
+                                    <div className="space-y-4">
+                                        <div
+                                            className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                                                isActive ? 'bg-purple-600' : 'bg-purple-100'
+                                            }`}
+                                        >
+                                            <Icon
+                                                className={`w-7 h-7 transition-all duration-300 ${
+                                                    isActive ? 'text-white' : 'text-purple-600'
+                                                }`}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <h3 className="font-semibold text-lg text-gray-900">{card.title}</h3>
+                                            <p className="text-sm text-gray-600">
+                                                {isActive ? card.expandedCopy : card.defaultLine}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <h3 style={{ fontWeight: 700, fontSize: 15, color: '#0F172A', marginBottom: 8 }}>{card.title}</h3>
-                                    <p style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, margin: 0 }}>
-                                        {isActive ? card.expandedCopy : card.defaultLine}
-                                    </p>
-                                </div>
+                                </motion.div>
                             );
                         })}
                     </div>
 
-                    <p style={{ textAlign: 'center', color: '#475569', fontSize: 16, maxWidth: 768, margin: '0 auto' }}>
-                        Built to help you keep moving, even when motivation, confidence, or energy changes from day to day.
+                    <p className="text-center text-gray-600 text-lg max-w-4xl mx-auto">
+                        Binaym is built to help you keep moving, even when motivation, confidence, or energy changes from day to day.
                     </p>
                 </div>
             </section>
 
             {/* ── HOW IT WORKS ── */}
-            <section style={{ padding: '96px 24px', background: 'linear-gradient(180deg, #EFF6FF 0%, #fff 100%)' }}>
-                <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-                    <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0F172A', textAlign: 'center', marginBottom: 64 }}>
-                        How it works
-                    </h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 40 }}>
+            <section className="py-24 px-6 bg-gradient-to-b from-blue-50 to-white">
+                <div className="max-w-6xl mx-auto">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="text-4xl font-bold text-center mb-16 text-gray-900"
+                    >
+                        How Binaym works
+                    </motion.h2>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {[
-                            { step: '1', icon: ClipboardList, title: "Tell us what you're studying", desc: "Choose your subjects, exam board, and target grade." },
-                            { step: '2', icon: Target, title: "Get your personalised study path", desc: "We identify weak areas and build a plan around what you need to improve." },
-                            { step: '3', icon: BookOpen, title: "Study with the right tools", desc: "Use past papers, quizzes, notes, and AI help that fit your learning pace." },
-                            { step: '4', icon: TrendingUp, title: "Improve week by week", desc: "Track progress, revisit weak areas, and keep moving toward exam readiness." },
+                            { icon: ClipboardList, title: "Tell us what you're studying", desc: 'Choose your subjects, exam date, and target grade.' },
+                            { icon: Target, title: 'Get your personalised study path', desc: 'We identify weak areas and build a plan around what you need to improve.' },
+                            { icon: BookOpen, title: 'Study with the right tools', desc: 'Use premium notes, quizzes, mocks, and AI help that fit your learning pace.' },
+                            { icon: TrendingUp, title: 'Improve week by week', desc: 'Track progress, revisit weak areas, and keep moving toward exam readiness.' },
                         ].map((item, idx) => {
                             const Icon = item.icon;
                             return (
-                                <div key={idx} style={{ textAlign: 'center' }}>
-                                    <div style={{
-                                        width: 72,
-                                        height: 72,
-                                        background: 'rgba(14,165,233,0.1)',
-                                        borderRadius: 20,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        margin: '0 auto 20px',
-                                    }}>
-                                        <Icon style={{ width: 32, height: 32, color: '#0EA5E9' }} />
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
+                                    transition={{ delay: idx * 0.1, duration: 0.6 }}
+                                    className="text-center space-y-4"
+                                >
+                                    <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-2xl">
+                                        <Icon className="w-8 h-8 text-purple-600" />
                                     </div>
-                                    <h3 style={{ fontWeight: 700, fontSize: 17, color: '#0F172A', marginBottom: 10 }}>{item.title}</h3>
-                                    <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.65 }}>{item.desc}</p>
-                                </div>
+                                    <div className="space-y-2">
+                                        <h3 className="font-semibold text-lg text-gray-900">{item.title}</h3>
+                                        <p className="text-gray-600 text-sm">{item.desc}</p>
+                                    </div>
+                                </motion.div>
                             );
                         })}
                     </div>
                 </div>
             </section>
 
+            {/* ── TEACHER-REVIEWED SECTION ── */}
+            <section className="py-24 px-6 bg-gradient-to-b from-white to-blue-50">
+                <div className="max-w-6xl mx-auto">
+                    <div className="text-center space-y-4 mb-16">
+                        <motion.h2
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            className="text-4xl font-bold text-gray-900"
+                        >
+                            Built with teacher-reviewed subject expertise
+                        </motion.h2>
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.2 }}
+                            className="text-xl text-gray-600 max-w-3xl mx-auto"
+                        >
+                            Binaym combines AI personalisation with revision content reviewed by experienced subject specialists — so students get structured support they can trust.
+                        </motion.p>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        {experts.map((expert, idx) => (
+                            <motion.div
+                                key={idx}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: idx * 0.05, duration: 0.6 }}
+                                className="bg-white rounded-2xl p-6 shadow-md hover:shadow-lg transition-shadow"
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div
+                                        className="w-16 h-16 rounded-full flex-shrink-0 flex items-center justify-center bg-purple-100 text-purple-700 font-bold text-xl"
+                                    >
+                                        {expert.name.charAt(0)}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h3 className="font-semibold text-gray-900">{expert.name}</h3>
+                                        <p className="text-sm text-purple-600 font-medium">{expert.role}</p>
+                                        <p className="text-sm text-gray-600">{expert.bio}</p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    <div className="text-center">
+                        <p className="text-sm text-gray-500 mb-6">
+                            Every subject is reviewed for clarity, structure, and relevance to real exam preparation.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
             {/* ── PRODUCT WALKTHROUGH TABS ── */}
-            <section style={{ padding: '96px 24px' }}>
-                <div style={{ maxWidth: 1024, margin: '0 auto' }}>
-                    <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0F172A', textAlign: 'center', marginBottom: 64 }}>
+            <section className="py-24 px-6">
+                <div className="max-w-5xl mx-auto">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="text-4xl font-bold text-center mb-16 text-gray-900"
+                    >
                         Everything you need to revise, in one system
-                    </h2>
+                    </motion.h2>
 
                     {/* Tab bar */}
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(5, 1fr)',
-                        background: '#EFF6FF',
-                        borderRadius: 16,
-                        padding: 6,
-                        marginBottom: 24,
-                        gap: 4,
-                    }}>
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-1 bg-blue-50 p-1 rounded-2xl mb-8">
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                style={{
-                                    padding: '10px 8px',
-                                    borderRadius: 12,
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
-                                    fontSize: 13,
-                                    transition: 'all 0.2s',
-                                    background: activeTab === tab.id ? '#fff' : 'transparent',
-                                    color: activeTab === tab.id ? '#0EA5E9' : '#475569',
-                                    boxShadow: activeTab === tab.id ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
-                                }}
+                                className={`py-2.5 px-2 rounded-xl text-sm font-semibold transition-all ${
+                                    activeTab === tab.id
+                                        ? 'bg-white text-purple-600 shadow-md'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
                             >
                                 {tab.label}
                             </button>
@@ -523,94 +566,101 @@ function HomePage() {
                     </div>
 
                     {/* Tab content */}
-                    <div style={{ background: '#fff', borderRadius: 20, padding: 40, boxShadow: '0 4px 24px rgba(0,0,0,0.07)', border: '1px solid #E2E8F0' }}>
+                    <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
                         {activeTab === 'plan' && (
-                            <div>
-                                <h3 style={{ fontWeight: 700, fontSize: 20, color: '#0F172A', marginBottom: 8 }}>My Plan</h3>
-                                <p style={{ color: '#475569', marginBottom: 24 }}>See exactly what to study today, this week, and before your exam. No guesswork, no overwhelm.</p>
-                                <div style={{ background: '#EFF6FF', borderRadius: 16, padding: 24 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                                        <span style={{ fontWeight: 600, color: '#0F172A' }}>Today's Focus</span>
-                                        <span style={{ fontSize: 13, color: '#475569' }}>3 topics</span>
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-semibold text-gray-900">My Plan</h3>
+                                <p className="text-gray-600">See exactly what to study today, this week, and before your exam. No guesswork, no overwhelm.</p>
+                                <div className="bg-blue-50 rounded-xl p-6 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-medium text-gray-900">Today's Focus</span>
+                                        <span className="text-sm text-gray-500">3 topics</span>
                                     </div>
-                                    {['GCSE Maths: Quadratic Equations', 'Biology: Cell Structure', 'Chemistry: Periodic Table'].map((t, i) => (
-                                        <div key={i} style={{ background: '#fff', borderRadius: 10, padding: '12px 16px', marginBottom: 8, fontSize: 14, color: '#0F172A' }}>{t}</div>
-                                    ))}
+                                    <div className="space-y-2">
+                                        {['GCSE Maths: Quadratic Equations', 'Biology: Cell Structure', 'Chemistry: Periodic Table'].map((t, i) => (
+                                            <div key={i} className="p-3 bg-white rounded-lg text-sm text-gray-900">{t}</div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )}
                         {activeTab === 'weak' && (
-                            <div>
-                                <h3 style={{ fontWeight: 700, fontSize: 20, color: '#0F172A', marginBottom: 8 }}>Weak Areas</h3>
-                                <p style={{ color: '#475569', marginBottom: 24 }}>Quickly understand what's holding you back and where you should focus first.</p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                    <div style={{ padding: 20, background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 14 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ fontWeight: 600, color: '#0F172A' }}>Algebra fundamentals</span>
-                                            <span style={{ fontSize: 13, color: '#F59E0B', fontWeight: 700 }}>Priority</span>
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-semibold text-gray-900">Weak Areas</h3>
+                                <p className="text-gray-600">Quickly understand what's holding you back and where you should focus first.</p>
+                                <div className="space-y-3">
+                                    <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-medium text-gray-900">Algebra fundamentals</span>
+                                            <span className="text-sm text-orange-600 font-semibold">Priority</span>
                                         </div>
-                                        <p style={{ fontSize: 13, color: '#475569', margin: '6px 0 0' }}>Last 3 quizzes show gaps in basic operations</p>
+                                        <p className="text-sm text-gray-600 mt-2">Last 3 quizzes show gaps in basic operations</p>
                                     </div>
-                                    <div style={{ padding: 20, background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: 14 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ fontWeight: 600, color: '#0F172A' }}>Graph interpretation</span>
-                                            <span style={{ fontSize: 13, color: '#EA580C', fontWeight: 700 }}>Improve</span>
+                                    <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                                        <div className="flex justify-between items-center">
+                                            <span className="font-medium text-gray-900">Graph interpretation</span>
+                                            <span className="text-sm text-yellow-600 font-semibold">Improve</span>
                                         </div>
-                                        <p style={{ fontSize: 13, color: '#475569', margin: '6px 0 0' }}>Practice more reading data from charts</p>
+                                        <p className="text-sm text-gray-600 mt-2">Practice more reading data from charts</p>
                                     </div>
                                 </div>
                             </div>
                         )}
                         {activeTab === 'tutor' && (
-                            <div>
-                                <h3 style={{ fontWeight: 700, fontSize: 20, color: '#0F172A', marginBottom: 8 }}>AI Tutor</h3>
-                                <p style={{ color: '#475569', marginBottom: 24 }}>Get help when you're stuck, directly inside the content you're studying.</p>
-                                <div style={{ background: '#EFF6FF', borderRadius: 16, padding: 24, display: 'flex', gap: 16 }}>
-                                    <div style={{ width: 36, height: 36, background: '#0EA5E9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                        <Sparkles style={{ width: 16, height: 16, color: '#fff' }} />
-                                    </div>
-                                    <div>
-                                        <p style={{ fontWeight: 700, fontSize: 13, color: '#0F172A', margin: '0 0 6px' }}>AI Tutor</p>
-                                        <p style={{ fontSize: 14, color: '#475569', margin: 0 }}>I can help explain quadratic equations step by step. What would you like to understand better?</p>
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-semibold text-gray-900">AI Tutor</h3>
+                                <p className="text-gray-600">Get help when you're stuck, directly inside the content you're studying.</p>
+                                <div className="bg-purple-50 rounded-xl p-6">
+                                    <div className="flex gap-3">
+                                        <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <Sparkles className="w-4 h-4 text-white" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <p className="text-sm font-medium text-gray-900">AI Tutor</p>
+                                            <p className="text-sm text-gray-600">I can help explain quadratic equations step by step. What would you like to understand better?</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         )}
                         {activeTab === 'quizzes' && (
-                            <div>
-                                <h3 style={{ fontWeight: 700, fontSize: 20, color: '#0F172A', marginBottom: 8 }}>Quizzes & Mocks</h3>
-                                <p style={{ color: '#475569', marginBottom: 24 }}>Practice properly, spot patterns in your mistakes, and improve with targeted feedback.</p>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-semibold text-gray-900">Quizzes &amp; Mocks</h3>
+                                <p className="text-gray-600">Practice properly, spot patterns in your mistakes, and improve with targeted feedback.</p>
+                                <div className="grid sm:grid-cols-2 gap-4">
                                     {[
-                                        { title: 'Quick Quiz', desc: '10 questions on today\'s topics', cta: 'Start Quiz →' },
+                                        { title: 'Quick Quiz', desc: "10 questions on today's topics", cta: 'Start Quiz →' },
                                         { title: 'Practice Mock', desc: 'Full exam paper simulation', cta: 'Start Mock →' },
                                     ].map((card, i) => (
-                                        <div key={i} style={{ padding: 20, background: '#EFF6FF', borderRadius: 14 }}>
-                                            <h4 style={{ fontWeight: 600, color: '#0F172A', margin: '0 0 6px' }}>{card.title}</h4>
-                                            <p style={{ fontSize: 13, color: '#475569', margin: '0 0 12px' }}>{card.desc}</p>
-                                            <span style={{ fontSize: 13, color: '#0EA5E9', fontWeight: 600 }}>{card.cta}</span>
+                                        <div key={i} className="p-4 bg-blue-50 rounded-xl">
+                                            <h4 className="font-medium text-gray-900 mb-2">{card.title}</h4>
+                                            <p className="text-sm text-gray-600 mb-3">{card.desc}</p>
+                                            <span className="text-sm text-purple-600 font-semibold">{card.cta}</span>
                                         </div>
                                     ))}
                                 </div>
                             </div>
                         )}
                         {activeTab === 'progress' && (
-                            <div>
-                                <h3 style={{ fontWeight: 700, fontSize: 20, color: '#0F172A', marginBottom: 8 }}>Progress Tracking</h3>
-                                <p style={{ color: '#475569', marginBottom: 24 }}>See how your confidence and readiness improve over time.</p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-semibold text-gray-900">Progress Tracking</h3>
+                                <p className="text-gray-600">See how your confidence and readiness improve over time.</p>
+                                <div className="space-y-6">
                                     {[
                                         { label: 'GCSE Maths', pct: 72 },
                                         { label: 'Biology', pct: 65 },
                                         { label: 'Chemistry', pct: 48 },
                                     ].map((item, i) => (
                                         <div key={i}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                                <span style={{ fontSize: 14, fontWeight: 600, color: '#0F172A' }}>{item.label}</span>
-                                                <span style={{ fontSize: 14, fontWeight: 700, color: '#0EA5E9' }}>{item.pct}%</span>
+                                            <div className="flex justify-between mb-2">
+                                                <span className="text-sm font-medium text-gray-900">{item.label}</span>
+                                                <span className="text-sm font-semibold text-purple-600">{item.pct}%</span>
                                             </div>
-                                            <div style={{ height: 10, background: '#E2E8F0', borderRadius: 999, overflow: 'hidden' }}>
-                                                <div style={{ height: '100%', width: `${item.pct}%`, background: 'linear-gradient(90deg, #0EA5E9, #22C55E)', borderRadius: 999 }} />
+                                            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-purple-600 rounded-full"
+                                                    style={{ width: `${item.pct}%` }}
+                                                />
                                             </div>
                                         </div>
                                     ))}
@@ -621,244 +671,271 @@ function HomePage() {
                 </div>
             </section>
 
-            {/* ── SUBJECTS PREVIEW ── */}
-            <section style={{ padding: '96px 24px', background: '#F8FAFC' }}>
-                <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-                    <div style={{ textAlign: 'center', marginBottom: 64 }}>
-                        <Badge variant="secondary" style={{ background: 'rgba(34,197,94,0.1)', color: '#22C55E', marginBottom: 16 }}>
-                            Subject packs
-                        </Badge>
-                        <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0F172A', marginBottom: 16 }}>
-                            Master every GCSE subject
-                        </h2>
-                        <p style={{ fontSize: 18, color: '#475569', maxWidth: 768, margin: '0 auto' }}>
-                            From Maths to Modern Languages, get comprehensive revision materials for all major GCSE subjects.
-                        </p>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginBottom: 48 }}>
-                        {subjects.slice(0, 6).map((subject) => (
-                            <SubjectCard
-                                key={subject.subject}
-                                subject={subject.subject}
-                                description={subject.description}
-                                examBoard="AQA"
-                                onPreview={() => {}}
-                                onViewPack={() => onNavigate('/subjects')}
-                            />
+            {/* ── UPLOAD YOUR OWN CONTENT ── */}
+            <section className="py-24 px-6 bg-gradient-to-b from-blue-50 to-white">
+                <div className="max-w-4xl mx-auto text-center space-y-8">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="text-4xl font-bold text-gray-900"
+                    >
+                        Your notes, turned into a personalised study path
+                    </motion.h2>
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.2 }}
+                        className="text-xl text-gray-600"
+                    >
+                        Upload class notes, slides, PDFs, textbook pages, or school materials. Binaym can turn them into
+                        structured notes, flashcards, quizzes, and learning paths built around your goals.
+                    </motion.p>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.4 }}
+                        className="grid sm:grid-cols-2 gap-6 pt-4 text-left"
+                    >
+                        {[
+                            { icon: Upload, label: 'Organise messy study materials' },
+                            { icon: FileText, label: 'Turn notes into revision tools' },
+                            { icon: Brain, label: 'Build a plan around your own content' },
+                            { icon: CheckCircle2, label: 'Keep everything in one place' },
+                        ].map(({ icon: Icon, label }, i) => (
+                            <div key={i} className="flex gap-3">
+                                <Icon className="w-6 h-6 text-purple-600 flex-shrink-0" />
+                                <p className="text-gray-700">{label}</p>
+                            </div>
                         ))}
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                        <Button
-                            size="lg"
-                            onClick={() => onNavigate('/subjects')}
-                            style={{
-                                background: 'linear-gradient(90deg, #22C55E, #0EA5E9)',
-                                color: '#fff',
-                                borderRadius: 999,
-                                padding: '14px 32px',
-                                fontSize: 16,
-                                fontWeight: 600,
-                                border: 'none',
-                                cursor: 'pointer',
-                                boxShadow: '0 8px 24px rgba(14,165,233,0.25)',
-                                height: 'auto',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 8,
-                            }}
-                        >
-                            Explore All {subjects.length} Subjects
-                            <ArrowRight style={{ width: 18, height: 18 }} />
-                        </Button>
-                    </div>
+                    </motion.div>
+                    <button
+                        onClick={() => onNavigate('/onboarding')}
+                        className="px-8 py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors mt-6"
+                        style={{ boxShadow: '0 8px 24px rgba(147,51,234,0.3)' }}
+                    >
+                        Start Free and Try It
+                    </button>
                 </div>
             </section>
 
             {/* ── TESTIMONIALS ── */}
-            <section style={{ padding: '96px 24px', background: 'linear-gradient(180deg, #fff 0%, #EFF6FF 100%)' }}>
-                <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-                    <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0F172A', textAlign: 'center', marginBottom: 64 }}>
+            <section className="py-24 px-6 bg-gradient-to-b from-white to-blue-50">
+                <div className="max-w-6xl mx-auto">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="text-4xl font-bold text-center mb-16 text-gray-900"
+                    >
                         What students say
-                    </h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+                    </motion.h2>
+                    <div className="grid md:grid-cols-3 gap-8">
                         {[
-                            { quote: "It finally told me what to revise instead of giving me more random stuff.", author: "Year 11 student" },
-                            { quote: "The weak-area feature made it obvious where I was losing marks.", author: "GCSE Maths student" },
-                            { quote: "It gave my daughter structure, which was the biggest thing missing.", author: "Parent of Year 11 student" },
+                            { quote: "It finally told me what to revise instead of giving me more random stuff.", author: 'Year 11 student' },
+                            { quote: 'The weak-area feature made it obvious where I was losing marks.', author: 'GCSE Maths student' },
+                            { quote: 'It gave my daughter structure, which was the biggest thing missing.', author: 'Parent of Year 11 student' },
                         ].map((t, i) => (
-                            <div key={i} style={{
-                                background: '#fff',
-                                borderRadius: 20,
-                                padding: 32,
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                                border: '1px solid #E2E8F0',
-                            }}>
-                                <div style={{ display: 'flex', gap: 2, marginBottom: 16 }}>
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: i * 0.1, duration: 0.6 }}
+                                className="bg-white rounded-2xl p-8 shadow-md space-y-4"
+                            >
+                                <div className="flex gap-1">
                                     {[...Array(5)].map((_, j) => (
-                                        <Star key={j} style={{ width: 16, height: 16, fill: '#F59E0B', color: '#F59E0B' }} />
+                                        <Star key={j} className="w-4 h-4 fill-amber-400 text-amber-400" />
                                     ))}
                                 </div>
-                                <p style={{ fontSize: 17, color: '#0F172A', fontStyle: 'italic', lineHeight: 1.6, marginBottom: 16 }}>"{t.quote}"</p>
-                                <p style={{ fontSize: 13, color: '#475569' }}>{t.author}</p>
-                            </div>
+                                <p className="text-gray-900 text-lg italic">"{t.quote}"</p>
+                                <p className="text-sm text-gray-500">{t.author}</p>
+                            </motion.div>
                         ))}
                     </div>
                 </div>
             </section>
 
             {/* ── PRICING ── */}
-            <section style={{ padding: '96px 24px' }}>
-                <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-                    <div style={{ textAlign: 'center', marginBottom: 64 }}>
-                        <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0F172A', marginBottom: 16 }}>
+            <section className="py-24 px-6">
+                <div className="max-w-6xl mx-auto">
+                    <div className="text-center space-y-4 mb-16">
+                        <motion.h2
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            className="text-4xl font-bold text-gray-900"
+                        >
                             Start free. Upgrade when you're ready.
-                        </h2>
-                        <p style={{ fontSize: 18, color: '#475569' }}>
-                            Try the free planner, then unlock full access when you want the complete learning system.
-                        </p>
+                        </motion.h2>
+                        <motion.p
+                            initial={{ opacity: 0 }}
+                            whileInView={{ opacity: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.2 }}
+                            className="text-xl text-gray-600"
+                        >
+                            Try Binaym for free, then unlock full access when you want the complete learning system.
+                        </motion.p>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginBottom: 32 }}>
+                    <div className="grid md:grid-cols-3 gap-8 mb-8">
                         {/* Free */}
-                        <div style={{ background: '#fff', borderRadius: 24, padding: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', border: '1.5px solid #E2E8F0' }}>
-                            <h3 style={{ fontWeight: 800, fontSize: 22, color: '#0F172A', marginBottom: 8 }}>Free Planner</h3>
-                            <div style={{ marginBottom: 24 }}>
-                                <span style={{ fontSize: 48, fontWeight: 800, color: '#0F172A' }}>£0</span>
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            className="bg-white rounded-2xl p-8 shadow-md space-y-6"
+                        >
+                            <div>
+                                <h3 className="text-2xl font-bold text-gray-900 mb-2">Free</h3>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
-                                {['AI-powered revision schedule', 'Personalised study plan', 'Progress tracking', 'Limited quiz access', 'Explore how it works'].map((f, i) => (
-                                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                                        <CheckCircle2 style={{ width: 18, height: 18, color: '#22C55E', flexShrink: 0, marginTop: 2 }} />
-                                        <span style={{ fontSize: 15, color: '#475569' }}>{f}</span>
-                                    </div>
+                            <ul className="space-y-3 text-gray-600">
+                                {[
+                                    'Personalised study plan',
+                                    'Weak-area insight',
+                                    'Limited tutor usage',
+                                    'Limited quizzes and revision access',
+                                    'Explore how Binaym works',
+                                ].map((f, i) => (
+                                    <li key={i} className="flex gap-2">
+                                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                        {f}
+                                    </li>
                                 ))}
-                            </div>
+                            </ul>
                             <button
                                 onClick={() => onNavigate('/onboarding')}
-                                style={{
-                                    width: '100%', padding: '14px', borderRadius: 999, border: '1.5px solid #E2E8F0',
-                                    background: '#F8FAFC', color: '#0F172A', fontWeight: 600, fontSize: 15, cursor: 'pointer',
-                                }}
+                                className="w-full py-3 bg-gray-100 text-gray-900 rounded-full font-semibold hover:bg-gray-200 transition-colors"
                             >
                                 Start Free
                             </button>
-                        </div>
+                        </motion.div>
 
-                        {/* Monthly */}
-                        <div style={{ background: '#fff', borderRadius: 24, padding: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.07)', border: '1.5px solid #E2E8F0' }}>
-                            <h3 style={{ fontWeight: 800, fontSize: 22, color: '#0F172A', marginBottom: 8 }}>Subject Pack</h3>
-                            <div style={{ marginBottom: 24 }}>
-                                <span style={{ fontSize: 48, fontWeight: 800, color: '#0EA5E9' }}>£30</span>
-                                <span style={{ fontSize: 15, color: '#475569' }}> /subject</span>
+                        {/* Pro Monthly */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.1 }}
+                            className="bg-white rounded-2xl p-8 shadow-md space-y-6"
+                        >
+                            <div>
+                                <h3 className="text-2xl font-bold text-gray-900 mb-2">Pro Monthly</h3>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-4xl font-bold text-gray-900">£16.99</span>
+                                    <span className="text-gray-500">/month</span>
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
-                                {['10+ years of past papers', 'AI-predicted 2026 questions', 'Interactive quizzes & videos', 'AI tutor assistance', 'Pay once, keep forever'].map((f, i) => (
-                                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                                        <CheckCircle2 style={{ width: 18, height: 18, color: '#0EA5E9', flexShrink: 0, marginTop: 2 }} />
-                                        <span style={{ fontSize: 15, color: '#475569' }}>{f}</span>
-                                    </div>
+                            <ul className="space-y-3 text-gray-600">
+                                {[
+                                    'Full access across supported subjects',
+                                    'Unlimited study plans',
+                                    'AI tutor',
+                                    'Quizzes and mocks',
+                                    'Progress tracking',
+                                    'Personalised revision support',
+                                ].map((f, i) => (
+                                    <li key={i} className="flex gap-2">
+                                        <CheckCircle2 className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                                        {f}
+                                    </li>
                                 ))}
-                            </div>
-                            <button
-                                onClick={() => onNavigate('/subjects')}
-                                style={{
-                                    width: '100%', padding: '14px', borderRadius: 999, border: 'none',
-                                    background: '#0EA5E9', color: '#fff', fontWeight: 600, fontSize: 15, cursor: 'pointer',
-                                    boxShadow: '0 6px 20px rgba(14,165,233,0.35)',
-                                }}
-                            >
-                                Choose Subject
-                            </button>
-                        </div>
-
-                        {/* Annual / All Access */}
-                        <div style={{
-                            background: 'linear-gradient(135deg, #0EA5E9, #22C55E)',
-                            borderRadius: 24,
-                            padding: 32,
-                            boxShadow: '0 16px 48px rgba(14,165,233,0.3)',
-                            position: 'relative',
-                            overflow: 'hidden',
-                        }}>
-                            <div style={{
-                                position: 'absolute', top: 16, right: 16,
-                                background: '#F59E0B', color: '#0F172A',
-                                borderRadius: 999, fontSize: 11, fontWeight: 700,
-                                padding: '4px 10px',
-                            }}>
-                                Best Value
-                            </div>
-                            <h3 style={{ fontWeight: 800, fontSize: 22, color: '#fff', marginBottom: 8 }}>Full Access</h3>
-                            <div style={{ marginBottom: 24 }}>
-                                <span style={{ fontSize: 48, fontWeight: 800, color: '#fff' }}>£79</span>
-                                <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)' }}> all subjects</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
-                                {['Access to all 12+ subjects', 'Unlimited AI tutor usage', '10+ years past papers', 'AI-predicted questions', 'Lifetime updates'].map((f, i) => (
-                                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                                        <CheckCircle2 style={{ width: 18, height: 18, color: '#fff', flexShrink: 0, marginTop: 2 }} />
-                                        <span style={{ fontSize: 15, color: 'rgba(255,255,255,0.9)' }}>{f}</span>
-                                    </div>
-                                ))}
-                            </div>
+                            </ul>
                             <button
                                 onClick={() => onNavigate('/pricing')}
-                                style={{
-                                    width: '100%', padding: '14px', borderRadius: 999, border: 'none',
-                                    background: '#fff', color: '#0EA5E9', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-                                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                                }}
+                                className="w-full py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors"
+                                style={{ boxShadow: '0 6px 20px rgba(147,51,234,0.3)' }}
                             >
-                                Get Full Access
+                                Go Pro Monthly
                             </button>
-                        </div>
+                        </motion.div>
+
+                        {/* Pro Annual */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ delay: 0.2 }}
+                            className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl p-8 shadow-xl relative overflow-hidden space-y-6"
+                        >
+                            <div className="absolute top-4 right-4 bg-yellow-400 text-gray-900 px-3 py-1 rounded-full text-xs font-semibold">
+                                Best Value
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-bold text-white mb-2">Pro Annual</h3>
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-4xl font-bold text-white">£89</span>
+                                    <span className="text-purple-100">/year</span>
+                                </div>
+                            </div>
+                            <ul className="space-y-3 text-white">
+                                {[
+                                    'Everything in Pro Monthly',
+                                    'Full year of revision support',
+                                    'Best for students starting early',
+                                    'Lower monthly cost overall',
+                                ].map((f, i) => (
+                                    <li key={i} className="flex gap-2">
+                                        <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                                        {f}
+                                    </li>
+                                ))}
+                            </ul>
+                            <button
+                                onClick={() => onNavigate('/pricing')}
+                                className="w-full py-3 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors shadow-lg"
+                            >
+                                Go Pro Annual
+                            </button>
+                        </motion.div>
                     </div>
 
-                    <p style={{ textAlign: 'center', color: '#475569', fontSize: 14 }}>
-                        30-day money-back guarantee &nbsp;•&nbsp; Secure payment &nbsp;•&nbsp; Instant access
+                    <p className="text-center text-gray-500 text-sm">
+                        Cancel monthly anytime. Annual gives the best value for students building long-term revision habits.
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8, color: '#475569', fontSize: 13 }}>
-                        <Shield style={{ width: 14, height: 14 }} />
+                    <div className="flex items-center justify-center gap-2 mt-3 text-gray-500 text-sm">
+                        <Shield className="w-4 h-4" />
                         <span>Secure checkout</span>
                     </div>
                 </div>
             </section>
 
             {/* ── FAQ ── */}
-            <section style={{ padding: '96px 24px', background: 'linear-gradient(180deg, #EFF6FF 0%, #fff 100%)' }}>
-                <div style={{ maxWidth: 768, margin: '0 auto' }}>
-                    <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, color: '#0F172A', textAlign: 'center', marginBottom: 64 }}>
+            <section className="py-24 px-6 bg-gradient-to-b from-blue-50 to-white">
+                <div className="max-w-3xl mx-auto">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="text-4xl font-bold text-center mb-16 text-gray-900"
+                    >
                         Frequently asked questions
-                    </h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    </motion.h2>
+                    <div className="space-y-4">
                         {faqs.map((faq, i) => (
                             <div
                                 key={i}
-                                style={{
-                                    background: '#fff',
-                                    borderRadius: 16,
-                                    border: '1.5px solid #E2E8F0',
-                                    overflow: 'hidden',
-                                    boxShadow: openFaq === i ? '0 4px 16px rgba(14,165,233,0.1)' : '0 2px 8px rgba(0,0,0,0.04)',
-                                }}
+                                className={`bg-white rounded-xl shadow-sm overflow-hidden transition-shadow ${
+                                    openFaq === i ? 'shadow-md' : ''
+                                }`}
                             >
                                 <button
                                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                                    style={{
-                                        width: '100%', padding: '20px 24px', background: 'none', border: 'none',
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        cursor: 'pointer', textAlign: 'left',
-                                    }}
+                                    className="w-full px-6 py-5 flex justify-between items-center text-left hover:bg-gray-50 transition-colors"
                                 >
-                                    <span style={{ fontWeight: 700, fontSize: 16, color: '#0F172A' }}>{faq.q}</span>
-                                    <ChevronDown style={{
-                                        width: 20, height: 20, color: '#0EA5E9', flexShrink: 0,
-                                        transform: openFaq === i ? 'rotate(180deg)' : 'none',
-                                        transition: 'transform 0.2s',
-                                    }} />
+                                    <span className="font-semibold text-gray-900">{faq.q}</span>
+                                    <ChevronDown
+                                        className={`w-5 h-5 text-purple-600 flex-shrink-0 transition-transform duration-200 ${
+                                            openFaq === i ? 'rotate-180' : ''
+                                        }`}
+                                    />
                                 </button>
                                 {openFaq === i && (
-                                    <div style={{ padding: '0 24px 20px', color: '#475569', fontSize: 15, lineHeight: 1.7 }}>
+                                    <div className="px-6 pb-5 text-gray-600 text-sm leading-relaxed">
                                         {faq.a}
                                     </div>
                                 )}
@@ -869,95 +946,105 @@ function HomePage() {
             </section>
 
             {/* ── FINAL CTA ── */}
-            <section style={{ padding: '96px 24px', textAlign: 'center' }}>
-                <div style={{ maxWidth: 768, margin: '0 auto' }}>
-                    <h2 style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: 800, color: '#0F172A', marginBottom: 20 }}>
+            <section className="py-24 px-6">
+                <div className="max-w-4xl mx-auto text-center space-y-8">
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        className="text-5xl font-bold text-gray-900"
+                    >
                         Know what to study next
-                    </h2>
-                    <p style={{ fontSize: 18, color: '#475569', marginBottom: 40 }}>
-                        Start free and see how GCSE AI Revision turns revision into a clear, personalised learning path.
-                    </p>
-                    <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    </motion.h2>
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.2 }}
+                        className="text-xl text-gray-600"
+                    >
+                        Start free and see how Binaym turns revision into a clear, personalised learning path.
+                    </motion.p>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.4 }}
+                        className="flex flex-col sm:flex-row gap-4 justify-center pt-4"
+                    >
                         <button
                             onClick={() => onNavigate('/onboarding')}
-                            style={{
-                                padding: '16px 36px', background: '#0EA5E9', color: '#fff',
-                                borderRadius: 999, border: 'none', fontWeight: 700, fontSize: 16,
-                                cursor: 'pointer', boxShadow: '0 8px 24px rgba(14,165,233,0.35)',
-                            }}
+                            className="px-8 py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors"
+                            style={{ boxShadow: '0 8px 24px rgba(147,51,234,0.3)' }}
                         >
-                            Start Free Revision Plan
+                            Start Free Study Plan
                         </button>
                         <button
                             onClick={() => onNavigate('/pricing')}
-                            style={{
-                                padding: '16px 36px', background: '#fff', color: '#0EA5E9',
-                                borderRadius: 999, border: '2px solid rgba(14,165,233,0.3)',
-                                fontWeight: 700, fontSize: 16, cursor: 'pointer',
-                            }}
+                            className="px-8 py-4 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors border-2 border-purple-200"
                         >
                             See Pricing
                         </button>
-                    </div>
+                    </motion.div>
                 </div>
             </section>
 
             {/* ── FOOTER ── */}
-            <footer style={{ background: '#0F172A', color: '#94A3B8', padding: '64px 24px' }}>
-                <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 48, marginBottom: 48 }}>
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                                <BookOpen style={{ width: 28, height: 28, color: '#0EA5E9' }} />
-                                <span style={{ fontWeight: 800, fontSize: 20, color: '#fff' }}>GCSE AI Revision</span>
+            <footer className="bg-gray-900 text-gray-300 py-16 px-6">
+                <div className="max-w-7xl mx-auto">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
+                        <div className="lg:col-span-2 space-y-4">
+                            <div className="flex items-center gap-3">
+                                <BookOpen className="w-7 h-7 text-purple-400" />
+                                <h3 className="text-2xl font-bold text-white">Binaym</h3>
                             </div>
-                            <p style={{ fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
-                                Helping GCSE students revise with personalised study paths, past papers, and AI support built around how they learn.
+                            <p className="text-sm text-gray-400 leading-relaxed">
+                                Binaym helps GCSE and A Level students revise with premium content, personalised study paths, and AI support built around how they learn.
                             </p>
-                            <div style={{ display: 'flex', gap: 12 }}>
+                            <div className="flex gap-4 pt-4">
                                 {[Facebook, Twitter, Instagram, Linkedin].map((Icon, i) => (
-                                    <a key={i} href="#" style={{
-                                        width: 40, height: 40, background: '#1E293B', borderRadius: '50%',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: '#94A3B8',
-                                    }}>
-                                        <Icon style={{ width: 18, height: 18 }} />
+                                    <a
+                                        key={i}
+                                        href="#"
+                                        className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
+                                    >
+                                        <Icon className="w-5 h-5" />
                                     </a>
                                 ))}
                             </div>
                         </div>
                         <div>
-                            <h4 style={{ fontWeight: 700, color: '#fff', marginBottom: 20, fontSize: 15 }}>Product</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                {['Free Planner', 'Subjects', 'Pricing', 'AI Tutor'].map((l, i) => (
-                                    <a key={i} href="#" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>{l}</a>
+                            <h4 className="font-semibold text-white mb-4">Product</h4>
+                            <ul className="space-y-3 text-sm">
+                                {['Features', 'How it works', 'AI Tutor', 'Study Plans'].map((l, i) => (
+                                    <li key={i}><a href="#" className="hover:text-white transition-colors">{l}</a></li>
                                 ))}
-                            </div>
+                            </ul>
                         </div>
                         <div>
-                            <h4 style={{ fontWeight: 700, color: '#fff', marginBottom: 20, fontSize: 15 }}>Subjects</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                                {['GCSE Maths', 'GCSE Science', 'English Literature', 'View all'].map((l, i) => (
-                                    <a key={i} href="#" style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>{l}</a>
+                            <h4 className="font-semibold text-white mb-4">Subjects</h4>
+                            <ul className="space-y-3 text-sm">
+                                {['GCSE Maths', 'GCSE Science', 'A Level Maths', 'View all subjects'].map((l, i) => (
+                                    <li key={i}><a href="#" className="hover:text-white transition-colors">{l}</a></li>
                                 ))}
-                            </div>
+                            </ul>
                         </div>
                         <div>
-                            <h4 style={{ fontWeight: 700, color: '#fff', marginBottom: 20, fontSize: 15 }}>Support</h4>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <h4 className="font-semibold text-white mb-4">Support</h4>
+                            <ul className="space-y-3 text-sm">
                                 {[
+                                    { label: 'Pricing', href: '/pricing' },
                                     { label: 'Help Centre', href: '#' },
-                                    { label: 'Contact Us', href: '#' },
+                                    { label: 'Contact', href: '#' },
                                     { label: 'Privacy Policy', href: '/privacy' },
                                     { label: 'Terms of Service', href: '/terms' },
-                                    { label: 'Exam Board Notice', href: '/notice' },
                                 ].map((l, i) => (
-                                    <a key={i} href={l.href} style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'none' }}>{l.label}</a>
+                                    <li key={i}><a href={l.href} className="hover:text-white transition-colors">{l.label}</a></li>
                                 ))}
-                            </div>
+                            </ul>
                         </div>
                     </div>
-                    <div style={{ borderTop: '1px solid #1E293B', paddingTop: 24, textAlign: 'center', fontSize: 13 }}>
+                    <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
                         <p>Not affiliated with any exam board. All exam board names are trademarks of their respective owners.</p>
                     </div>
                 </div>

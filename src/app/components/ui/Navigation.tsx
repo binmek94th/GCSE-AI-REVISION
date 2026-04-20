@@ -61,10 +61,9 @@ export function Navigation({ currentPage }: NavigationProps) {
                         onClick={() => handleNavigate('/')}
                         className="flex items-center gap-3 hover:opacity-80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary rounded-xl p-2 -ml-2"
                     >
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center">
-                            <BookOpen className="w-6 h-6 text-white" />
+                        <div className="w-50 h-50 rounded-xl flex items-center justify-center">
+                            <img src="StudyCedo logo with name.png" alt="logo"/>
                         </div>
-                        <span className="font-bold text-xl text-text-main hidden sm:block">GCSE AI Revision</span>
                     </button>
 
                     <div className="hidden md:flex items-center gap-2">
