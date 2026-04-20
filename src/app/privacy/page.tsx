@@ -6,12 +6,12 @@ const PrivacyPolicyPage = () => {
     const effectiveDate = "1 January 2025";
 
     const companyDetails = {
-        legalName: "Sapienu Ltd",
-        tradingAs: "Sapienu",
+        legalName: "Studycedo Ltd",
+        tradingAs: "Studycedo",
         postalAddress: "Office address to be provided, United Kingdom",
-        privacyEmail: "privacy@Sapienu.com",
-        supportEmail: "support@Sapienu.com",
-        securityEmail: "security@Sapienu.com",
+        privacyEmail: "privacy@Studycedo.com",
+        supportEmail: "support@Studycedo.com",
+        securityEmail: "security@Studycedo.com",
         dpoName: "To be appointed",
         icoNumber: "Pending registration",
         hostingProvider: "Firebase/Google Cloud Platform",
@@ -27,7 +27,7 @@ const PrivacyPolicyPage = () => {
             <header className="bg-white border-b border-slate-200">
                 <div className="max-w-5xl mx-auto px-6 py-4">
                     <Link href="/" className="text-blue-600 hover:text-blue-700 font-semibold">
-                        ← Back to Sapienu
+                        ← Back to Studycedo
                     </Link>
                 </div>
             </header>

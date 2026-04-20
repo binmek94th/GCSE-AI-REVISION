@@ -7,13 +7,13 @@ const TermsOfServicePage = () => {
 
     // Pricing and service details - replace with actual values
     const serviceDetails = {
-        legalEntityName: "Sapienu Ltd",
+        legalEntityName: "Studycedo Ltd",
         subjectPackPrice: "30",
         seasonStartDate: "January 2026",
         seasonEndDate: "June 2026",
         aiTutorPrice: "4.99",
         refundDays: "14",
-        supportEmail: "support@Sapienu.com",
+        supportEmail: "support@Studycedo.com",
         postalAddress: "Office address to be provided, United Kingdom",
         freeAiLimit: "10",
         autoRenewal: "No"
@@ -43,7 +43,7 @@ const TermsOfServicePage = () => {
                             Last updated: {effectiveDate}
                         </p>
                         <p className="text-slate-700 leading-relaxed mb-4">
-                            These Terms of Service (&#34;Terms&#34;) govern your use of the Sapienu website, applications, and services (the &#34;Service&#34;), operated by {serviceDetails.legalEntityName} (&#34;Sapienu&#34;, &#34;we&#34;, &#34;us&#34;, &#34;our&#34;).
+                            These Terms of Service (&#34;Terms&#34;) govern your use of the Studycedo website, applications, and services (the &#34;Service&#34;), operated by {serviceDetails.legalEntityName} (&#34;Studycedo&#34;, &#34;we&#34;, &#34;us&#34;, &#34;our&#34;).
                         </p>
                         <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
                             <p className="text-sm text-blue-900 font-semibold">
@@ -80,7 +80,7 @@ const TermsOfServicePage = () => {
                         <h2 className="text-2xl font-bold text-slate-900 mb-4">1. Definitions</h2>
                         <div className="space-y-3">
                             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                                <p className="text-slate-700"><strong>Account:</strong> Your registered user profile on Sapienu</p>
+                                <p className="text-slate-700"><strong>Account:</strong> Your registered user profile on Studycedo</p>
                             </div>
                             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                                 <p className="text-slate-700"><strong>Content:</strong> All materials, resources, questions, videos, notes, quizzes, and AI-generated responses provided through the Service</p>
@@ -422,7 +422,7 @@ const TermsOfServicePage = () => {
                                 Your use of the Service is also governed by our <Link href="/privacy" className="text-blue-600 hover:underline font-semibold">Privacy Policy</Link>, which explains how we collect, use, and protect your information.
                             </p>
                             <p className="text-sm text-slate-700">
-                                By using Sapienu, you consent to the data practices described in our Privacy Policy, including the processing of your study data, AI Tutor interactions, and account information.
+                                By using Studycedo, you consent to the data practices described in our Privacy Policy, including the processing of your study data, AI Tutor interactions, and account information.
                             </p>
                         </div>
                     </section>
@@ -515,7 +515,7 @@ const TermsOfServicePage = () => {
                     <section id="indemnification" className="mb-10 scroll-mt-6">
                         <h2 className="text-2xl font-bold text-slate-900 mb-4">12. Indemnification</h2>
                         <p className="text-slate-700 mb-3">
-                            You agree to indemnify, defend, and hold harmless Sapienu, its officers, directors, employees, and agents from any claims, liabilities, damages, losses, and expenses (including legal fees) arising from:
+                            You agree to indemnify, defend, and hold harmless Studycedo, its officers, directors, employees, and agents from any claims, liabilities, damages, losses, and expenses (including legal fees) arising from:
                         </p>
                         <ul className="list-disc pl-6 space-y-2 text-slate-700">
                             <li>Your breach of these Terms</li>
@@ -610,7 +610,7 @@ const TermsOfServicePage = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <p className="text-sm">
-                            By using Sapienu, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
+                            By using Studycedo, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
                         </p>
                     </div>
 
