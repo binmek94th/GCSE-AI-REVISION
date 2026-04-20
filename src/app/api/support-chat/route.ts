@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const SYSTEM_PROMPT = `You are the Binaym support assistant — a friendly, knowledgeable helper for students aged 13–18 and their parents using the Binaym GCSE AI revision platform.
+const SYSTEM_PROMPT = `You are the StudyCedo support assistant — a friendly, knowledgeable helper for students aged 13–18 and their parents using the StudyCedo GCSE AI revision platform.
 
-ABOUT BINAYM:
+ABOUT StudyCedo:
 - An AI-powered GCSE revision platform for students aged 13–18
 - Subjects: Maths, Biology, Chemistry, Physics, English, Art & Design, Drama, Music, Geography, PE and more
 - Exam boards supported: AQA, OCR, Edexcel, WJEC
@@ -32,7 +32,7 @@ TONE & STYLE:
 
 ESCALATION FORMAT:
 If you must escalate, end your response with exactly this on its own line (no markdown):
-ESCALATE:{"reason":"<short reason>","contact":"support@binaym.com"}
+ESCALATE:{"reason":"<short reason>","contact":"support@StudyCedo.com"}
 
 If NOT escalating, do not include any ESCALATE tag.`;
 

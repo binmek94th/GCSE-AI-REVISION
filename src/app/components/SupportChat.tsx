@@ -32,7 +32,7 @@ function formatText(text: string): string {
 
 const QUICK_TOPICS = [
     { label: '🔐 Login help',      msg: 'I cannot log into my account' },
-    { label: '🚀 Getting started', msg: 'How do I get started with Binaym?' },
+    { label: '🚀 Getting started', msg: 'How do I get started with StudyCedo?' },
     { label: '💷 Pricing',         msg: 'How much does StudyCedo  cost?' },
     { label: '🤖 AI Tutor',        msg: 'How does the AI tutor work?' },
     { label: '📅 Study plan',      msg: 'How does my study plan work?' },
@@ -83,12 +83,12 @@ export default function SupportChat() {
                 body: JSON.stringify({ messages: newMessages }),
             });
             const data = await res.json();
-            const reply: string = data.reply ?? "I'm having trouble connecting. Please email support@binaym.com.";
+            const reply: string = data.reply ?? "I'm having trouble connecting. Please email support@Studycedo.com.";
             setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
         } catch {
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: "I'm having trouble connecting right now. Please try again or email support@binaym.com.",
+                content: "I'm having trouble connecting right now. Please try again or email support@Studycedo.com.",
             }]);
         }
 
@@ -304,7 +304,7 @@ export default function SupportChat() {
                                                 <a href={`mailto:${esc.contact}`} style={{ color: '#0EA5E9', fontWeight: 700 }}>
                                                     {esc.contact}
                                                 </a>{' '}
-                                                and we'll get back to you as soon as possible.
+                                                and we&#39;ll get back to you as soon as possible.
                                             </div>
                                         </div>
                                     </div>
@@ -347,7 +347,7 @@ export default function SupportChat() {
                   style={s.textarea}
                   rows={1}
                   value={input}
-                  placeholder="Ask me anything about Binaym…"
+                  placeholder="Ask me anything about StudyCedo…"
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKey}
               />

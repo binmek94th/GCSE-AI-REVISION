@@ -117,12 +117,12 @@ function HomePage() {
 
     const faqs = [
         {
-            q: 'What makes Binaym different?',
-            a: 'Binaym combines premium revision content with a personalised study path, weak-area focus, quizzes, mocks, and AI support all in one system tailored to your exam board.',
+            q: 'What makes StudyCedo different?',
+            a: 'StudyCedo combines premium revision content with a personalised study path, weak-area focus, quizzes, mocks, and AI support all in one system tailored to your exam board.',
         },
         {
             q: 'Is it for GCSE and A Level?',
-            a: 'Yes. Binaym is built for secondary students and supports both GCSE and A Level study.',
+            a: 'Yes. StudyCedo is built for secondary students and supports both GCSE and A Level study.',
         },
         {
             q: 'Can I try it for free?',
@@ -134,11 +134,11 @@ function HomePage() {
         },
         {
             q: 'Can I upload my own notes?',
-            a: 'Yes, where enabled. Binaym can turn your notes and materials into revision content and learning paths.',
+            a: 'Yes, where enabled. StudyCedo can turn your notes and materials into revision content and learning paths.',
         },
         {
             q: 'Is the content reliable?',
-            a: 'Binaym is designed to provide structured, exam-focused learning support with strong quality control and grounded explanations.',
+            a: 'StudyCedo is designed to provide structured, exam-focused learning support with strong quality control and grounded explanations.',
         },
     ];
 
@@ -184,7 +184,7 @@ function HomePage() {
                             transition={{ delay: 0.4, duration: 0.6 }}
                             className="text-xl text-gray-600 leading-relaxed"
                         >
-                            Binaym gives you premium notes, quizzes, mocks, and AI support — all personalised to your exam date, weak topics, learning pace, and even how you're feeling that day.
+                            StudyCedo gives you premium notes, quizzes, mocks, and AI support — all personalised to your exam date, weak topics, learning pace, and even how you're feeling that day.
                         </motion.p>
 
                         <motion.p
@@ -340,7 +340,7 @@ function HomePage() {
                             knowing where to start, what matters most, and how to stay on track.
                         </p>
                         <p className="font-semibold text-gray-900">
-                            Binaym turns revision into a clear, personalised learning path.
+                            StudyCedo turns revision into a clear, personalised learning path.
                         </p>
                     </motion.div>
                     <motion.div
@@ -384,7 +384,7 @@ function HomePage() {
                             transition={{ delay: 0.2 }}
                             className="text-xl text-gray-600 max-w-4xl mx-auto"
                         >
-                            Binaym responds to your weak areas, learning pace, and even how you're feeling that day — so
+                            StudyCedo responds to your weak areas, learning pace, and even how you're feeling that day — so
                             revision feels more realistic, manageable, and effective.
                         </motion.p>
                     </div>
@@ -432,7 +432,7 @@ function HomePage() {
                     </div>
 
                     <p className="text-center text-gray-600 text-lg max-w-4xl mx-auto">
-                        Binaym is built to help you keep moving, even when motivation, confidence, or energy changes from day to day.
+                        StudyCedo is built to help you keep moving, even when motivation, confidence, or energy changes from day to day.
                     </p>
                 </div>
             </section>
@@ -446,7 +446,7 @@ function HomePage() {
                         viewport={{ once: true }}
                         className="text-4xl font-bold text-center mb-16 text-gray-900"
                     >
-                        How Binaym works
+                        How StudyCedo works
                     </motion.h2>
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {[
@@ -498,7 +498,7 @@ function HomePage() {
                             transition={{ delay: 0.2 }}
                             className="text-xl text-gray-600 max-w-3xl mx-auto"
                         >
-                            Binaym combines AI personalisation with revision content reviewed by experienced subject specialists — so students get structured support they can trust.
+                            StudyCedo combines AI personalisation with revision content reviewed by experienced subject specialists — so students get structured support they can trust.
                         </motion.p>
                     </div>
 
@@ -689,7 +689,7 @@ function HomePage() {
                         transition={{ delay: 0.2 }}
                         className="text-xl text-gray-600"
                     >
-                        Upload class notes, slides, PDFs, textbook pages, or school materials. Binaym can turn them into
+                        Upload class notes, slides, PDFs, textbook pages, or school materials. StudyCedo can turn them into
                         structured notes, flashcards, quizzes, and learning paths built around your goals.
                     </motion.p>
                     <motion.div
@@ -778,7 +778,7 @@ function HomePage() {
                             transition={{ delay: 0.2 }}
                             className="text-xl text-gray-600"
                         >
-                            Try Binaym for free, then unlock full access when you want the complete learning system.
+                            Try StudyCedo for free, then unlock full access when you want the complete learning system.
                         </motion.p>
                     </div>
 
@@ -799,7 +799,7 @@ function HomePage() {
                                     'Weak-area insight',
                                     'Limited tutor usage',
                                     'Limited quizzes and revision access',
-                                    'Explore how Binaym works',
+                                    'Explore how StudyCedo works',
                                 ].map((f, i) => (
                                     <li key={i} className="flex gap-2">
                                         <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -963,7 +963,7 @@ function HomePage() {
                         transition={{ delay: 0.2 }}
                         className="text-xl text-gray-600"
                     >
-                        Start free and see how Binaym turns revision into a clear, personalised learning path.
+                        Start free and see how StudyCedo turns revision into a clear, personalised learning path.
                     </motion.p>
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -996,10 +996,10 @@ function HomePage() {
                         <div className="lg:col-span-2 space-y-4">
                             <div className="flex items-center gap-3">
                                 <BookOpen className="w-7 h-7 text-purple-400" />
-                                <h3 className="text-2xl font-bold text-white">Binaym</h3>
+                                <h3 className="text-2xl font-bold text-white">StudyCedo</h3>
                             </div>
                             <p className="text-sm text-gray-400 leading-relaxed">
-                                Binaym helps GCSE and A Level students revise with premium content, personalised study paths, and AI support built around how they learn.
+                                StudyCedo helps GCSE and A Level students revise with premium content, personalised study paths, and AI support built around how they learn.
                             </p>
                             <div className="flex gap-4 pt-4">
                                 {[Facebook, Twitter, Instagram, Linkedin].map((Icon, i) => (
