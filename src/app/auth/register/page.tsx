@@ -26,6 +26,23 @@ const registerSchema = z.object({
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
+const getFriendlyAuthError = (errorCode: string): string => {
+    switch (errorCode) {
+        case "auth/email-already-in-use":
+            return "An account with this email already exists. Try logging in instead.";
+        case "auth/invalid-email":
+            return "Invalid email address. Please check and try again.";
+        case "auth/weak-password":
+            return "Password is too weak. Please choose a stronger one.";
+        case "auth/network-request-failed":
+            return "Network error. Please check your connection.";
+        case "auth/too-many-requests":
+            return "Too many attempts. Please try again later.";
+        default:
+            return "Something went wrong. Please try again.";
+    }
+};
+
 export default function RegisterPage() {
     const router = useRouter();
     const [error, setError] = useState<string | null>(null);
@@ -93,7 +110,10 @@ export default function RegisterPage() {
 
 
     const onSubmit = async (data: RegisterForm) => {
-        // Final check before submission
+        if (data.email.toLowerCase() === data.parent_email.toLowerCase()) {
+            setError("Parent's email must be different from your own email.");
+            return;
+        }
         if (usernameStatus === 'taken') {
             setError('Please choose a different username');
             return;
@@ -122,7 +142,7 @@ export default function RegisterPage() {
             await sendEmailVerification(userCred.user);
             router.push('/verify-email');
         } catch (err: any) {
-            setError(err.message);
+            setError(getFriendlyAuthError(err.code));
         }
     };
 
