@@ -883,7 +883,7 @@ function HomePage() {
                                 ))}
                             </ul>
                             <button
-                                onClick={() => onNavigate('/pricing')}
+                                onClick={() => onNavigate('/onboarding')}
                                 className="w-full py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors text-sm sm:text-base"
                                 style={{ boxShadow: '0 6px 20px rgba(147,51,234,0.3)' }}
                             >
@@ -923,7 +923,7 @@ function HomePage() {
                                 ))}
                             </ul>
                             <button
-                                onClick={() => onNavigate('/pricing')}
+                                onClick={() => onNavigate('/onboarding')}
                                 className="w-full py-3 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors shadow-lg text-sm sm:text-base"
                             >
                                 Go Pro Annual
