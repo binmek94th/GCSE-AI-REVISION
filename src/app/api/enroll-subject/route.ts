@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import admin from "@/lib/firebaseAdmin";
+import {generateStudyPlanForUser} from "@/lib/services/studyPlanGenerator";
 
 export async function POST(req: Request) {
     try {
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
             lastOpenedAt: admin.firestore.FieldValue.serverTimestamp(),
             ...(isNew && { enrolledAt: admin.firestore.FieldValue.serverTimestamp() }),
         }, { merge: true });
+        generateStudyPlanForUser(userId)
 
         return NextResponse.json({ success: true, enrolled: isNew });
     } catch (error) {

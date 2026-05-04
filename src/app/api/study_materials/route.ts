@@ -9,7 +9,7 @@ async function getMaterialsByPack(packId: string, examBoard: string, limit: numb
     const collectionRef = admin
         .firestore()
         .collection("study_materials")
-        .where("exam_board", "==", examBoard)
+        // .where("exam_board", "==", examBoard)
         .where("moderation_status", "==", "approved")
         .where("subject", "==", packId)
         .orderBy("title");

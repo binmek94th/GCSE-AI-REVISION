@@ -9,8 +9,8 @@ export const EXAM_DATA = [
     { exam_board: "AQA", subject: "History", tier: "Untiered" },
     { exam_board: "AQA", subject: "Art and Design", tier: "NEA" },
 
-    { exam_board: "AQA", subject: "Combined Science", tier: "Foundation", note: "Trilogy – counts as two GCSEs" },
-    { exam_board: "AQA", subject: "Combined Science", tier: "Higher", note: "Trilogy – counts as two GCSEs" },
+    // { exam_board: "AQA", subject: "Combined Science", tier: "Foundation", note: "Trilogy – counts as two GCSEs" },
+    // { exam_board: "AQA", subject: "Combined Science", tier: "Higher", note: "Trilogy – counts as two GCSEs" },
 
     { exam_board: "Edexcel", subject: "Maths", tier: "Higher Tier" },
     { exam_board: "Edexcel", subject: "Maths", tier: "Foundation Tier" },

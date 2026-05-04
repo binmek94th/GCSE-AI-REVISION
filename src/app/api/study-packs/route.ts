@@ -78,3 +78,57 @@ export async function GET(req: Request) {
         );
     }
 }
+
+
+export async function POST(req: Request) {
+    try {
+        const idToken = req.headers
+            .get("Authorization")
+            ?.split("Bearer ")[1];
+
+        if (!idToken) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const userId = decodedToken.uid;
+
+        const body = await req.json();
+        const { id, ...data } = body;
+
+        if (!id)
+            return NextResponse.json({ error: "Missing subject id" }, { status: 400 });
+
+        const subjectRef = admin.firestore()
+            .collection("users")
+            .doc(userId)
+            .collection("subjects")
+            .doc(id);
+
+        const docSnap = await subjectRef.get();
+
+        if (!docSnap.exists) {
+            await subjectRef.set({
+                id,
+                ...data,
+                createdAt: new Date(),
+            });
+
+            return NextResponse.json({
+                message: "Subject created",
+                created: true,
+            });
+        }
+        return NextResponse.json({
+            message: "Subject already exists",
+            created: false,
+        });
+
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json(
+            { error: "Internal Server Error" },
+            { status: 500 }
+        );
+    }
+}

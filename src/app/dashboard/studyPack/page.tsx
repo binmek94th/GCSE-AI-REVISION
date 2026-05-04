@@ -34,6 +34,45 @@ function StudyPackTab() {
     }, [searchParams]);
 
     useEffect(() => {
+        const enrollIfNeeded = async () => {
+            if (!packId) return;
+
+            const subject = subjects.find(s => s.id === packId);
+            if (!subject || subject.enrolled) return;
+
+            try {
+                const user = auth.currentUser;
+                if (!user) return;
+
+                const idToken = await user.getIdToken();
+
+                await fetch('/api/enroll-subject', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${idToken}`,
+                    },
+                    body: JSON.stringify({
+                        subject: subject.subject,
+                        examBoard: subject.examBoard,
+                        subjectId: subject.id,
+                    }),
+                });
+                setSubjects(prev =>
+                    prev.map(s =>
+                        s.id === subject.id ? { ...s, enrolled: true } : s
+                    )
+                );
+
+            } catch (err) {
+                console.error('Auto enroll failed:', err);
+            }
+        };
+
+        enrollIfNeeded();
+    }, [packId, subjects]);
+
+    useEffect(() => {
         setLoading(true);
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (!currentUser) {

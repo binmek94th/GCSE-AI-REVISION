@@ -242,15 +242,14 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                     ? (studyPackDoc.data()?.subject ?? subjectData.subject ?? packId)
                     : (subjectData.subject ?? packId);
 
-            // ── Fetch materials the same way /api/study-materials does ─────────
-            let materialsQuery = admin.firestore()
+            const materialsQuery = admin.firestore()
                 .collection('study_materials')
                 .where('subject', '==', subjectName)
                 .where('moderation_status', '==', 'approved');
 
-            if (examBoard) {
-                materialsQuery = (materialsQuery as any).where('exam_board', '==', examBoard);
-            }
+            // if (examBoard) {
+            //     materialsQuery = (materialsQuery as any).where('exam_board', '==', examBoard);
+            // }
 
             const materialsSnapshot = await materialsQuery.get();
 
@@ -322,10 +321,13 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                 progressPercent,
             });
         }
+        console.log(packAnalyses)
 
         const activePacks = packAnalyses.filter(
             pack => pack.incompleteMaterials.length > 0 || pack.incorrectQuestions.length > 0
         );
+
+        console.log(activePacks);
 
         if (activePacks.length === 0) {
             console.log(`User ${userId} has completed all materials. Skipping.`);
