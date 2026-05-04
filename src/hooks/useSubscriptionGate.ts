@@ -6,7 +6,7 @@ import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/
 import { auth, db } from '@/lib/firebase';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const FREE_TRIAL_DAYS = 200; // ← change this to whatever you want
+const FREE_TRIAL_DAYS = 7; // ← change this to whatever you want
 // ──────────────────────────────────────────────────────────────────────────────
 
 interface SubscriptionData {
