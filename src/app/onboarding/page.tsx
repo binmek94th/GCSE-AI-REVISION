@@ -4,23 +4,12 @@ import { CheckCircle, ArrowLeft, ArrowRight, Clock, Target } from 'lucide-react'
 import { EXAM_DATA } from "@/app/onboarding/exam_data";
 import Quiz from "@/app/onboarding/Question";
 import { QuizResultSuggestion, SubjectSelection } from "@/app/onboarding/Schema";
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectTrigger,
-    SelectValue
-} from "../components/ui/select";
-import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { doc, setDoc } from "@firebase/firestore";
 import { QuizSuggestionsDisplay } from "@/app/onboarding/StudyPlanSuggestion";
 
 function OnBoarding() {
     const [currentStep, setCurrentStep] = useState(1);
-    const router = useRouter();
     const [selectedSubjects, setSelectedSubjects] = useState<SubjectSelection>({
         examBoard: 'AQA',
         subjects: []

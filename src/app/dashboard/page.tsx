@@ -2,7 +2,7 @@
 
 import {Suspense, useEffect, useState} from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
-import {Calendar, Package, Brain, TestTube, MessageCircle, Trophy, LogOut, User, ChevronDown} from 'lucide-react';
+import {Calendar, Package, Brain, TestTube, MessageCircle, Trophy, LogOut, User, ChevronDown, Upload, BookOpen} from 'lucide-react';
 import PlanTab  from "@/app/dashboard/plan/page";
 import StudyPackTab  from "@/app/dashboard/studyPack/page";
 import QuizzesTab  from "@/app/dashboard/quizzes/page";
@@ -23,6 +23,8 @@ import MockTests from "@/app/dashboard/mock-exam/page";
 import {doc, getDoc} from "@firebase/firestore";
 import {GatedFeature} from "@/app/components/GatedFeature";
 import {toast} from "sonner";
+import UploadTab from "@/app/dashboard/upload/UploadTab";
+import GeneratedMaterialsListPage from "@/app/dashboard/generated_material/page";
 
 
 function Dashboard() {
@@ -45,15 +47,10 @@ function Dashboard() {
                 emoji: "✅",
                 message: "Mood saved! Your study plan has been adjusted for today.",
             };
-
             toast(
                 <div className="flex flex-col gap-1">
-                    <p className="font-semibold text-sm text-gray-900">
-                        {emoji} Your study plan&#39;s been updated!
-                    </p>
-                    <p className="text-sm text-gray-700 leading-snug">
-                        {message}
-                    </p>
+                    <p className="font-semibold text-sm text-gray-900">{emoji} Your study plan&#39;s been updated!</p>
+                    <p className="text-sm text-gray-700 leading-snug">{message}</p>
                 </div>,
                 { duration: 5000 }
             );
@@ -64,17 +61,11 @@ function Dashboard() {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            if (!currentUser) {
-                router.push("/auth/login");
-                return;
-            }
-            if (!currentUser.emailVerified){
-                router.push("/verify-email");
-                return;
-            }
+            if (!currentUser) { router.push("/auth/login"); return; }
+            if (!currentUser.emailVerified) { router.push("/verify-email"); return; }
+
             const userRef = doc(db, "users", currentUser.uid);
             const userSnap = await getDoc(userRef);
-
             if (!(userSnap.data() as any).onboardingComplete) {
                 router.push("/onboarding");
             }
@@ -86,17 +77,12 @@ function Dashboard() {
                 setLoading(true);
                 const response = await fetch("/api/progress", {
                     method: "GET",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
+                    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
                 });
-
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || "Failed to fetch progress");
                 }
-
                 const progressData = await response.json();
                 setData(progressData);
                 setError(null);
@@ -107,7 +93,6 @@ function Dashboard() {
                 setLoading(false);
             }
         });
-
         return () => unsubscribe();
     }, [router]);
 
@@ -121,67 +106,47 @@ function Dashboard() {
 
     useEffect(() => {
         const tabParam = searchParams.get("tab");
-        if (tabParam) {
-            setActiveTab(tabParam);
-        }
+        if (tabParam) setActiveTab(tabParam);
     }, [searchParams]);
 
     useEffect(() => {
-        if (dashboardData?.studyPacks.length === 0) {
-            setActiveTab("studypack");
-        }
+        if (dashboardData?.studyPacks.length === 0) setActiveTab("studypack");
     }, [dashboardData]);
 
     const handleTabChange = (value: string) => {
         setActiveTab(value);
-        const newUrl = `/dashboard?tab=${value}`;
-        router.replace(newUrl);
+        router.replace(`/dashboard?tab=${value}`);
     };
 
     const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            router.push("auth/login");
-        } catch (error) {
-            console.error("Logout failed:", error);
-        }
+        try { await signOut(auth); router.push("auth/login"); }
+        catch (error) { console.error("Logout failed:", error); }
     };
 
-    if (loading || moodLoading || dashboardLoading) {
-        return <Spinner />;
-    }
+    if (loading || moodLoading || dashboardLoading) return <Spinner />;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
-            {showMoodChecker &&
-                <MoodChecker
-                    onClose={closeMoodChecker}
-                    onSubmit={handleSubmitMood}
-                />
-            }
+            {showMoodChecker && <MoodChecker onClose={closeMoodChecker} onSubmit={handleSubmitMood} />}
+
             <div className="max-w-7xl mx-auto">
+                {/* Top bar */}
                 <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-3xl text-gray-900 mb-2">Welcome back! 👋</h1>
                         <p className="text-gray-600">Ready to ace your GCSEs? Let&#39;s continue your journey.</p>
                     </div>
                     <div className="flex items-center gap-4">
-                        {/* Use streak from dashboard context */}
                         {dashboardData && (
                             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
                                 <span className="text-2xl">🔥</span>
                                 <div>
-                                    <div className="text-sm font-semibold text-gray-900">
-                                        {dashboardData.streak.currentStreak} Day Streak
-                                    </div>
-                                    {dashboardData.streak.currentStreak > 2 &&
-                                        <div className="text-xs text-gray-500">Keep it up!</div>
-                                    }
+                                    <div className="text-sm font-semibold text-gray-900">{dashboardData.streak.currentStreak} Day Streak</div>
+                                    {dashboardData.streak.currentStreak > 2 && <div className="text-xs text-gray-500">Keep it up!</div>}
                                 </div>
                             </div>
                         )}
 
-                        {/* Dropdown Menu */}
                         <div className="relative hover:cursor-pointer">
                             <Button
                                 onClick={() => setShowDropdown(!showDropdown)}
@@ -191,28 +156,13 @@ function Dashboard() {
                                 <User className="w-5 h-5 text-gray-700" />
                                 <ChevronDown className={`w-4 h-4 text-gray-700 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
                             </Button>
-
                             {showDropdown && (
                                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                                    <button
-                                        onClick={() => {
-                                            setShowDropdown(false);
-                                            handleTabChange('profile');
-                                        }}
-                                        className="w-full hover:cursor-pointer text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700"
-                                    >
-                                        <User className="w-4 h-4" />
-                                        <span>Profile</span>
+                                    <button onClick={() => { setShowDropdown(false); handleTabChange('profile'); }} className="w-full hover:cursor-pointer text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700">
+                                        <User className="w-4 h-4" /><span>Profile</span>
                                     </button>
-                                    <button
-                                        onClick={() => {
-                                            setShowDropdown(false);
-                                            handleLogout();
-                                        }}
-                                        className="w-full hover:cursor-pointer text-left px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-2 text-red-600"
-                                    >
-                                        <LogOut className="w-4 h-4" />
-                                        <span>Logout</span>
+                                    <button onClick={() => { setShowDropdown(false); handleLogout(); }} className="w-full hover:cursor-pointer text-left px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-2 text-red-600">
+                                        <LogOut className="w-4 h-4" /><span>Logout</span>
                                     </button>
                                 </div>
                             )}
@@ -225,55 +175,44 @@ function Dashboard() {
                         Error loading progress: {error}
                     </div>
                 )}
-                {!showMoodChecker &&
+
+                {!showMoodChecker && (
                     <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-                        <TabsList
-                            className="
-                                flex w-full flex-wrap
-                                h-auto !flex-shrink-0 items-start
-                                bg-white rounded-xl shadow-sm border border-gray-200
-                              "
-                        >
-                            <TabsTrigger
-                                value="plan"
-                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-                            >
+                        <TabsList className="flex w-full flex-wrap h-auto !flex-shrink-0 items-start bg-white rounded-xl shadow-sm border border-gray-200">
+
+                            <TabsTrigger value="plan" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                                 <Calendar className="w-4 h-4" /> My Plan
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="studypack"
-                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-                            >
+
+                            <TabsTrigger value="studypack" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                                 <Package className="w-4 h-4" /> Study Pack
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="quizzes"
-                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-                            >
+
+                            <TabsTrigger value="quizzes" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                                 <Brain className="w-4 h-4" /> Quizzes
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="mocktests"
-                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-                            >
+
+                            <TabsTrigger value="mocktests" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                                 <TestTube className="w-4 h-4" /> Mock Exam
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="tutor"
-                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-                            >
+
+                            <TabsTrigger value="tutor" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                                 <MessageCircle className="w-4 h-4" /> AI Tutor
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="challenges"
-                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-                            >
+
+                            <TabsTrigger value="upload" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+                                <Upload className="w-4 h-4" /> Upload Notes
+                            </TabsTrigger>
+
+                            <TabsTrigger value="my-materials" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+                                <BookOpen className="w-4 h-4" /> My Materials
+                            </TabsTrigger>
+
+                            <TabsTrigger value="challenges" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                                 <Trophy className="w-4 h-4" /> Challenges
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="friends"
-                                className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-                            >
+
+                            <TabsTrigger value="friends" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
                                 <Trophy className="w-4 h-4" /> Friends
                             </TabsTrigger>
                         </TabsList>
@@ -303,24 +242,36 @@ function Dashboard() {
                                 </div>
                             </GatedFeature>
                         </TabsContent>
-                        
-                        <TabsContent value={"mocktests"}>
+
+                        <TabsContent value="mocktests">
                             <GatedFeature featureName={"Mock Tests"}>
-                            <div className={'w-[100%] mx-auto'}>
-                                <MockTests initialPacks={dashboardData?.studyPacks} studyPack={dashboardData?.studyPacks.length}></MockTests>
-                            </div>
+                                <div className={'w-[100%] mx-auto'}>
+                                    <MockTests initialPacks={dashboardData?.studyPacks} studyPack={dashboardData?.studyPacks.length} />
+                                </div>
+                            </GatedFeature>
+                        </TabsContent>
+
+                        <TabsContent value="upload">
+                            <GatedFeature featureName={"Upload Material"}>
+                                <UploadTab />
+                            </GatedFeature>
+                        </TabsContent>
+
+                        <TabsContent value="my-materials">
+                            <GatedFeature featureName={"My Materials"}>
+                                <GeneratedMaterialsListPage />
                             </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="challenges">
                             <GatedFeature featureName={"Challenges"}>
-                                <UserBadges></UserBadges>
+                                <UserBadges />
                             </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="friends">
                             <GatedFeature featureName={"Friends"}>
-                                <FriendsPage></FriendsPage>
+                                <FriendsPage />
                             </GatedFeature>
                         </TabsContent>
 
@@ -328,7 +279,7 @@ function Dashboard() {
                             <ProfilePage />
                         </TabsContent>
                     </Tabs>
-                }
+                )}
             </div>
         </div>
     );
