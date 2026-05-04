@@ -12,7 +12,7 @@ import { ProgressData } from "@/hooks/useProgress";
 import {onAuthStateChanged, signOut} from "firebase/auth";
 import {auth, db} from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
-import { useMoodChecker } from "@/hooks/useMoodChecker";
+import {MOOD_MESSAGES, useMoodChecker} from "@/hooks/useMoodChecker";
 import { MoodChecker } from "@/app/dashboard/MoodChecker";
 import { useDashboard } from "@/contexts/DashboardContext";
 import UserBadges from "@/app/dashboard/challenges/UserBadges";
@@ -22,6 +22,7 @@ import ProfilePage from "@/app/dashboard/profile/page";
 import MockTests from "@/app/dashboard/mock-exam/page";
 import {doc, getDoc} from "@firebase/firestore";
 import {GatedFeature} from "@/app/components/GatedFeature";
+import {toast} from "sonner";
 
 
 function Dashboard() {
@@ -36,6 +37,30 @@ function Dashboard() {
 
     const { dashboardData, loading: dashboardLoading } = useDashboard();
     const { shouldShow: showMoodChecker, loading: moodLoading, submitMood, closeMoodChecker } = useMoodChecker(idToken || null);
+
+    const handleSubmitMood = async (mood: string) => {
+        try {
+            const submittedMood = await submitMood(mood);
+            const { emoji, message } = MOOD_MESSAGES[submittedMood ?? ''] ?? {
+                emoji: "✅",
+                message: "Mood saved! Your study plan has been adjusted for today.",
+            };
+
+            toast(
+                <div className="flex flex-col gap-1">
+                    <p className="font-semibold text-sm text-gray-900">
+                        {emoji} Your study plan&#39;s been updated!
+                    </p>
+                    <p className="text-sm text-gray-700 leading-snug">
+                        {message}
+                    </p>
+                </div>,
+                { duration: 5000 }
+            );
+        } catch {
+            toast.error('Failed to submit mood');
+        }
+    };
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -131,7 +156,7 @@ function Dashboard() {
             {showMoodChecker &&
                 <MoodChecker
                     onClose={closeMoodChecker}
-                    onSubmit={submitMood}
+                    onSubmit={handleSubmitMood}
                 />
             }
             <div className="max-w-7xl mx-auto">
