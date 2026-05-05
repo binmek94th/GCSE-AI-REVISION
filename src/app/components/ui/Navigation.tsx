@@ -7,6 +7,7 @@ import {usePathname, useRouter} from "next/navigation";
 import {onAuthStateChanged} from "firebase/auth";
 import {auth} from "@/lib/firebase";
 import { signOut } from "firebase/auth";
+import Image from "next/image";
 
 interface NavigationProps {
     currentPage?: string;
@@ -62,7 +63,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                         className="flex items-center gap-3 hover:opacity-80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary rounded-xl p-2 -ml-2"
                     >
                         <div className="w-50 h-50 rounded-xl flex items-center justify-center">
-                            <img src="StudyCedo logo with name.png" alt="logo"/>
+                            <Image width={140} height={30} src="/StudyCedoLogo.png" alt="logo"/>
                         </div>
                     </button>
 
