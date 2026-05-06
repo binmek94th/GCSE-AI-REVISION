@@ -17,7 +17,13 @@ const registerSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email(),
     password: z.string().min(8, "Password must be at least 8 characters"),
-    parent_email: z.string().email(),
+    parent_email: z
+        .string()
+        .optional()
+        .or(z.literal(""))
+        .refine((val) => !val || z.string().email().safeParse(val).success, {
+            message: "Invalid parent email",
+        }),
     confirm_password: z.string().min(8, "Confirm Password must be at least 8 characters"),
 }).refine((data) => data.password === data.confirm_password, {
     message: "Passwords do not match",
@@ -261,7 +267,7 @@ export default function RegisterPage() {
                     <Button
                         type="submit"
                         disabled={isSubmitting || usernameStatus === 'taken' || usernameStatus === 'checking'}
-                        className="w-full bg-primary text-primary-foreground hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-primary text-primary-foreground cursor-pointer disabled:cursor-not-allowed hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? "Creating account..." : "Register"}
                     </Button>

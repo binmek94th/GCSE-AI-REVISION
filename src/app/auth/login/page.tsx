@@ -351,14 +351,14 @@ export default function LoginPage() {
                     <Button
                         type="submit"
                         disabled={isSubmitting || isLocked}
-                        className="w-full bg-primary text-primary-foreground hover:bg-primary-dark"
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary-dark cursor-pointer disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? 'Logging in…' : 'Login'}
                     </Button>
                 </form>
 
                 <p className="mt-4 text-sm text-muted-foreground">
-                    Don't have an account?{' '}
+                    Don&#39;t have an account?{' '}
                     <a href="/auth/register" className="text-primary underline">
                         Register
                     </a>
