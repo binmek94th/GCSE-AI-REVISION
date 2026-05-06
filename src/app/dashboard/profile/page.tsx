@@ -6,6 +6,7 @@ import { auth } from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
 import {useRouter} from "next/navigation";
 import SubscriptionPage from "@/app/dashboard/subscription/page";
+import {Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue} from "@/app/components/ui/select";
 
 interface ProfileData {
     email: string;
@@ -239,20 +240,29 @@ export default function ProfilePage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Exam Board
                                 </label>
-                                <select
+                                <Select
                                     value={editedPreferences.examBoard}
-                                    onChange={(e) => setEditedPreferences(prev => ({
-                                        ...prev,
-                                        examBoard: e.target.value
-                                    }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    onValueChange={(value) =>
+                                        setEditedPreferences((prev) => ({
+                                            ...prev,
+                                            examBoard: value,
+                                        }))
+                                    }
                                 >
-                                    <option value="AQA">AQA</option>
-                                    <option value="OCR">OCR</option>
-                                    <option value="Edexcel">Edexcel</option>
-                                    <option value="WJEC">WJEC</option>
-                                    <option value="CCEA">CCEA</option>
-                                </select>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select exam board" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectLabel>Exam Boards</SelectLabel>
+                                            <SelectItem value="AQA">AQA</SelectItem>
+                                            <SelectItem value="OCR">OCR</SelectItem>
+                                            <SelectItem value="Edexcel">Edexcel</SelectItem>
+                                            <SelectItem value="WJEC">WJEC</SelectItem>
+                                            <SelectItem value="CCEA">CCEA</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             {/* Hours Per Week */}
@@ -260,20 +270,29 @@ export default function ProfilePage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Study Hours Per Week
                                 </label>
-                                <select
+                                <Select
                                     value={editedPreferences.hoursPerWeek}
-                                    onChange={(e) => setEditedPreferences(prev => ({
-                                        ...prev,
-                                        hoursPerWeek: e.target.value
-                                    }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    onValueChange={(value) =>
+                                        setEditedPreferences((prev) => ({
+                                            ...prev,
+                                            hoursPerWeek: value,
+                                        }))
+                                    }
                                 >
-                                    <option value="0-5">0-5 hours</option>
-                                    <option value="5-10">5-10 hours</option>
-                                    <option value="10-15">10-15 hours</option>
-                                    <option value="15-20">15-20 hours</option>
-                                    <option value="20+">20+ hours</option>
-                                </select>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select hours" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectLabel>Weekly Hours</SelectLabel>
+                                            <SelectItem value="0-5">0–5 hours</SelectItem>
+                                            <SelectItem value="5-10">5–10 hours</SelectItem>
+                                            <SelectItem value="10-15">10–15 hours</SelectItem>
+                                            <SelectItem value="15-20">15–20 hours</SelectItem>
+                                            <SelectItem value="20+">20+ hours</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             {/* Target Grade */}
@@ -281,21 +300,30 @@ export default function ProfilePage() {
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Target Grade
                                 </label>
-                                <select
+                                <Select
                                     value={editedPreferences.targetGrade}
-                                    onChange={(e) => setEditedPreferences(prev => ({
-                                        ...prev,
-                                        targetGrade: e.target.value
-                                    }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    onValueChange={(value) =>
+                                        setEditedPreferences((prev) => ({
+                                            ...prev,
+                                            targetGrade: value,
+                                        }))
+                                    }
                                 >
-                                    <option value="4">Grade 4 (C)</option>
-                                    <option value="5">Grade 5 (B)</option>
-                                    <option value="6">Grade 6 (B)</option>
-                                    <option value="7">Grade 7 (A)</option>
-                                    <option value="8">Grade 8 (A*)</option>
-                                    <option value="9">Grade 9 (A*)</option>
-                                </select>
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select target grade" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectLabel>Grades</SelectLabel>
+                                            <SelectItem value="4">Grade 4 (C)</SelectItem>
+                                            <SelectItem value="5">Grade 5 (B)</SelectItem>
+                                            <SelectItem value="6">Grade 6 (B)</SelectItem>
+                                            <SelectItem value="7">Grade 7 (A)</SelectItem>
+                                            <SelectItem value="8">Grade 8 (A*)</SelectItem>
+                                            <SelectItem value="9">Grade 9 (A*)</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             {/* Action Buttons */}
