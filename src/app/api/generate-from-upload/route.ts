@@ -7,11 +7,12 @@ export const runtime = 'nodejs';
 
 const client = new Anthropic();
 
-const MAX_PDF_PAGES = 80; // stay well under Anthropic's 100-page hard limit
+const MAX_PDF_PAGES = 80;
 const MODEL = 'claude-sonnet-4-6';
+// Claude Sonnet's max output — use the full budget so responses never truncate
+const MAX_TOKENS = 8000;
 
-// ─── PDF page counter (no extra deps) ─────────────────────────────────────────
-// Counts /Type /Page entries in raw PDF bytes — fast, no dependency needed.
+// ─── PDF page counter ─────────────────────────────────────────────────────────
 function countPdfPages(base64Data: string): number {
     try {
         const buf = Buffer.from(base64Data, 'base64');
@@ -19,7 +20,7 @@ function countPdfPages(base64Data: string): number {
         const matches = text.match(/\/Type\s*\/Page[^s]/g);
         return matches ? matches.length : 0;
     } catch {
-        return 0; // if we can't count, let Claude surface its own error
+        return 0;
     }
 }
 
@@ -27,11 +28,10 @@ const FREE_DAILY_LIMIT = 3;
 const PRO_DAILY_LIMIT = 15;
 
 function todayKey(): string {
-    return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    return new Date().toISOString().slice(0, 10);
 }
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
-
 async function getUidFromRequest(req: NextRequest): Promise<string | null> {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) return null;
@@ -45,7 +45,6 @@ async function getUidFromRequest(req: NextRequest): Promise<string | null> {
 }
 
 // ─── Rate limit check + increment ─────────────────────────────────────────────
-
 async function checkAndIncrementLimit(uid: string, isPro: boolean): Promise<{
     allowed: boolean;
     remaining: number;
@@ -62,9 +61,7 @@ async function checkAndIncrementLimit(uid: string, isPro: boolean): Promise<{
         const snap = await tx.get(limitRef);
         const used = snap.exists ? (snap.data()!.count as number) : 0;
 
-        if (used >= limit) {
-            return { allowed: false, remaining: 0, limit };
-        }
+        if (used >= limit) return { allowed: false, remaining: 0, limit };
 
         tx.set(
             limitRef,
@@ -76,8 +73,51 @@ async function checkAndIncrementLimit(uid: string, isPro: boolean): Promise<{
     });
 }
 
-// ─── POST handler ─────────────────────────────────────────────────────────────
+// ─── JSON repair ──────────────────────────────────────────────────────────────
+/**
+ * If Claude's response was cut off mid-JSON (stop_reason === 'max_tokens'),
+ * this attempts to close any open arrays/objects so JSON.parse has a chance.
+ * It is a best-effort heuristic — it handles the most common truncation points.
+ */
+function repairTruncatedJson(raw: string): string {
+    // Strip any markdown fences Claude may have included
+    let text = raw.replace(/```json|```/g, '').trim();
 
+    // Track open brackets/braces to know what needs closing
+    const stack: string[] = [];
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+
+        if (escape) { escape = false; continue; }
+        if (ch === '\\' && inString) { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+
+        if (ch === '{' || ch === '[') stack.push(ch);
+        else if (ch === '}' || ch === ']') stack.pop();
+    }
+
+    // If we're still inside a string, close it
+    if (inString) text += '"';
+
+    // Remove any trailing incomplete key or value (e.g. `,"term":` with no value)
+    // This catches the most common truncation pattern: a key without its value
+    text = text.replace(/,\s*"[^"]*"\s*:\s*$/, '');
+    // Also remove a trailing comma before we close
+    text = text.replace(/,\s*$/, '');
+
+    // Close any open arrays/objects in reverse order
+    for (let i = stack.length - 1; i >= 0; i--) {
+        text += stack[i] === '[' ? ']' : '}';
+    }
+
+    return text;
+}
+
+// ─── POST handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
     // 1. Auth
     const uid = await getUidFromRequest(req);
@@ -94,9 +134,8 @@ export async function POST(req: NextRequest) {
     const userData = userSnap.data()!;
     const isPro = userData.subscriptionStatus === 'active';
 
-    // 3. Rate limit (atomic transaction)
+    // 3. Rate limit
     const { allowed, remaining, limit } = await checkAndIncrementLimit(uid, isPro);
-
     if (!allowed) {
         return NextResponse.json(
             {
@@ -114,6 +153,7 @@ export async function POST(req: NextRequest) {
         messages: Anthropic.MessageParam[];
         difficulty: string;
         mode: string;
+        questionCount?: number;
     };
 
     try {
@@ -122,7 +162,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    const { system: clientSystem, messages, difficulty } = body;
+    const { system: clientSystem, messages, difficulty, mode, questionCount = 5 } = body;
 
     const difficultyLabels: Record<string, string> = {
         gcse_foundation: 'GCSE Foundation',
@@ -130,10 +170,21 @@ export async function POST(req: NextRequest) {
         a_level: 'A Level',
     };
 
-    // Use the system prompt built on the client — it already has mode + question count baked in
-    const systemPrompt = clientSystem ?? `You are StudyCedo's AI tutor for UK ${difficultyLabels[difficulty] ?? 'GCSE Higher'} students. Respond ONLY with valid JSON. No markdown. Schema: {"subject":"","topics":[],"materials":[{"title":"","content":""}],"questions":[{"text":"","choices":[{"option":"A","text":"","isCorrect":false}],"explanation":""}],"flashcards":[{"term":"","definition":""}]} Return empty arrays for unused modes.`;
+    const modeText: Record<string, string> = {
+        both:       `Create BOTH 3-5 study note sections AND ${questionCount} MCQ questions.`,
+        materials:  `Create 3-5 detailed study note sections only.`,
+        questions:  `Create ${questionCount} MCQ quiz questions only.`,
+        flashcards: `Create ${questionCount} flashcard pairs (term + definition) only.`,
+    };
 
-    // 5. Validate PDF page count before sending to Claude
+    // Use client-supplied system prompt if present, otherwise build one server-side
+    const systemPrompt = clientSystem ?? `You are StudyCedo's AI tutor for UK ${difficultyLabels[difficulty] ?? 'GCSE Higher'} students. ${modeText[mode] ?? ''}
+Respond ONLY with valid, COMPLETE JSON — no markdown, no backticks, no preamble, no trailing text.
+CRITICAL: You MUST close every JSON array and object. The response must end with }}.
+Schema: {"subject":"","topics":[],"materials":[{"title":"","content":""}],"questions":[{"text":"","choices":[{"option":"A","text":"","isCorrect":false}],"explanation":""}],"flashcards":[{"term":"","definition":""}]}
+Return empty arrays [] for unused modes. Calibrate to ${difficultyLabels[difficulty] ?? 'GCSE Higher'}.`;
+
+    // 5. Validate PDF page count
     for (const msg of messages) {
         const parts = Array.isArray(msg.content) ? msg.content : [];
         for (const part of parts) {
@@ -142,9 +193,9 @@ export async function POST(req: NextRequest) {
                 typeof part === 'object' &&
                 (part as unknown as Record<string, unknown>).type === 'document'
             ) {
-                const doc = part as { type: string; source: { type: string; media_type: string; data: string } };
-                if (doc.source?.media_type === 'application/pdf' && doc.source?.data) {
-                    const pageCount = countPdfPages(doc.source.data);
+                const docPart = part as { type: string; source: { type: string; media_type: string; data: string } };
+                if (docPart.source?.media_type === 'application/pdf' && docPart.source?.data) {
+                    const pageCount = countPdfPages(docPart.source.data);
                     if (pageCount > MAX_PDF_PAGES) {
                         return NextResponse.json(
                             {
@@ -162,21 +213,47 @@ export async function POST(req: NextRequest) {
     try {
         const response = await client.messages.create({
             model: MODEL,
-            max_tokens: 4000,
+            max_tokens: MAX_TOKENS,
             system: systemPrompt,
             messages,
         });
 
-        const result = response.content
+        const rawText = response.content
             .filter((b) => b.type === 'text')
             .map((b) => (b as Anthropic.TextBlock).text)
             .join('');
 
-        return NextResponse.json({ content: result, remaining }, { status: 200 });
+        // 7. Detect truncation
+        if (response.stop_reason === 'max_tokens') {
+            console.warn(`[generate] Response truncated for uid=${uid}, mode=${mode}. Attempting JSON repair.`);
+
+            const repaired = repairTruncatedJson(rawText);
+
+            // Verify the repair actually produced valid JSON before sending it
+            try {
+                JSON.parse(repaired);
+                // Repair succeeded — return it with a warning flag so the client can show a notice
+                return NextResponse.json(
+                    { content: repaired, remaining, truncated: true },
+                    { status: 200 }
+                );
+            } catch {
+                // Repair failed — tell the client to try with fewer items/shorter notes
+                return NextResponse.json(
+                    {
+                        error: 'The generated content was too long to complete. Try reducing the number of questions, or paste a shorter excerpt of your notes.',
+                        truncated: true,
+                    },
+                    { status: 422 }
+                );
+            }
+        }
+
+        return NextResponse.json({ content: rawText, remaining }, { status: 200 });
+
     } catch (err: unknown) {
         console.error('Anthropic API error:', err);
 
-        // Surface the actual Anthropic error message so the client gets a useful description
         let message = 'AI generation failed. Please try again.';
         if (err && typeof err === 'object') {
             const apiErr = err as { error?: { message?: string }; message?: string };

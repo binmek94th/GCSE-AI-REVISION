@@ -270,7 +270,7 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                             </div>
                         </div>
                         <p style={{ fontSize: 12.5, color: '#6B7280', lineHeight: 1.6, margin: 0 }}>
-                            Upload a PDF, photo, or paste text — Claude creates study materials saved to your account.
+                            Upload a PDF, photo, or paste text — create study materials saved to your account.
                         </p>
                     </div>
 
