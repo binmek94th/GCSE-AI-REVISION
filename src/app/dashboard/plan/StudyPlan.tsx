@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useRef, useState} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { MarkdownContent } from "@/app/dashboard/study_materials/Markdown";
@@ -14,15 +14,18 @@ import { toast } from "sonner";
 import ContextualAiChat from "@/app/components/ContextualAiChat";
 import { useRouter, useSearchParams } from "next/navigation";
 import Spinner from "@/app/components/ui/Spinner";
-import {DialogTitle} from "@radix-ui/react-dialog";
+import { DialogTitle } from "@radix-ui/react-dialog";
+import { MaterialQuizModal } from "./MaterialQuizModal";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Break { after: string; duration: string; type: string; }
-interface Question {
+interface AssessmentQuestion {
     id: string; question: string; options: Record<string, string> | string[];
     correctAnswer: string; explanation?: string; subject: string;
-    materialId: string; materialTitle: string; difficulty: string;
+    materialId: string; materialTitle: string; difficulty: number | string;
 }
-interface Assessment { totalQuestions: number; questions: Question[]; bySubject: Record<string, string[]>; }
+interface Assessment { totalQuestions: number; questions: AssessmentQuestion[]; bySubject: Record<string, string[]>; }
 interface Session {
     difficulty: string; duration: string; focusArea: string;
     materialId: string; materialTitle: string; objectives: string[];
@@ -35,31 +38,34 @@ interface StudyPlan {
     assessment: Assessment; preferences: { hoursPerWeek: string; targetGrade: string; }; status: string;
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function StudyPlan() {
-    const [studyPlan, setStudyPlan] = useState<StudyPlan | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [authChecked, setAuthChecked] = useState(false);
-    const [selectedMaterial, setSelectedMaterial] = useState<Session['material'] & { packId?: string } | null>(null);
-    const [showAssessment, setShowAssessment] = useState<string | null>(null);
-    const [completedAssessments, setCompletedAssessments] = useState<Set<string>>(new Set());
-    const [dialogOpen, setDialogOpen] = useState(false);
+    const [studyPlan, setStudyPlan]                       = useState<StudyPlan | null>(null);
+    const [loading, setLoading]                            = useState(true);
+    const [error, setError]                                = useState<string | null>(null);
+    const [authChecked, setAuthChecked]                    = useState(false);
+    const [selectedMaterial, setSelectedMaterial]          = useState<Session['material'] & { packId?: string } | null>(null);
+    const [showAssessment, setShowAssessment]              = useState<string | null>(null);
+    const [completedAssessments, setCompletedAssessments]  = useState<Set<string>>(new Set());
+    const [dialogOpen, setDialogOpen]                      = useState(false);
+
+    // ── Quiz-before-done state ────────────────────────────────────────────────
+    const [quizModalOpen, setQuizModalOpen]                = useState(false);
+    // Holds the materialId/packId we want to mark done once the quiz is over
+    const pendingDoneRef = useRef<{ materialId: string; packId: string } | null>(null);
+
     const { incrementStreak } = useDashboard();
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const studyPlanRef = useRef<StudyPlan | null>(null);
-    const initialLoadDone = useRef(false);
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const searchParams         = useSearchParams();
+    const router               = useRouter();
+    const studyPlanRef         = useRef<StudyPlan | null>(null);
+    const initialLoadDone      = useRef(false);
+    const scrollRef            = useRef<HTMLDivElement>(null);
 
-
-    useEffect(() => {
-        studyPlanRef.current = studyPlan;
-    }, [studyPlan]);
+    useEffect(() => { studyPlanRef.current = studyPlan; }, [studyPlan]);
 
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = 0;
-        }
+        if (scrollRef.current) scrollRef.current.scrollTop = 0;
     }, [selectedMaterial?.id]);
 
     useEffect(() => {
@@ -90,6 +96,8 @@ export default function StudyPlan() {
         return () => unsubscribe();
     }, []);
 
+    // ─── Navigation helpers ───────────────────────────────────────────────────
+
     const openMaterial = (session: Session) => {
         if (!session.material) return;
         setSelectedMaterial({ ...session.material, packId: session.packId });
@@ -102,10 +110,12 @@ export default function StudyPlan() {
     const closeMaterial = () => {
         setDialogOpen(false);
         setSelectedMaterial(null);
-        const params = new URLSearchParams(window.location.search); // use live URL, not stale searchParams
+        const params = new URLSearchParams(window.location.search);
         params.delete("materialId");
-        router.replace(`?${params.toString()}`); // use replace, not push
+        router.replace(`?${params.toString()}`);
     };
+
+    // ─── API calls ────────────────────────────────────────────────────────────
 
     const fireMarkAsDoneApi = async (materialId: string, packId: string) => {
         try {
@@ -124,24 +134,41 @@ export default function StudyPlan() {
             ]);
         } catch (err) {
             console.error("Background mark-done failed:", err);
-            // Silent — user has already moved on; optionally retry or queue
         }
     };
 
+    // ─── Mark as done — now opens quiz first ─────────────────────────────────
+
     const handleMarkAsDone = () => {
         if (!selectedMaterial?.id || !auth.currentUser) return;
+        // Store what we want to mark done so the quiz callback can use it
+        pendingDoneRef.current = {
+            materialId: selectedMaterial.id,
+            packId: selectedMaterial.packId!,
+        };
+        setQuizModalOpen(true);
+    };
 
-        const materialId = selectedMaterial.id;
-        const packId = selectedMaterial.packId!;
+    /**
+     * Called by MaterialQuizModal when the student finishes (or skips) the quiz.
+     * At this point we actually perform the mark-as-done logic.
+     */
+    const handleQuizComplete = (score: number, total: number) => {
+        setQuizModalOpen(false);
 
-        // 1. Read BEFORE setStudyPlan mutates anything
+        const pending = pendingDoneRef.current;
+        if (!pending) return;
+        const { materialId, packId } = pending;
+        pendingDoneRef.current = null;
+
+        // Read current sessions before mutation
         const currentSessions = studyPlanRef.current?.plan.sessions ?? [];
         const currentIndex = currentSessions.findIndex(s => s.material?.id === materialId);
         const nextSession = currentSessions
             .slice(currentIndex + 1)
             .find(s => !s.completed && s.material);
 
-        // 2. Optimistically mark as completed
+        // Optimistically update
         setStudyPlan(prev => {
             if (!prev) return prev;
             return {
@@ -155,7 +182,7 @@ export default function StudyPlan() {
             };
         });
 
-        // 3. Navigate
+        // Navigate
         if (nextSession?.material) {
             setSelectedMaterial({ ...nextSession.material, packId: nextSession.packId });
             const params = new URLSearchParams(window.location.search);
@@ -171,8 +198,21 @@ export default function StudyPlan() {
 
         fireMarkAsDoneApi(materialId, packId);
         incrementStreak();
-        toast.success("Marked as done!");
+
+        if (total > 0) {
+            const pct = Math.round((score / total) * 100);
+            toast.success(`Marked as done! You scored ${score}/${total} (${pct}%) 🎯`);
+        } else {
+            toast.success("Marked as done!");
+        }
     };
+
+    const handleQuizCancel = () => {
+        setQuizModalOpen(false);
+        pendingDoneRef.current = null;
+    };
+
+    // ─── Misc helpers ─────────────────────────────────────────────────────────
 
     const getDuration = (duration: string) => {
         const match = duration.match(/(\d+)/);
@@ -183,12 +223,12 @@ export default function StudyPlan() {
         if (showAssessment) setCompletedAssessments(prev => new Set([...prev, showAssessment]));
     };
 
+    // ─── Loading / error states ───────────────────────────────────────────────
+
     if (!authChecked || loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <Spinner size="lg" />
-                </div>
+                <div className="text-center"><Spinner size="lg" /></div>
             </div>
         );
     }
@@ -223,6 +263,8 @@ export default function StudyPlan() {
 
     const hasAssessment = studyPlan.assessment?.questions?.length > 0;
 
+    // ─── Subject assessment quiz ──────────────────────────────────────────────
+
     if (showAssessment && hasAssessment) {
         const subjectQuestions = studyPlan.assessment.questions.filter(q => q.subject === showAssessment);
         return (
@@ -248,6 +290,8 @@ export default function StudyPlan() {
         );
     }
 
+    // ─── Group sessions by subject ────────────────────────────────────────────
+
     const groupedSessions = studyPlan.plan.sessions.reduce((acc: Record<string, Session[]>, session) => {
         if (!acc[session.subject]) acc[session.subject] = [];
         acc[session.subject].push(session);
@@ -260,6 +304,8 @@ export default function StudyPlan() {
         cumulativeMinutes += groupDuration;
         return { subject, sessions, cumulativeTime: cumulativeMinutes, groupDuration };
     });
+
+    // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
         <div className="min-h-screen bg-gray-50 py-4 px-4">
@@ -304,6 +350,12 @@ export default function StudyPlan() {
                                     <div className="space-y-4">
                                         {group.sessions.map((session, sessionIndex) => {
                                             const isCompleted = session.completed === true;
+
+                                            // Badge: how many quiz questions are linked to this material
+                                            const linkedQuestionCount = studyPlan.assessment?.questions?.filter(
+                                                q => q.materialId === session.materialId
+                                            ).length ?? 0;
+
                                             return (
                                                 <div
                                                     key={sessionIndex}
@@ -312,9 +364,23 @@ export default function StudyPlan() {
                                                 >
                                                     <div className="flex justify-between items-start mb-3">
                                                         <div className="flex-1">
-                                                            <h4 className={`font-semibold ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
-                                                                {session.materialTitle}
-                                                            </h4>
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <h4 className={`font-semibold ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                                                                    {session.materialTitle}
+                                                                </h4>
+                                                                {/* Quiz question count badge */}
+                                                                {linkedQuestionCount > 0 && !isCompleted && (
+                                                                    <span style={{
+                                                                        fontSize: 10, fontWeight: 600,
+                                                                        padding: '2px 7px', borderRadius: 20,
+                                                                        background: '#EFF6FF', color: '#1D4ED8',
+                                                                        border: '1px solid #BFDBFE',
+                                                                        whiteSpace: 'nowrap',
+                                                                    }}>
+                                                                        🧠 {linkedQuestionCount} quiz Q{linkedQuestionCount > 1 ? 's' : ''}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <p className={`text-sm ${isCompleted ? 'text-gray-400' : 'text-gray-600'}`}>
                                                                 {session.timeSlot}
                                                             </p>
@@ -398,15 +464,34 @@ export default function StudyPlan() {
                 </div>
             </div>
 
+            {/* ── Material reader dialog ── */}
             <Dialog.Root open={dialogOpen} onOpenChange={(open) => { if (!open) closeMaterial(); }}>
                 <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm data-[state=open]:animate-fadeIn" />
                     <Dialog.Content className="fixed top-1/2 left-1/2 w-[70vw] h-[90vh] -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-lg focus:outline-none flex flex-col">
                         <DialogTitle></DialogTitle>
                         <div className="flex justify-between items-center border-b p-4 flex-shrink-0">
-                            <h2 className="text-lg font-semibold">{selectedMaterial?.title || 'Material'}</h2>
+                            <div className="flex items-center gap-3 min-w-0">
+                                <h2 className="text-lg font-semibold truncate">{selectedMaterial?.title || 'Material'}</h2>
+                                {/* Show how many quiz questions are linked */}
+                                {selectedMaterial?.id && (() => {
+                                    const count = studyPlan.assessment?.questions?.filter(
+                                        q => q.materialId === selectedMaterial.id
+                                    ).length ?? 0;
+                                    return count > 0 ? (
+                                        <span style={{
+                                            fontSize: 11, fontWeight: 600, flexShrink: 0,
+                                            padding: '2px 8px', borderRadius: 20,
+                                            background: '#EFF6FF', color: '#1D4ED8',
+                                            border: '1px solid #BFDBFE',
+                                        }}>
+                                            🧠 {count} quiz Q{count > 1 ? 's' : ''} linked
+                                        </span>
+                                    ) : null;
+                                })()}
+                            </div>
                             <Dialog.Close asChild>
-                                <button className="p-2 hover:bg-gray-100 rounded-full">
+                                <button className="p-2 hover:bg-gray-100 rounded-full flex-shrink-0">
                                     <X className="w-5 h-5" />
                                 </button>
                             </Dialog.Close>
@@ -436,6 +521,16 @@ export default function StudyPlan() {
                     </Dialog.Content>
                 </Dialog.Portal>
             </Dialog.Root>
+
+            {/* ── Material quiz modal (shown before confirming mark-as-done) ── */}
+            <MaterialQuizModal
+                open={quizModalOpen}
+                materialId={selectedMaterial?.id ?? ''}
+                materialTitle={selectedMaterial?.title ?? ''}
+                questions={studyPlan.assessment?.questions ?? []}
+                onConfirmDone={handleQuizComplete}
+                onCancel={handleQuizCancel}
+            />
         </div>
     );
 }
