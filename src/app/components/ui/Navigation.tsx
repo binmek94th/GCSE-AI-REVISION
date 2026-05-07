@@ -2,12 +2,13 @@
 import {useEffect, useState} from 'react';
 import { Button } from './button';
 import { Sheet, SheetContent, SheetTrigger } from './sheet';
-import { Menu, BookOpen, User } from 'lucide-react';
+import { Menu, User } from 'lucide-react';
 import {usePathname, useRouter} from "next/navigation";
 import {onAuthStateChanged} from "firebase/auth";
 import {auth} from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import Image from "next/image";
+import Link from "next/link";
 
 interface NavigationProps {
     currentPage?: string;
@@ -58,14 +59,14 @@ export function Navigation({ currentPage }: NavigationProps) {
         <nav className="top-0 z-[40] bg-white/90 backdrop-blur-md border-b pointer-events-auto relative">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-20">
                 <div className="flex items-center justify-between h-20">
-                    <button
-                        onClick={() => handleNavigate('/')}
-                        className="flex items-center gap-3 hover:opacity-80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary rounded-xl p-2 -ml-2"
-                    >
-                        <div className="w-50 h-50 rounded-xl flex items-center justify-center">
-                            <Image width={140} height={30} src="/StudyCedoLogo.png" alt="logo"/>
-                        </div>
-                    </button>
+                    <Link href={"/"}>
+                        <Image
+                            width={140}
+                            height={30}
+                            src="/StudyCedoLogo.png"
+                            alt="logo"
+                        />
+                    </Link>
 
                     <div className="hidden md:flex items-center gap-2">
                         {navLinks.map((link) => (

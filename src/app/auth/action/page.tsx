@@ -1,15 +1,16 @@
 'use client';
 
-import {Suspense, useEffect, useState} from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
     applyActionCode,
     confirmPasswordReset,
     verifyPasswordResetCode,
+    signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { Input } from '@/app/components/ui/input';
 import { Button } from '@/app/components/ui/button';
-import {auth} from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 
 function AuthActionInner() {
     const router = useRouter();
@@ -19,6 +20,8 @@ function AuthActionInner() {
     const [oobCodeValid, setOobCodeValid] = useState(false);
     const [mode, setMode] = useState<string | null>(null);
     const [oobCode, setOobCode] = useState<string | null>(null);
+    const [resetEmail, setResetEmail] = useState<string | null>(null);
+    const [isResetting, setIsResetting] = useState(false);
 
     useEffect(() => {
         const actionMode = searchParams.get('mode');
@@ -34,7 +37,6 @@ function AuthActionInner() {
             applyActionCode(auth, code)
                 .then(() => {
                     setStatus('Your email has been successfully verified! Redirecting...');
-
                     setTimeout(() => router.push('/auth/login'), 2000);
                 })
                 .catch((err) => {
@@ -43,6 +45,7 @@ function AuthActionInner() {
         } else if (actionMode === 'resetPassword') {
             verifyPasswordResetCode(auth, code)
                 .then((email) => {
+                    setResetEmail(email);
                     setStatus(`Reset password for ${email}`);
                     setOobCodeValid(true);
                 })
@@ -55,14 +58,42 @@ function AuthActionInner() {
     }, [searchParams]);
 
     const handleResetPassword = async () => {
-        if (!oobCode) return;
+        if (!oobCode || !resetEmail) return;
+        setIsResetting(true);
+
         try {
+            // 1. Reset the password in Firebase Auth
             await confirmPasswordReset(auth, oobCode, newPassword);
-            setStatus('Password has been reset successfully!');
+
+            // 2. Clear the Firestore lockout record for this email so the
+            //    login page stops blocking them. Fire-and-forget — a failure
+            //    here does not stop the user from proceeding.
+            await fetch('/api/clear-login-attempts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: resetEmail }),
+            }).catch(() => {});
+
+            // 3. Sign in with the new password to establish a session
+            await signInWithEmailAndPassword(auth, resetEmail, newPassword);
+
+            setStatus('Password reset successfully! Redirecting...');
             setOobCodeValid(false);
-            router.push('/auth/login');
+            setTimeout(() => router.push('/dashboard'), 1500);
+
         } catch (err: any) {
-            setStatus(`Failed to reset password: ${err.message}`);
+            if (err.code === 'auth/too-many-requests') {
+                setStatus(
+                    'Password reset successfully, but your account is temporarily locked by Firebase. ' +
+                    'Please wait a few minutes then log in.'
+                );
+                setOobCodeValid(false);
+                setTimeout(() => router.push('/auth/login'), 4000);
+            } else {
+                setStatus(`Failed to reset password: ${err.message}`);
+            }
+        } finally {
+            setIsResetting(false);
         }
     };
 
@@ -83,9 +114,10 @@ function AuthActionInner() {
                         />
                         <Button
                             onClick={handleResetPassword}
+                            disabled={isResetting || !newPassword}
                             className="bg-primary text-primary-foreground hover:bg-primary-dark"
                         >
-                            Reset Password
+                            {isResetting ? 'Resetting…' : 'Reset Password'}
                         </Button>
                     </div>
                 )}

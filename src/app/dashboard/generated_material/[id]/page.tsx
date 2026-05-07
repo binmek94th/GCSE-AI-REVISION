@@ -9,7 +9,7 @@ import Spinner from '@/app/components/ui/Spinner';
 import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
+// TODO: this page is flat in design
 interface Choice { option: string; text: string; isCorrect: boolean; }
 interface Question { text: string; choices: Choice[]; explanation: string; }
 interface MaterialSection { title: string; content: string; }

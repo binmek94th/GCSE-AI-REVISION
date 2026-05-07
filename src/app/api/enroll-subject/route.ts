@@ -12,11 +12,9 @@ export async function POST(req: Request) {
 
         const { subject, subjectId } = await req.json();
 
-        if (!subject || !subjectId) {
+        if (!subject || !subjectId)
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-        }
 
-        // Fetch examBoard from the user's profile
         const userDoc = await admin.firestore()
             .collection("users")
             .doc(userId)

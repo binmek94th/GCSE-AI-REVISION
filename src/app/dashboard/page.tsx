@@ -1,31 +1,48 @@
 'use client'
 
-import {Suspense, useEffect, useState} from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
-import {Calendar, Package, Brain, TestTube, MessageCircle, Trophy, LogOut, User, ChevronDown, Upload, BookOpen} from 'lucide-react';
-import PlanTab  from "@/app/dashboard/plan/page";
-import StudyPackTab  from "@/app/dashboard/studyPack/page";
-import QuizzesTab  from "@/app/dashboard/quizzes/page";
-import StudentAIChat  from "@/app/dashboard/chat/page";
+import {
+    Calendar, Brain, TestTube, MessageCircle, LogOut, User, ChevronDown,
+    Upload, BookOpen, AlertCircle, Package, Trophy, MoreHorizontal
+} from 'lucide-react';
+import PlanTab from "@/app/dashboard/plan/page";
+import StudyPackTab from "@/app/dashboard/studyPack/page";
+import QuizzesTab from "@/app/dashboard/quizzes/page";
+import StudentAIChat from "@/app/dashboard/chat/page";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ProgressData } from "@/hooks/useProgress";
-import {onAuthStateChanged, signOut} from "firebase/auth";
-import {auth, db} from "@/lib/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
-import {MOOD_MESSAGES, useMoodChecker} from "@/hooks/useMoodChecker";
+import { MOOD_MESSAGES, useMoodChecker } from "@/hooks/useMoodChecker";
 import { MoodChecker } from "@/app/dashboard/MoodChecker";
 import { useDashboard } from "@/contexts/DashboardContext";
 import UserBadges from "@/app/dashboard/challenges/UserBadges";
-import {Button} from "@/app/components/ui/button";
+import { Button } from "@/app/components/ui/button";
 import FriendsPage from "@/app/dashboard/friends/page";
 import ProfilePage from "@/app/dashboard/profile/page";
 import MockTests from "@/app/dashboard/mock-exam/page";
-import {doc, getDoc} from "@firebase/firestore";
-import {GatedFeature} from "@/app/components/GatedFeature";
-import {toast} from "sonner";
+import { doc, getDoc } from "@firebase/firestore";
+import { GatedFeature } from "@/app/components/GatedFeature";
+import { toast } from "sonner";
 import UploadTab from "@/app/dashboard/upload/UploadTab";
 import GeneratedMaterialsListPage from "@/app/dashboard/generated_material/page";
+import MistakeBankTab from "@/app/dashboard/mistake-bank/MistakeBank";
 
+const MORE_TABS = ['studypack', 'my-materials', 'challenges', 'friends', 'profile'];
+const MORE_ITEMS = [
+    { value: 'studypack',    icon: Package,  label: 'Study Packs' },
+    { value: 'my-materials', icon: BookOpen, label: 'My Materials' },
+    { value: 'challenges',   icon: Trophy,   label: 'Challenges' },
+    { value: 'friends',      icon: Trophy,   label: 'Friends' },
+    { value: 'profile',      icon: User,     label: 'Profile' },
+];
+
+const TAB_CLASS =
+    "flex-1 flex items-center justify-center gap-1.5 text-sm data-[state=active]:bg-gradient-to-r hover:cursor-pointer " +
+    "data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 " +
+    "data-[state=active]:text-white data-[state=active]:shadow-md transition-all";
 
 function Dashboard() {
     const searchParams = useSearchParams();
@@ -35,10 +52,22 @@ function Dashboard() {
     const [loading, setLoading] = useState(false);
     const [data, setData] = useState<ProgressData | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [showDropdown, setShowDropdown] = useState(false);
+    const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+    const [showMoreDropdown, setShowMoreDropdown] = useState(false);
+    const moreRef = useRef<HTMLDivElement>(null);
 
     const { dashboardData, loading: dashboardLoading } = useDashboard();
     const { shouldShow: showMoodChecker, loading: moodLoading, submitMood, closeMoodChecker } = useMoodChecker(idToken || null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+                setShowMoreDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
     const handleSubmitMood = async (mood: string) => {
         try {
@@ -101,7 +130,7 @@ function Dashboard() {
         progress: subject.progress,
         grade: subject.grade,
         totalMaterials: subject.totalMaterials,
-        finishedMaterials: subject.finishedMaterials
+        finishedMaterials: subject.finishedMaterials,
     })) || [];
 
     useEffect(() => {
@@ -115,28 +144,40 @@ function Dashboard() {
 
     const handleTabChange = (value: string) => {
         setActiveTab(value);
+        setShowMoreDropdown(false);
         router.replace(`/dashboard?tab=${value}`);
     };
 
     const handleLogout = async () => {
         try { await signOut(auth); router.push("auth/login"); }
-        catch (error) { console.error("Logout failed:", error); }
+        catch (err) { console.error("Logout failed:", err); }
     };
 
     if (loading || moodLoading || dashboardLoading) return <Spinner />;
+
+    const isMoreActive = MORE_TABS.includes(activeTab);
+    const activeMoreLabel = MORE_ITEMS.find(i => i.value === activeTab)?.label;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
             {showMoodChecker && <MoodChecker onClose={closeMoodChecker} onSubmit={handleSubmitMood} />}
 
             <div className="max-w-7xl mx-auto">
-                {/* Top bar */}
+                {/* ── Top bar ── */}
                 <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-3xl text-gray-900 mb-2">Welcome back! 👋</h1>
                         <p className="text-gray-600">Ready to ace your GCSEs? Let&#39;s continue your journey.</p>
                     </div>
-                    <div className="flex items-center gap-4">
+
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {dashboardData?.examBoard && (
+                            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Exam Board</span>
+                                <span className="text-sm font-bold text-indigo-600">{dashboardData.examBoard}</span>
+                            </div>
+                        )}
+
                         {dashboardData && (
                             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
                                 <span className="text-2xl">🔥</span>
@@ -147,21 +188,23 @@ function Dashboard() {
                             </div>
                         )}
 
-                        <div className="relative hover:cursor-pointer">
+                        <div className="relative">
                             <Button
-                                onClick={() => setShowDropdown(!showDropdown)}
+                                onClick={() => setShowProfileDropdown(v => !v)}
                                 variant="outline"
                                 className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-200 rounded-full px-4 py-2 transition-all"
                             >
                                 <User className="w-5 h-5 text-gray-700" />
-                                <ChevronDown className={`w-4 h-4 text-gray-700 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+                                <ChevronDown className={`w-4 h-4 text-gray-700 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
                             </Button>
-                            {showDropdown && (
+                            {showProfileDropdown && (
                                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                                    <button onClick={() => { setShowDropdown(false); handleTabChange('profile'); }} className="w-full hover:cursor-pointer text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700">
+                                    <button onClick={() => { setShowProfileDropdown(false); handleTabChange('profile'); }}
+                                            className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700 text-sm">
                                         <User className="w-4 h-4" /><span>Profile</span>
                                     </button>
-                                    <button onClick={() => { setShowDropdown(false); handleLogout(); }} className="w-full hover:cursor-pointer text-left px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-2 text-red-600">
+                                    <button onClick={() => { setShowProfileDropdown(false); handleLogout(); }}
+                                            className="w-full text-left px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-2 text-red-600 text-sm">
                                         <LogOut className="w-4 h-4" /><span>Logout</span>
                                     </button>
                                 </div>
@@ -178,48 +221,93 @@ function Dashboard() {
 
                 {!showMoodChecker && (
                     <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-                        <TabsList className="flex w-full flex-wrap h-auto !flex-shrink-0 items-start bg-white rounded-xl shadow-sm border border-gray-200">
 
-                            <TabsTrigger value="plan" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-                                <Calendar className="w-4 h-4" /> My Plan
-                            </TabsTrigger>
+                        {/* ── Nav bar ──
+                            Key: the outer shell must NOT have overflow-hidden/auto or the
+                            absolutely-positioned More dropdown gets clipped.
+                            Only the inner TabsList wrapper scrolls horizontally.
+                        */}
+                        <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 px-2 py-1">
 
-                            <TabsTrigger value="studypack" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-                                <Package className="w-4 h-4" /> Study Pack
-                            </TabsTrigger>
+                            {/* Horizontally scrollable tab area — hides scrollbar visually */}
+                            <div className="flex-1 overflow-x-auto [overflow-y:visible] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                <TabsList className="flex h-auto bg-transparent p-0 gap-0 w-full items-center">
 
-                            <TabsTrigger value="quizzes" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-                                <Brain className="w-4 h-4" /> Quizzes
-                            </TabsTrigger>
+                                    <TabsTrigger value="plan" className={TAB_CLASS}>
+                                        <Calendar className="w-4 h-4" /> Plan
+                                    </TabsTrigger>
 
-                            <TabsTrigger value="mocktests" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-                                <TestTube className="w-4 h-4" /> Mock Exam
-                            </TabsTrigger>
+                                    <span className="w-px h-5 bg-gray-200 self-center mx-1.5" />
+                                    <span className="text-xs text-gray-400 font-medium self-center pr-1 select-none">Practice</span>
 
-                            <TabsTrigger value="tutor" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-                                <MessageCircle className="w-4 h-4" /> AI Tutor
-                            </TabsTrigger>
+                                    <TabsTrigger value="quizzes" className={TAB_CLASS}>
+                                        <Brain className="w-4 h-4" /> Quizzes
+                                    </TabsTrigger>
 
-                            <TabsTrigger value="upload" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-                                <Upload className="w-4 h-4" /> Upload Notes
-                            </TabsTrigger>
+                                    <TabsTrigger value="mocktests" className={TAB_CLASS}>
+                                        <TestTube className="w-4 h-4" /> Mocks
+                                    </TabsTrigger>
 
-                            <TabsTrigger value="my-materials" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-                                <BookOpen className="w-4 h-4" /> My Materials
-                            </TabsTrigger>
+                                    <TabsTrigger value="mistakes" className={TAB_CLASS}>
+                                        <AlertCircle className="w-4 h-4" /> Retry Failed
+                                    </TabsTrigger>
 
-                            <TabsTrigger value="challenges" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-                                <Trophy className="w-4 h-4" /> Challenges
-                            </TabsTrigger>
+                                    <span className="w-px h-5 bg-gray-200 self-center mx-1.5" />
 
-                            <TabsTrigger value="friends" className="data-[state=active]:bg-gradient-to-r hover:cursor-pointer data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-                                <Trophy className="w-4 h-4" /> Friends
-                            </TabsTrigger>
-                        </TabsList>
+                                    <TabsTrigger value="tutor" className={TAB_CLASS}>
+                                        <MessageCircle className="w-4 h-4" /> Tutor
+                                    </TabsTrigger>
 
+                                    <span className="w-px h-5 bg-gray-200 self-center mx-1.5" />
+
+                                    <TabsTrigger value="upload" className={TAB_CLASS}>
+                                        <Upload className="w-4 h-4" /> Upload
+                                    </TabsTrigger>
+
+                                </TabsList>
+                            </div>
+
+                            <span className="w-px h-5 bg-gray-200 shrink-0 mx-1" />
+
+                            {/* More — positioned relative to THIS div, outside the scroll area
+                                so it overflows the nav bar downward without being clipped */}
+                            <div className="relative shrink-0" ref={moreRef}>
+                                <button
+                                    onClick={() => setShowMoreDropdown(v => !v)}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap
+                                        ${isMoreActive
+                                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
+                                        : 'text-gray-600 hover:bg-gray-100'}`}
+                                >
+                                    <MoreHorizontal className="w-4 h-4" />
+                                    <span>{isMoreActive ? activeMoreLabel : 'More'}</span>
+                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreDropdown ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {showMoreDropdown && (
+                                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
+                                        {MORE_ITEMS.map(({ value, icon: Icon, label }) => (
+                                            <button
+                                                key={value}
+                                                onClick={() => handleTabChange(value)}
+                                                className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors
+                                                    ${activeTab === value
+                                                    ? 'bg-blue-50 text-blue-700 font-semibold'
+                                                    : 'text-gray-700 hover:bg-gray-50'}`}
+                                            >
+                                                <Icon className="w-4 h-4 shrink-0" />
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* ── Tab content ── */}
                         <TabsContent value="plan">
                             <GatedFeature featureName="Study Plans">
-                                <PlanTab subjects={subjects} studyPack={dashboardData?.studyPacks.length || 0}/>
+                                <PlanTab subjects={subjects} studyPack={dashboardData?.studyPacks.length || 0} />
                             </GatedFeature>
                         </TabsContent>
 
@@ -230,47 +318,53 @@ function Dashboard() {
                         </TabsContent>
 
                         <TabsContent value="quizzes">
-                            <GatedFeature featureName={"Quizzes"}>
-                                <QuizzesTab studyPack={dashboardData?.studyPacks.length || 0}/>
+                            <GatedFeature featureName="Quizzes">
+                                <QuizzesTab studyPack={dashboardData?.studyPacks.length || 0} />
                             </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="tutor">
-                            <GatedFeature featureName={"Tutors"}>
-                                <div className={'w-[80%] mx-auto'}>
+                            <GatedFeature featureName="Tutors">
+                                <div className="w-[80%] mx-auto">
                                     <StudentAIChat />
                                 </div>
                             </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="mocktests">
-                            <GatedFeature featureName={"Mock Tests"}>
-                                <div className={'w-[100%] mx-auto'}>
+                            <GatedFeature featureName="Mock Tests">
+                                <div className="w-full mx-auto">
                                     <MockTests initialPacks={dashboardData?.studyPacks} studyPack={dashboardData?.studyPacks.length} />
                                 </div>
                             </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="upload">
-                            <GatedFeature featureName={"Upload Material"}>
+                            <GatedFeature featureName="Upload Material">
                                 <UploadTab />
                             </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="my-materials">
-                            <GatedFeature featureName={"My Materials"}>
+                            <GatedFeature featureName="My Materials">
                                 <GeneratedMaterialsListPage />
                             </GatedFeature>
                         </TabsContent>
 
+                        <TabsContent value="mistakes">
+                            <GatedFeature featureName="Mistake Bank">
+                                <MistakeBankTab />
+                            </GatedFeature>
+                        </TabsContent>
+
                         <TabsContent value="challenges">
-                            <GatedFeature featureName={"Challenges"}>
+                            <GatedFeature featureName="Challenges">
                                 <UserBadges />
                             </GatedFeature>
                         </TabsContent>
 
                         <TabsContent value="friends">
-                            <GatedFeature featureName={"Friends"}>
+                            <GatedFeature featureName="Friends">
                                 <FriendsPage />
                             </GatedFeature>
                         </TabsContent>

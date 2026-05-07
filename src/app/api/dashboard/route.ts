@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
         // Fetch user document
         const userDoc = await db.collection('users').doc(userId).get();
 
+        const examBoard = userDoc.data().preferences.examBoard
+
         if (!userDoc.exists) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
@@ -70,6 +72,7 @@ export async function GET(req: NextRequest) {
         const yesterdayString = yesterday.toISOString().split("T")[0];
 
         const dashboardData = {
+            examBoard: examBoard,
             streak: userData?.streak
                 ? {
                     ...userData.streak,
