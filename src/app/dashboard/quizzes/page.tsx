@@ -6,8 +6,8 @@ import { Brain, Play, Loader2, RefreshCw } from 'lucide-react';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { QuizComponent } from './QuizComponent';
-import {formatDate} from "@/lib/formatDate";
-import {useRouter} from "next/navigation";
+import { formatDate } from "@/lib/formatDate";
+import { useRouter } from "next/navigation";
 import {
     Select,
     SelectContent,
@@ -47,7 +47,6 @@ interface QuizzesTabProps {
     studyPack: number;
 }
 
-/** Converts an id like "art_and_design" or a subject like "English Language" into a display label */
 const formatPackLabel = (pack: StudyPack): string => {
     const raw = pack.subject ?? pack.id;
     return raw
@@ -69,7 +68,6 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
     const [isQuizActive, setIsQuizActive] = useState(false);
     const router = useRouter();
 
-    // Retry quiz state
     const [isRetryQuizActive, setIsRetryQuizActive] = useState(false);
     const [retryQuizQuestions, setRetryQuizQuestions] = useState<Question[] | null>(null);
 
@@ -78,16 +76,14 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         return () => unsubscribe();
     }, []);
 
-    const fetchRecentQuizzes = async () => {
-        if (!user) return;
-
+    const fetchRecentQuizzes = async (currentUser = user) => {
+        if (!currentUser) return;
         setLoadingResults(true);
         try {
-            const idToken = await user.getIdToken();
+            const idToken = await currentUser.getIdToken();
             const response = await fetch('/api/quiz-results?limit=5', {
                 headers: { 'Authorization': `Bearer ${idToken}` },
             });
-
             if (response.ok) {
                 const data = await response.json();
                 setRecentQuizzes(data.quizResults || []);
@@ -99,26 +95,20 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         }
     };
 
-    const handleClick = () => {
-        router.push(`/dashboard?tab=studypack`);
-    };
+    const handleClick = () => router.push(`/dashboard?tab=studypack`);
 
     useEffect(() => {
         const fetchAvailablePacks = async () => {
             if (!user || initialPacks) return;
-
             try {
                 const idToken = await user.getIdToken();
                 const response = await fetch('/api/user/packs', {
                     headers: { 'Authorization': `Bearer ${idToken}` },
                 });
-
                 if (response.ok) {
                     const data = await response.json();
                     setAvailablePacks(data.packs || []);
-                    if (data.packs?.length > 0) {
-                        setSelectedPackId(data.packs[0].id);
-                    }
+                    if (data.packs?.length > 0) setSelectedPackId(data.packs[0].id);
                 }
             } catch (err) {
                 console.error('Error fetching packs:', err);
@@ -127,9 +117,9 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
 
         if (user) {
             fetchAvailablePacks();
-            fetchRecentQuizzes();
+            fetchRecentQuizzes(user);
         }
-    }, [initialPacks, user]);
+    }, [user, initialPacks]);
 
     if (studyPack === 0) {
         return (
@@ -176,6 +166,12 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
         }
     };
 
+    // onComplete receives (score, correctCount, totalCount) from QuizComponent
+    // We just need to refresh results — ignore the params
+    const handleQuizComplete = () => {
+        fetchRecentQuizzes();
+    };
+
     const handleQuizExit = () => {
         setIsQuizActive(false);
         setQuizQuestions(null);
@@ -199,7 +195,7 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
             <QuizComponent
                 questions={quizQuestions}
                 packId={selectedPackId}
-                onComplete={fetchRecentQuizzes}
+                onComplete={handleQuizComplete}
                 onExit={handleQuizExit}
             />
         );
@@ -210,7 +206,7 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
             <QuizComponent
                 questions={retryQuizQuestions}
                 packId={selectedPackId}
-                onComplete={fetchRecentQuizzes}
+                onComplete={handleRetryQuizExit}
                 onExit={handleRetryQuizExit}
             />
         );
@@ -231,10 +227,7 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                     </p>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">
-                            Select Study Pack
-                        </label>
-
+                        <label className="text-sm font-medium text-gray-700">Select Study Pack</label>
                         <Select
                             value={selectedPackId}
                             onValueChange={setSelectedPackId}
@@ -243,7 +236,6 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Choose a pack..." />
                             </SelectTrigger>
-
                             <SelectContent>
                                 <SelectGroup>
                                     <SelectLabel>Study Packs</SelectLabel>
@@ -289,7 +281,7 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={fetchRecentQuizzes}
+                        onClick={() => fetchRecentQuizzes()}
                         disabled={loadingResults}
                     >
                         <RefreshCw className={`w-4 h-4 ${loadingResults ? 'animate-spin' : ''}`} />
@@ -302,7 +294,6 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                         </div>
                     ) : recentQuizzes.length > 0 ? (
                         recentQuizzes.map((quiz, index) => {
-                            // Find the matching pack to get its proper label
                             const matchedPack = availablePacks.find(p => p.id === quiz.packId);
                             const displayName = matchedPack
                                 ? formatPackLabel(matchedPack)
@@ -316,10 +307,10 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                                     <div className="flex-1">
                                         <h4 className="text-gray-900 font-medium">{displayName}</h4>
                                         <p className="text-sm text-gray-500">
-                                            {formatDate(quiz.date)} • {quiz.correctCount}/{quiz.totalCount} correct
+                                            {quiz.date ? formatDate(quiz.date) : 'No date'} · {quiz.correctCount}/{quiz.totalCount} correct
                                         </p>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full font-semibold ${
+                                    <span className={`px-3 py-1 rounded-full font-semibold text-sm ${
                                         quiz.score >= 90 ? 'bg-green-100 text-green-700' :
                                             quiz.score >= 80 ? 'bg-blue-100 text-blue-700' :
                                                 quiz.score >= 70 ? 'bg-yellow-100 text-yellow-700' :

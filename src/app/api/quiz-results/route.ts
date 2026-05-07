@@ -1,52 +1,51 @@
+// app/api/quiz-results/route.ts
 import { NextResponse } from "next/server";
 import admin from "@/lib/firebaseAdmin";
 
-// ------------------------
-// Calculate quiz score for a pack
-// ------------------------
+/**
+ * Calculates quiz score for a user + pack by reading
+ * users/{uid}/question_progress/{packId}
+ */
 async function calculateQuizScore(userId: string, packId: string) {
-    const progressDocRef = admin
+    const progressDoc = await admin
         .firestore()
         .collection("users")
         .doc(userId)
         .collection("question_progress")
-        .doc(packId);
+        .doc(packId)
+        .get();
 
-    const progressDoc = await progressDocRef.get();
+    if (!progressDoc.exists) return null;
 
-    if (!progressDoc.exists) {
-        return null;
-    }
+    const progressData = progressDoc.data() as Record<
+        string,
+        { correct: boolean; answeredAt: FirebaseFirestore.Timestamp | null; userAnswer: string }
+    >;
 
-    const progressData = progressDoc.data() || {};
     const questionIds = Object.keys(progressData);
-
-    if (questionIds.length === 0) {
-        return null;
-    }
+    if (questionIds.length === 0) return null;
 
     let correctCount = 0;
-    const totalCount = questionIds.length;
-    let lastAnsweredAt: number | null = null;
+    let lastAnsweredAt: FirebaseFirestore.Timestamp | null = null;
 
     questionIds.forEach((questionId) => {
         const answer = progressData[questionId];
-        if (answer.correct === true) {
-            correctCount++;
-        }
+        if (answer.correct === true) correctCount++;
 
-        // Track most recent answer time
-        if (answer.answeredAt && (!lastAnsweredAt || answer.answeredAt > lastAnsweredAt)) {
+        if (
+            answer.answeredAt &&
+            (!lastAnsweredAt || answer.answeredAt.toMillis() > lastAnsweredAt.toMillis())
+        ) {
             lastAnsweredAt = answer.answeredAt;
         }
     });
 
-    const score = Math.round((correctCount / totalCount) * 100);
+    const score = Math.round((correctCount / questionIds.length) * 100);
 
     return {
         score,
         correctCount,
-        totalCount,
+        totalCount: questionIds.length,
         lastAnsweredAt,
     };
 }
@@ -58,79 +57,83 @@ export async function GET(req: Request) {
         const limit = parseInt(searchParams.get("limit") || "5", 10);
 
         if (!idToken) {
-            return NextResponse.json(
-                { message: "Missing ID token" },
-                { status: 400 }
-            );
+            return NextResponse.json({ message: "Missing ID token" }, { status: 400 });
         }
 
-        // Verify auth
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
 
-        // Get all user's bought packs
-        const boughtPacksSnapshot = await admin
+        // Use subjects subcollection (current architecture)
+        const subjectsSnapshot = await admin
             .firestore()
             .collection("users")
             .doc(userId)
-            .collection("boughtPacks")
+            .collection("subjects")
             .get();
 
-        if (boughtPacksSnapshot.empty) {
-            return NextResponse.json(
-                { quizResults: [] },
-                { status: 200 }
-            );
+        if (subjectsSnapshot.empty) {
+            return NextResponse.json({ quizResults: [] }, { status: 200 });
         }
 
-        // Calculate scores for each pack
-        const quizResults = [];
+        const quizResults: {
+            packId: string;
+            subject: string;
+            score: number;
+            correctCount: number;
+            totalCount: number;
+            date: string | null;
+        }[] = [];
 
-        for (const packDoc of boughtPacksSnapshot.docs) {
-            const packId = packDoc.id;
+        await Promise.all(
+            subjectsSnapshot.docs.map(async (subjectDoc) => {
+                const packId = subjectDoc.id;
+                const subjectData = subjectDoc.data();
 
+                const scoreData = await calculateQuizScore(userId, packId);
+                if (!scoreData) return; // no quiz activity for this pack yet
 
-            const scoreData = await calculateQuizScore(userId, packId);
-
-            if (scoreData) {
+                // Resolve display name: try study_packs collection first, fall back to subjects doc
                 const studyPackDoc = await admin
                     .firestore()
                     .collection("study_packs")
                     .doc(packId)
                     .get();
 
-                const studyPackData = studyPackDoc.exists ? studyPackDoc.data() : {};
-
-                console.log(studyPackData)
+                const subjectName =
+                    studyPackDoc.exists
+                        ? (studyPackDoc.data()?.subject ?? subjectData.subject ?? packId)
+                        : (subjectData.subject ?? packId);
 
                 quizResults.push({
                     packId,
-                    subject: studyPackData?.title || studyPackData?.name || studyPackData.subject || "Unknown Pack",
+                    subject: subjectName,
                     score: scoreData.score,
                     correctCount: scoreData.correctCount,
                     totalCount: scoreData.totalCount,
                     date: scoreData.lastAnsweredAt
-                        ? new Date((scoreData.lastAnsweredAt as any)._seconds * 1000).toLocaleDateString()
-                        : "N/A",
-                    timestamp: (scoreData.lastAnsweredAt as any)?._seconds || 0,
+                        ? (scoreData.lastAnsweredAt as FirebaseFirestore.Timestamp)
+                            .toDate()
+                            .toISOString()
+                        : null,
                 });
-            }
-        }
+            })
+        );
 
-        // Sort by most recent first
-        quizResults.sort((a, b) => b.timestamp - a.timestamp);
-
-        // Apply limit
-        const limitedResults = quizResults.slice(0, limit);
+        // Sort by most recently answered, cap at limit
+        quizResults.sort((a, b) => {
+            if (!a.date) return 1;
+            if (!b.date) return -1;
+            return new Date(b.date).getTime() - new Date(a.date).getTime();
+        });
 
         return NextResponse.json(
-            { quizResults: limitedResults },
+            { quizResults: quizResults.slice(0, limit) },
             { status: 200 }
         );
     } catch (error) {
         console.error("Error fetching quiz results:", error);
         return NextResponse.json(
-            { message: "Internal server error" },
+            { message: "Failed to fetch quiz results" },
             { status: 500 }
         );
     }

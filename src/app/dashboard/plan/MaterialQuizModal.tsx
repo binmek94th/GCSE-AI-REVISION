@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { CheckCircle, XCircle, ChevronRight, Trophy, Zap } from 'lucide-react';
 import { Button } from "@/app/components/ui/button";
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,18 +21,22 @@ interface AssessmentQuestion {
     materialId: string;
     materialTitle: string;
     difficulty: number | string;
+    /** The pack/subject ID used as the question_progress document key */
+    packId?: string;
 }
 
 interface MaterialQuizModalProps {
     open: boolean;
     materialId: string;
     materialTitle: string;
-    questions: AssessmentQuestion[];           // all assessment questions — filtered internally
-    onConfirmDone: (score: number, total: number) => void; // called after quiz or skip
+    /** The pack ID to key question_progress under — falls back to question.packId */
+    packId: string;
+    questions: AssessmentQuestion[];
+    onConfirmDone: (score: number, total: number) => void;
     onCancel: () => void;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function normaliseOptions(options: Record<string, string> | string[]): Choice[] {
     if (Array.isArray(options)) {
@@ -43,9 +49,40 @@ function normaliseOptions(options: Record<string, string> | string[]): Choice[] 
 
 function getDifficultyLabel(d: number | string): { label: string; color: string } {
     const n = typeof d === 'string' ? parseInt(d) : d;
-    if (n <= 1) return { label: 'Easy', color: '#22C55E' };
+    if (n <= 1) return { label: 'Easy',   color: '#22C55E' };
     if (n <= 2) return { label: 'Medium', color: '#F59E0B' };
-    return { label: 'Hard', color: '#EF4444' };
+    return              { label: 'Hard',  color: '#EF4444' };
+}
+
+/**
+ * Persists a single quiz answer to:
+ *   users/{uid}/question_progress/{packId}  (doc)
+ *     → field: {questionId}: { correct, userAnswer, answeredAt }
+ *
+ * This is the same schema read by the mistake bank and quiz-results API.
+ */
+async function saveAnswer(
+    packId: string,
+    questionId: string,
+    userAnswer: string,
+    correct: boolean,
+): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const ref = doc(db, 'users', user.uid, 'question_progress', packId);
+
+    await setDoc(
+        ref,
+        {
+            [questionId]: {
+                correct,
+                userAnswer,
+                answeredAt: serverTimestamp(),
+            },
+        },
+        { merge: true }  // preserve other questions in the same doc
+    );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -54,26 +91,26 @@ export function MaterialQuizModal({
                                       open,
                                       materialId,
                                       materialTitle,
+                                      packId,
                                       questions,
                                       onConfirmDone,
                                       onCancel,
                                   }: MaterialQuizModalProps) {
 
-    // Filter to only questions for this material
     const materialQuestions = questions.filter(q => q.materialId === materialId);
 
-    const [step, setStep] = useState<'intro' | 'quiz' | 'result'>('intro');
-    const [currentIndex, setCurrentIndex] = useState(0);
+    const [step, setStep]                   = useState<'intro' | 'quiz' | 'result'>('intro');
+    const [currentIndex, setCurrentIndex]   = useState(0);
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
-    const [hasConfirmed, setHasConfirmed] = useState(false);   // true after clicking Check
-    const [scores, setScores] = useState<boolean[]>([]);
+    const [hasConfirmed, setHasConfirmed]   = useState(false);
+    const [scores, setScores]               = useState<boolean[]>([]);
     const [showExplanation, setShowExplanation] = useState(false);
-    const progressBarRef = useRef<HTMLDivElement>(null);
+    const [saving, setSaving]               = useState(false);
+    const progressBarRef                    = useRef<HTMLDivElement>(null);
 
-    // Reset when modal opens
     useEffect(() => {
         if (open) {
-            setStep(materialQuestions.length > 0 ? 'intro' : 'skip');
+            setStep(materialQuestions.length > 0 ? 'intro' : 'intro');
             setCurrentIndex(0);
             setSelectedOption(null);
             setHasConfirmed(false);
@@ -82,7 +119,7 @@ export function MaterialQuizModal({
         }
     }, [open, materialId]);
 
-    // If no questions exist, just show a single confirm button
+    // No questions — simple confirm dialog
     if (materialQuestions.length === 0) {
         return (
             <Dialog.Root open={open} onOpenChange={v => { if (!v) onCancel(); }}>
@@ -108,18 +145,34 @@ export function MaterialQuizModal({
         );
     }
 
-    const current = materialQuestions[currentIndex];
-    const choices = current ? normaliseOptions(current.options) : [];
-    const isCorrect = hasConfirmed && selectedOption === current?.correctAnswer;
-    const isWrong   = hasConfirmed && selectedOption !== current?.correctAnswer;
+    const current     = materialQuestions[currentIndex];
+    const choices     = current ? normaliseOptions(current.options) : [];
+    const isCorrect   = hasConfirmed && selectedOption === current?.correctAnswer;
     const correctCount = scores.filter(Boolean).length;
-    const pct = Math.round((correctCount / materialQuestions.length) * 100);
+    const pct         = Math.round((correctCount / materialQuestions.length) * 100);
+    const progressPct = ((currentIndex + (hasConfirmed ? 1 : 0)) / materialQuestions.length) * 100;
 
-    const handleCheck = () => {
-        if (!selectedOption) return;
+    // Called when the student clicks "Check Answer"
+    const handleCheck = async () => {
+        if (!selectedOption || !current) return;
+
+        const correct = selectedOption === current.correctAnswer;
+
         setHasConfirmed(true);
         setShowExplanation(true);
-        setScores(prev => [...prev, selectedOption === current.correctAnswer]);
+        setScores(prev => [...prev, correct]);
+
+        // ── Persist to Firestore ──────────────────────────────────────────────
+        setSaving(true);
+        try {
+            const effectivePackId = packId || current.packId || 'unknown';
+            await saveAnswer(effectivePackId, current.id, selectedOption, correct);
+        } catch (err) {
+            // Non-fatal — don't block the UI
+            console.error('Failed to save quiz answer:', err);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleNext = () => {
@@ -133,8 +186,6 @@ export function MaterialQuizModal({
         }
     };
 
-    const progressPct = ((currentIndex + (hasConfirmed ? 1 : 0)) / materialQuestions.length) * 100;
-
     return (
         <Dialog.Root open={open} onOpenChange={v => { if (!v) onCancel(); }}>
             <Dialog.Portal>
@@ -143,13 +194,13 @@ export function MaterialQuizModal({
                     className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg bg-white rounded-2xl shadow-2xl focus:outline-none overflow-hidden"
                     style={{ maxHeight: '90vh' }}
                 >
-                    {/* ── Intro screen ─────────────────────────────────────── */}
+
+                    {/* ── Intro ─────────────────────────────────────────────── */}
                     {step === 'intro' && (
                         <div className="p-7">
                             <div style={{
                                 background: 'linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%)',
-                                borderRadius: 14, padding: '20px',
-                                marginBottom: 20, textAlign: 'center',
+                                borderRadius: 14, padding: '20px', marginBottom: 20, textAlign: 'center',
                             }}>
                                 <div style={{ fontSize: 36, marginBottom: 8 }}>🧠</div>
                                 <h2 style={{ color: '#fff', fontSize: 17, fontWeight: 700, margin: '0 0 6px' }}>
@@ -205,10 +256,10 @@ export function MaterialQuizModal({
                         </div>
                     )}
 
-                    {/* ── Quiz screen ───────────────────────────────────────── */}
+                    {/* ── Quiz ──────────────────────────────────────────────── */}
                     {step === 'quiz' && current && (
                         <div>
-                            {/* Header with progress */}
+                            {/* Header */}
                             <div style={{ padding: '16px 20px 0', borderBottom: '1px solid #F1F5F9' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                                     <span style={{ fontSize: 12, fontWeight: 600, color: '#64748B' }}>
@@ -225,40 +276,34 @@ export function MaterialQuizModal({
                                         {getDifficultyLabel(current.difficulty).label}
                                     </div>
                                 </div>
-                                {/* Progress bar */}
                                 <div style={{ height: 4, background: '#F1F5F9', borderRadius: 4, marginBottom: 14 }}>
                                     <div
                                         ref={progressBarRef}
                                         style={{
                                             height: '100%', borderRadius: 4,
                                             background: 'linear-gradient(90deg, #1D4ED8, #3B82F6)',
-                                            width: `${progressPct}%`,
-                                            transition: 'width 0.4s ease',
+                                            width: `${progressPct}%`, transition: 'width 0.4s ease',
                                         }}
                                     />
                                 </div>
                             </div>
 
-                            {/* Question body */}
+                            {/* Body */}
                             <div style={{ padding: '18px 20px', overflowY: 'auto', maxHeight: 'calc(90vh - 160px)' }}>
-                                <p style={{
-                                    fontSize: 15, fontWeight: 600, color: '#0F172A',
-                                    lineHeight: 1.6, marginBottom: 16,
-                                }}>
+                                <p style={{ fontSize: 15, fontWeight: 600, color: '#0F172A', lineHeight: 1.6, marginBottom: 16 }}>
                                     {current.question}
                                 </p>
 
-                                {/* Choices */}
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
                                     {choices.map(c => {
-                                        const isSelected = selectedOption === c.option;
+                                        const isSelected  = selectedOption === c.option;
                                         const showCorrect = hasConfirmed && c.option === current.correctAnswer;
                                         const showWrong   = hasConfirmed && isSelected && c.option !== current.correctAnswer;
 
                                         let bg = '#F8FAFC', border = '#E2E8F0', textCol = '#374151';
-                                        if (showCorrect)      { bg = '#F0FDF4'; border = '#86EFAC'; textCol = '#166534'; }
-                                        else if (showWrong)   { bg = '#FEF2F2'; border = '#FCA5A5'; textCol = '#991B1B'; }
-                                        else if (isSelected)  { bg = '#EFF6FF'; border = '#93C5FD'; textCol = '#1E40AF'; }
+                                        if (showCorrect)     { bg = '#F0FDF4'; border = '#86EFAC'; textCol = '#166534'; }
+                                        else if (showWrong)  { bg = '#FEF2F2'; border = '#FCA5A5'; textCol = '#991B1B'; }
+                                        else if (isSelected) { bg = '#EFF6FF'; border = '#93C5FD'; textCol = '#1E40AF'; }
 
                                         return (
                                             <button
@@ -269,7 +314,8 @@ export function MaterialQuizModal({
                                                     display: 'flex', alignItems: 'flex-start', gap: 12,
                                                     padding: '11px 14px', borderRadius: 10,
                                                     border: `1.5px solid ${border}`,
-                                                    background: bg, cursor: hasConfirmed ? 'default' : 'pointer',
+                                                    background: bg,
+                                                    cursor: hasConfirmed ? 'default' : 'pointer',
                                                     textAlign: 'left', width: '100%',
                                                     transition: 'all 0.15s',
                                                 }}
@@ -320,7 +366,7 @@ export function MaterialQuizModal({
                                 {/* Action buttons */}
                                 {!hasConfirmed ? (
                                     <button
-                                        disabled={!selectedOption}
+                                        disabled={!selectedOption || saving}
                                         onClick={handleCheck}
                                         style={{
                                             width: '100%', padding: '12px', fontSize: 13.5, fontWeight: 600,
@@ -333,7 +379,7 @@ export function MaterialQuizModal({
                                             transition: 'all 0.2s',
                                         }}
                                     >
-                                        Check Answer
+                                        {saving ? 'Saving…' : 'Check Answer'}
                                     </button>
                                 ) : (
                                     <button
@@ -346,30 +392,26 @@ export function MaterialQuizModal({
                                             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                                         }}
                                     >
-                                        {currentIndex + 1 < materialQuestions.length ? (
-                                            <>Next Question <ChevronRight className="w-4 h-4" /></>
-                                        ) : (
-                                            <>See Results <Trophy className="w-4 h-4" /></>
-                                        )}
+                                        {currentIndex + 1 < materialQuestions.length
+                                            ? <>Next Question <ChevronRight className="w-4 h-4" /></>
+                                            : <>See Results <Trophy className="w-4 h-4" /></>
+                                        }
                                     </button>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* ── Result screen ─────────────────────────────────────── */}
+                    {/* ── Result ────────────────────────────────────────────── */}
                     {step === 'result' && (
                         <div style={{ padding: '28px 24px', textAlign: 'center' }}>
-                            {/* Score ring */}
                             <div style={{
                                 width: 100, height: 100, borderRadius: '50%', margin: '0 auto 20px',
                                 background: `conic-gradient(${pct >= 70 ? '#22C55E' : pct >= 40 ? '#F59E0B' : '#EF4444'} ${pct * 3.6}deg, #F1F5F9 0deg)`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                position: 'relative',
                             }}>
                                 <div style={{
-                                    width: 76, height: 76, borderRadius: '50%',
-                                    background: '#fff',
+                                    width: 76, height: 76, borderRadius: '50%', background: '#fff',
                                     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                                 }}>
                                     <span style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{pct}%</span>
@@ -385,7 +427,6 @@ export function MaterialQuizModal({
                                 <strong style={{ color: '#1D4ED8' }}>{materialTitle}</strong>
                             </p>
 
-                            {/* Per-question recap */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 22, textAlign: 'left' }}>
                                 {materialQuestions.map((q, i) => (
                                     <div
@@ -399,7 +440,7 @@ export function MaterialQuizModal({
                                     >
                                         {scores[i]
                                             ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                                            : <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                                            : <XCircle    className="w-4 h-4 text-red-400   flex-shrink-0" />
                                         }
                                         <span style={{ fontSize: 12, color: '#374151', lineHeight: 1.4 }}>
                                             {q.question.length > 70 ? q.question.slice(0, 70) + '…' : q.question}

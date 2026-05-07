@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
 import { CheckCircle, XCircle, ChevronRight, Trophy, RotateCcw } from 'lucide-react';
-import {useDashboard} from "@/contexts/DashboardContext";
+import { useDashboard } from "@/contexts/DashboardContext";
 
 interface Question {
     id: string;
@@ -17,7 +17,8 @@ interface Question {
 interface QuizComponentProps {
     questions: Question[];
     packId: string;
-    onComplete: (score: number, correctCount: number, totalCount: number) => void;
+    // Signature simplified — callers (QuizzesTab) just need to refresh after completion
+    onComplete: () => void;
     onExit: () => void;
 }
 
@@ -27,58 +28,45 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
     const [isAnswered, setIsAnswered] = useState(false);
     const [answers, setAnswers] = useState<Record<string, { selected: string; correct: boolean; selectedText: string }>>({});
     const [showResults, setShowResults] = useState(false);
-    const [streakUpdated, setStreakUpdated] = useState(false)
+    const [streakUpdated, setStreakUpdated] = useState(false);
     const { incrementStreak } = useDashboard();
-
 
     const currentQuestion = questions[currentQuestionIndex];
     const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
     const handleAnswerSelect = (answerKey: string) => {
-        if (!isAnswered) {
-            setSelectedAnswer(answerKey);
-        }
+        if (!isAnswered) setSelectedAnswer(answerKey);
     };
 
     const getOptionText = (question: Question, key: string): string => {
-        if (Array.isArray(question.options)) {
-            return key;
-        }
+        if (Array.isArray(question.options)) return key;
         return question.options[key] || key;
     };
 
     const handleSubmitAnswer = async () => {
+        if (!selectedAnswer) return;
+
         if (!streakUpdated) {
             incrementStreak();
             setStreakUpdated(true);
         }
-        if (!selectedAnswer) return;
 
         const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
-        setIsAnswered(true);
-
         const selectedText = getOptionText(currentQuestion, selectedAnswer);
 
+        setIsAnswered(true);
         setAnswers(prev => ({
             ...prev,
-            [currentQuestion.id]: {
-                selected: selectedAnswer,
-                selectedText: selectedText,
-                correct: isCorrect,
-            }
+            [currentQuestion.id]: { selected: selectedAnswer, selectedText, correct: isCorrect },
         }));
 
         try {
-
             const user = await import('@/lib/firebase').then(m => m.auth.currentUser);
             if (user) {
                 const idToken = await user.getIdToken();
                 await fetch('/api/quizzes', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${idToken}`,
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Authorization': `Bearer ${idToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         packId,
                         questionId: currentQuestion.id,
@@ -98,13 +86,8 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
             setSelectedAnswer(null);
             setIsAnswered(false);
         } else {
-            // Show results
-            const correctCount = Object.values(answers).filter(a => a.correct).length;
-            const totalCount = questions.length;
-            const score = Math.round((correctCount / totalCount) * 100);
-
             setShowResults(true);
-            onComplete(score, correctCount, totalCount);
+            onComplete(); // simply notify parent — no args needed
         }
     };
 
@@ -116,7 +99,7 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
         setShowResults(false);
     };
 
-    // Results Screen
+    // ── Results screen ────────────────────────────────────────────────────────
     if (showResults) {
         const correctCount = Object.values(answers).filter(a => a.correct).length;
         const totalCount = questions.length;
@@ -151,28 +134,22 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                         </p>
                     </div>
 
-                    {/* Question Review */}
                     <div className="space-y-3 max-h-96 overflow-y-auto">
                         <h3 className="font-semibold text-gray-900">Review Your Answers</h3>
                         {questions.map((question, index) => {
                             const answer = answers[question.id];
                             const correctAnswerText = getOptionText(question, question.correctAnswer);
-
                             return (
                                 <div
                                     key={question.id}
                                     className={`p-4 rounded-lg border-2 ${
-                                        answer?.correct
-                                            ? 'bg-green-50 border-green-200'
-                                            : 'bg-red-50 border-red-200'
+                                        answer?.correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
                                     }`}
                                 >
                                     <div className="flex items-start gap-2">
-                                        {answer?.correct ? (
-                                            <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                                        ) : (
-                                            <XCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                                        )}
+                                        {answer?.correct
+                                            ? <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                                            : <XCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />}
                                         <div className="flex-1">
                                             <p className="font-medium text-gray-900 mb-1">
                                                 Question {index + 1}: {question.question}
@@ -193,18 +170,10 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                     </div>
 
                     <div className="flex gap-3">
-                        <Button
-                            onClick={handleRestart}
-                            variant="outline"
-                            className="flex-1"
-                        >
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            Retry Quiz
+                        <Button onClick={handleRestart} variant="outline" className="flex-1">
+                            <RotateCcw className="w-4 h-4 mr-2" />Retry Quiz
                         </Button>
-                        <Button
-                            onClick={onExit}
-                            className="flex-1 bg-purple-600 hover:bg-purple-700"
-                        >
+                        <Button onClick={onExit} className="flex-1 bg-purple-600 hover:bg-purple-700">
                             Back to Dashboard
                         </Button>
                     </div>
@@ -213,22 +182,15 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
         );
     }
 
-    // Quiz Question Screen
+    // ── Question screen ───────────────────────────────────────────────────────
     return (
         <Card className="w-full">
             <CardHeader>
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
                         <CardTitle>Question {currentQuestionIndex + 1} of {questions.length}</CardTitle>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={onExit}
-                        >
-                            Exit Quiz
-                        </Button>
+                        <Button variant="ghost" size="sm" onClick={onExit}>Exit Quiz</Button>
                     </div>
-                    {/* Progress Bar */}
                     <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                             className="bg-purple-600 h-2 rounded-full transition-all duration-300"
@@ -238,17 +200,12 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">
-                {/* Question */}
                 <div className="p-4 bg-purple-50 rounded-lg">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                        {currentQuestion.question}
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{currentQuestion.question}</h3>
                 </div>
 
-                {/* Answer Options */}
                 <div className="space-y-3">
                     {(() => {
-                        // Convert options to array format for rendering
                         const optionsArray = Array.isArray(currentQuestion.options)
                             ? currentQuestion.options.map((opt, idx) => ({ key: String.fromCharCode(65 + idx), value: opt }))
                             : Object.entries(currentQuestion.options).map(([key, value]) => ({ key, value }));
@@ -256,8 +213,8 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                         return optionsArray.map((option, index) => {
                             const isSelected = selectedAnswer === option.key;
                             const isCorrect = option.key === currentQuestion.correctAnswer;
-                            const showCorrectAnswer = isAnswered && isCorrect;
-                            const showWrongAnswer = isAnswered && isSelected && !isCorrect;
+                            const showCorrect = isAnswered && isCorrect;
+                            const showWrong = isAnswered && isSelected && !isCorrect;
 
                             return (
                                 <button
@@ -265,13 +222,10 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                                     onClick={() => handleAnswerSelect(option.key)}
                                     disabled={isAnswered}
                                     className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
-                                        showCorrectAnswer
-                                            ? 'bg-green-50 border-green-500'
-                                            : showWrongAnswer
-                                                ? 'bg-red-50 border-red-500'
-                                                : isSelected
-                                                    ? 'bg-purple-50 border-purple-500'
-                                                    : 'bg-white border-gray-200 hover:border-purple-300'
+                                        showCorrect ? 'bg-green-50 border-green-500' :
+                                            showWrong   ? 'bg-red-50 border-red-500' :
+                                                isSelected  ? 'bg-purple-50 border-purple-500' :
+                                                    'bg-white border-gray-200 hover:border-purple-300'
                                     } ${isAnswered ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                                 >
                                     <div className="flex items-center justify-between">
@@ -281,12 +235,8 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                                             </span>
                                             <span className="font-medium text-gray-900">{option.value}</span>
                                         </div>
-                                        {showCorrectAnswer && (
-                                            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                                        )}
-                                        {showWrongAnswer && (
-                                            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                                        )}
+                                        {showCorrect && <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />}
+                                        {showWrong   && <XCircle    className="w-5 h-5 text-red-600   flex-shrink-0" />}
                                     </div>
                                 </button>
                             );
@@ -294,7 +244,6 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                     })()}
                 </div>
 
-                {/* Explanation */}
                 {isAnswered && currentQuestion.explanation && (
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm font-semibold text-blue-900 mb-1">Explanation:</p>
@@ -302,7 +251,6 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                     </div>
                 )}
 
-                {/* Action Button */}
                 <div className="flex justify-end">
                     {!isAnswered ? (
                         <Button
@@ -313,20 +261,11 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                             Submit Answer
                         </Button>
                     ) : (
-                        <Button
-                            onClick={handleNextQuestion}
-                            className="bg-purple-600 hover:bg-purple-700"
-                        >
+                        <Button onClick={handleNextQuestion} className="bg-purple-600 hover:bg-purple-700">
                             {currentQuestionIndex < questions.length - 1 ? (
-                                <>
-                                    Next Question
-                                    <ChevronRight className="w-4 h-4 ml-2" />
-                                </>
+                                <>Next Question <ChevronRight className="w-4 h-4 ml-2" /></>
                             ) : (
-                                <>
-                                    View Results
-                                    <Trophy className="w-4 h-4 ml-2" />
-                                </>
+                                <>View Results <Trophy className="w-4 h-4 ml-2" /></>
                             )}
                         </Button>
                     )}

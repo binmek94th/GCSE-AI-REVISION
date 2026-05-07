@@ -13,6 +13,7 @@ interface StudyMaterial {
     subject_pack_id: string;
     title: string;
     difficulty?: string;
+    _isGenerated?: boolean;
     [key: string]: any;
 }
 
@@ -26,7 +27,7 @@ interface QuestionResult {
 interface PackAnalysis {
     packId: string;
     packName: string;
-    subject: string;        // the resolved subject name, e.g. "Biology"
+    subject: string;
     examBoard: string;
     totalMaterials: number;
     completedMaterials: number;
@@ -211,13 +212,12 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
         const userData = userDoc.data();
         const preferences: UserPreferences = userData?.preferences || {};
 
-        // ── Resolve examBoard — same fallback chain as enroll-subject ──────────
         const examBoard: string =
             userData?.examBoard ??
             userData?.preferences?.examBoard ??
             null;
 
-        // ── Load user's enrolled subjects from users/{uid}/subjects ────────────
+        // ── Enrolled subjects ─────────────────────────────────────────────────
         const subjectsSnapshot = await admin.firestore()
             .collection('users').doc(userId).collection('subjects').get();
 
@@ -232,8 +232,6 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
             const packId = subjectDoc.id;
             const subjectData = subjectDoc.data();
 
-            // ── Resolve the real subject name from study_packs ─────────────────
-            // study_materials.subject stores names like "Biology", not pack IDs
             const studyPackDoc = await admin.firestore()
                 .collection('study_packs').doc(packId).get();
 
@@ -247,10 +245,6 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                 .where('subject', '==', subjectName)
                 .where('moderation_status', '==', 'approved');
 
-            // if (examBoard) {
-            //     materialsQuery = (materialsQuery as any).where('exam_board', '==', examBoard);
-            // }
-
             const materialsSnapshot = await materialsQuery.get();
 
             const allMaterials: StudyMaterial[] = materialsSnapshot.docs.map(doc => ({
@@ -259,13 +253,11 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                 ...doc.data(),
             } as StudyMaterial));
 
-            // ── Progress: which materials has the user completed? ──────────────
             const progressDoc = await admin.firestore()
                 .collection('users').doc(userId).collection('progress').doc(packId).get();
 
             const progressData = progressDoc.exists ? progressDoc.data() : {};
 
-            // Only count progress against materials that actually exist + are approved
             const validMaterialIds = new Set(allMaterials.map(m => m.id));
             const completedMaterialIds = Object.keys(progressData || {}).filter(
                 key => progressData![key] === true && validMaterialIds.has(key)
@@ -275,7 +267,6 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                 m => !completedMaterialIds.includes(m.id)
             );
 
-            // ── Question progress ──────────────────────────────────────────────
             const questionProgressDoc = await admin.firestore()
                 .collection('users').doc(userId).collection('question_progress').doc(packId).get();
 
@@ -321,7 +312,67 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                 progressPercent,
             });
         }
-        console.log(packAnalyses)
+
+        // ── User-generated materials added to plan ────────────────────────────
+        // Fetch any materials the student saved and chose "Add to plan" on.
+        // These are stored in user_generated_materials with addedToPlan: true.
+        const generatedSnap = await admin.firestore()
+            .collection('user_generated_materials')
+            .where('userId', '==', userId)
+            .where('addedToPlan', '==', true)
+            .get();
+
+        if (!generatedSnap.empty) {
+            // Group docs by subjectName so each subject maps to one pack entry
+            const bySubject = new Map<string, StudyMaterial[]>();
+
+            generatedSnap.docs.forEach(d => {
+                const data = d.data();
+                const subject: string = data.subjectName ?? 'My Notes';
+                if (!bySubject.has(subject)) bySubject.set(subject, []);
+
+                bySubject.get(subject)!.push({
+                    id: d.id,
+                    subject_pack_id: `generated_${subject}`,
+                    title: data.subjectName ?? 'Generated Material',
+                    difficulty: data.difficulty ?? 'basic',
+                    topics: data.topics ?? [],
+                    _isGenerated: true,
+                } as StudyMaterial);
+            });
+
+            bySubject.forEach((materials, subject) => {
+                const packId = `generated_${subject}`;
+
+                // If an enrolled pack for this subject already exists, merge into it
+                const existing = packAnalyses.find(p => p.packId === packId);
+                if (existing) {
+                    existing.incompleteMaterials.push(...materials);
+                    existing.totalMaterials += materials.length;
+                    return;
+                }
+
+                // Otherwise create a new virtual pack for these generated materials
+                packAnalyses.push({
+                    packId,
+                    packName: subject,
+                    subject,
+                    examBoard: examBoard ?? 'N/A',
+                    totalMaterials: materials.length,
+                    completedMaterials: 0,
+                    incompleteMaterials: materials,
+                    totalQuestions: 0,
+                    correctQuestions: 0,
+                    incorrectQuestions: [],
+                    progressPercent: 0,
+                });
+            });
+
+            console.log(`Included ${generatedSnap.size} user-generated material(s) in plan for user: ${userId}`);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        console.log(packAnalyses);
 
         const activePacks = packAnalyses.filter(
             pack => pack.incompleteMaterials.length > 0 || pack.incorrectQuestions.length > 0
@@ -389,6 +440,7 @@ async function generateStudyPlanWithAI(
                 id: m.id,
                 title: m.title,
                 difficulty: m.difficulty || 'basic',
+                isGenerated: m._isGenerated ?? false,
             })),
             totalQuestions: pack.totalQuestions,
             correctQuestions: pack.correctQuestions,
@@ -411,6 +463,7 @@ RULES:
 3. Distribute sessions equally across all packs/subjects.
 4. Use different materials for different sessions where possible.
 5. Include short breaks every 2–3 sessions and a longer break mid-day.
+6. Materials with isGenerated: true are the student's own uploaded notes — treat them as high priority since the student explicitly requested them.
 
 Respond ONLY with a JSON object in this exact shape:
 {
@@ -455,7 +508,6 @@ Create at least ${minSessions} sessions rotating across all subjects.`,
     } catch (error) {
         console.error('Error calling OpenAI API:', error);
 
-        // Fallback: build plan directly from real Firestore data
         const sessions: StudySession[] = [];
         const timeSlots = ['Morning', 'Late Morning', 'Afternoon', 'Evening'];
         let sessionCount = 0;
