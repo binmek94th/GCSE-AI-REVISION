@@ -7,6 +7,7 @@ import {
     Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from '@/app/components/ui/select';
 import Link from 'next/link'
+import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'firebase/storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -274,6 +275,21 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
         if (!uid || !content) return;
         setSaving(true); setError(null);
         try {
+            let fileUrl: string | null = null;
+            let storagePath: string | null = null;
+
+            if (file && fileBase64) {
+                const storage = getStorage();
+                storagePath = `user_uploads/${Date.now()}_${file.name}`;
+                const fileRef = storageRef(storage, storagePath);
+
+                const byteChars = atob(fileBase64);
+                const byteArr = new Uint8Array(byteChars.length);
+                for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+
+                const snapshot = await uploadBytes(fileRef, byteArr, { contentType: file.type });
+                fileUrl = await getDownloadURL(snapshot.ref);
+            }
             const ref = await addDoc(collection(db, 'user_generated_materials'), {
                 userId: uid,
                 subjectName: content.subject,
@@ -283,13 +299,13 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                 flashcards: content.flashcards,
                 mode,
                 difficulty,
+                sourceFileUrl: fileUrl,
                 createdAt: serverTimestamp(),
                 sourceType: file ? 'file' : 'text',
                 sourceFileName: file?.name ?? null,
             });
             await incrementGenerationCount(uid);
             setSavedId(ref.id);
-            // Show the add-to-plan prompt after saving
             setShowAddToPlan(true);
         } catch (e: any) {
             console.error(e);
@@ -356,7 +372,7 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                                         background: 'linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%)',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
                                     }}>📎</div>
-                                    <h2 style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: 0 }}>
+                                    <h2 style={{ fontSize: 16, fontWeight: 500, color: '#111827', margin: 0 }}>
                                         Generate from notes
                                     </h2>
                                 </div>
@@ -414,7 +430,7 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                                             {file.type === 'application/pdf' ? '📄' : file.type.startsWith('image/') ? '🖼️' : '📃'}
                                         </div>
                                         <div style={{ textAlign: 'left', minWidth: 0 }}>
-                                            <div style={{ fontSize: 12, fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
+                                            <div style={{ fontSize: 12, fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
                                                 {file.name}
                                             </div>
                                             <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
@@ -481,7 +497,7 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                                         }}
                                     >
                                         <div style={{ fontSize: 17, marginBottom: 4 }}>{opt.icon}</div>
-                                        <div style={{ fontSize: 12, fontWeight: 600, color: '#111827', marginBottom: 1 }}>{opt.label}</div>
+                                        <div style={{ fontSize: 12, fontWeight: 500, color: '#111827', marginBottom: 1 }}>{opt.label}</div>
                                         <div style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.35 }}>{opt.description}</div>
                                     </button>
                                 ))}
