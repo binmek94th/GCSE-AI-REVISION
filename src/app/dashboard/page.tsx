@@ -30,6 +30,8 @@ import UploadTab from "@/app/dashboard/upload/UploadTab";
 import GeneratedMaterialsListPage from "@/app/dashboard/generated_material/page";
 import MistakeBankTab from "@/app/dashboard/mistake-bank/MistakeBank";
 
+// Tabs always visible on desktop; on mobile only "plan" shows in the bar —
+// everything else collapses into the More dropdown.
 const MORE_TABS = ['studypack', 'my-materials', 'challenges', 'friends', 'profile'];
 const MORE_ITEMS = [
     { value: 'studypack',    icon: Package,  label: 'Study Packs' },
@@ -37,6 +39,17 @@ const MORE_ITEMS = [
     { value: 'challenges',   icon: Trophy,   label: 'Challenges' },
     { value: 'friends',      icon: Trophy,   label: 'Friends' },
     { value: 'profile',      icon: User,     label: 'Profile' },
+];
+
+// On mobile these tabs collapse into "More"; on desktop they appear in the bar.
+const MOBILE_MORE_TABS = ['quizzes', 'mocktests', 'mistakes', 'tutor', 'upload', ...MORE_TABS];
+const MOBILE_MORE_ITEMS = [
+    { value: 'quizzes',      icon: Brain,          label: 'Quizzes' },
+    { value: 'mocktests',    icon: TestTube,        label: 'Mocks' },
+    { value: 'mistakes',     icon: AlertCircle,     label: 'Retry Failed' },
+    { value: 'tutor',        icon: MessageCircle,   label: 'Tutor' },
+    { value: 'upload',       icon: Upload,          label: 'Upload' },
+    ...MORE_ITEMS,
 ];
 
 const TAB_CLASS =
@@ -155,8 +168,13 @@ function Dashboard() {
 
     if (loading || moodLoading || dashboardLoading) return <Spinner />;
 
-    const isMoreActive = MORE_TABS.includes(activeTab);
-    const activeMoreLabel = MORE_ITEMS.find(i => i.value === activeTab)?.label;
+    // Desktop: only the old MORE_TABS are "more-active"
+    // Mobile:  all MOBILE_MORE_TABS are "more-active"
+    const isDesktopMoreActive = MORE_TABS.includes(activeTab);
+    const isMobileMoreActive  = MOBILE_MORE_TABS.includes(activeTab);
+
+    const desktopActiveMoreLabel = MORE_ITEMS.find(i => i.value === activeTab)?.label;
+    const mobileActiveMoreLabel  = MOBILE_MORE_ITEMS.find(i => i.value === activeTab)?.label;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
@@ -222,45 +240,47 @@ function Dashboard() {
                 {!showMoodChecker && (
                     <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
 
-                        {/* ── Nav bar ──
-                            Key: the outer shell must NOT have overflow-hidden/auto or the
-                            absolutely-positioned More dropdown gets clipped.
-                            Only the inner TabsList wrapper scrolls horizontally.
+                        {/*
+                            Nav bar — outer div must NOT clip overflow so the
+                            absolutely-positioned More dropdown isn't cut off.
                         */}
                         <div className="flex items-center gap-1 bg-white rounded-xl shadow-sm border border-gray-200 px-2 py-1">
 
-                            {/* Horizontally scrollable tab area — hides scrollbar visually */}
+                            {/* Scrollable tab strip */}
                             <div className="flex-1 overflow-x-auto [overflow-y:visible] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                                 <TabsList className="flex h-auto bg-transparent p-0 gap-0 w-full items-center">
 
+                                    {/* Plan — always visible on all screen sizes */}
                                     <TabsTrigger value="plan" className={TAB_CLASS}>
-                                        <Calendar className="w-4 h-4" /> Plan
+                                        <Calendar className="w-4 h-4" />
+                                        <span>Plan</span>
                                     </TabsTrigger>
 
-                                    <span className="w-px h-5 bg-gray-200 self-center mx-1.5" />
-                                    <span className="text-xs text-gray-400 font-medium self-center pr-1 select-none">Practice</span>
+                                    {/* ── Desktop-only tabs (hidden on mobile) ── */}
+                                    <span className="hidden sm:block w-px h-5 bg-gray-200 self-center mx-1.5" />
+                                    <span className="hidden sm:flex text-xs text-gray-400 font-medium self-center pr-1 select-none">Practice</span>
 
-                                    <TabsTrigger value="quizzes" className={TAB_CLASS}>
+                                    <TabsTrigger value="quizzes" className={`${TAB_CLASS} hidden sm:flex`}>
                                         <Brain className="w-4 h-4" /> Quizzes
                                     </TabsTrigger>
 
-                                    <TabsTrigger value="mocktests" className={TAB_CLASS}>
+                                    <TabsTrigger value="mocktests" className={`${TAB_CLASS} hidden sm:flex`}>
                                         <TestTube className="w-4 h-4" /> Mocks
                                     </TabsTrigger>
 
-                                    <TabsTrigger value="mistakes" className={TAB_CLASS}>
+                                    <TabsTrigger value="mistakes" className={`${TAB_CLASS} hidden sm:flex`}>
                                         <AlertCircle className="w-4 h-4" /> Retry Failed
                                     </TabsTrigger>
 
-                                    <span className="w-px h-5 bg-gray-200 self-center mx-1.5" />
+                                    <span className="hidden sm:block w-px h-5 bg-gray-200 self-center mx-1.5" />
 
-                                    <TabsTrigger value="tutor" className={TAB_CLASS}>
+                                    <TabsTrigger value="tutor" className={`${TAB_CLASS} hidden sm:flex`}>
                                         <MessageCircle className="w-4 h-4" /> Tutor
                                     </TabsTrigger>
 
-                                    <span className="w-px h-5 bg-gray-200 self-center mx-1.5" />
+                                    <span className="hidden sm:block w-px h-5 bg-gray-200 self-center mx-1.5" />
 
-                                    <TabsTrigger value="upload" className={TAB_CLASS}>
+                                    <TabsTrigger value="upload" className={`${TAB_CLASS} hidden sm:flex`}>
                                         <Upload className="w-4 h-4" /> Upload
                                     </TabsTrigger>
 
@@ -269,42 +289,78 @@ function Dashboard() {
 
                             <span className="w-px h-5 bg-gray-200 shrink-0 mx-1" />
 
-                            {/* More — positioned relative to THIS div, outside the scroll area
-                                so it overflows the nav bar downward without being clipped */}
+                            {/* ── More dropdown ──
+                                On desktop: shows the old MORE_TABS (studypack, my-materials, etc.)
+                                On mobile:  shows ALL collapsed tabs via MOBILE_MORE_ITEMS
+                            */}
                             <div className="relative shrink-0" ref={moreRef}>
                                 <button
                                     onClick={() => setShowMoreDropdown(v => !v)}
                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap
-                                        ${isMoreActive
-                                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
-                                        : 'text-gray-600 hover:bg-gray-100'}`}
+                                        ${
+                                        // active styles: mobile uses broader set, desktop uses narrower set
+                                        (isMobileMoreActive)  // isMobileMoreActive is a superset so covers both
+                                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
+                                            : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
                                 >
                                     <MoreHorizontal className="w-4 h-4" />
-                                    <span>{isMoreActive ? activeMoreLabel : 'More'}</span>
+                                    {/* Label: show active tab name when a collapsed tab is active */}
+                                    <span>
+                                        {isMobileMoreActive
+                                            ? (mobileActiveMoreLabel ?? desktopActiveMoreLabel ?? 'More')
+                                            : 'More'}
+                                    </span>
                                     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showMoreDropdown ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 {showMoreDropdown && (
                                     <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
-                                        {MORE_ITEMS.map(({ value, icon: Icon, label }) => (
-                                            <button
-                                                key={value}
-                                                onClick={() => handleTabChange(value)}
-                                                className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors
-                                                    ${activeTab === value
-                                                    ? 'bg-blue-50 text-blue-700 font-semibold'
-                                                    : 'text-gray-700 hover:bg-gray-50'}`}
-                                            >
-                                                <Icon className="w-4 h-4 shrink-0" />
-                                                {label}
-                                            </button>
-                                        ))}
+                                        {/*
+                                            Mobile: render ALL MOBILE_MORE_ITEMS
+                                            Desktop: render only MORE_ITEMS
+                                            We achieve this with sm: visibility classes on two separate lists.
+                                        */}
+
+                                        {/* Mobile list */}
+                                        <div className="sm:hidden">
+                                            {MOBILE_MORE_ITEMS.map(({ value, icon: Icon, label }) => (
+                                                <button
+                                                    key={value}
+                                                    onClick={() => handleTabChange(value)}
+                                                    className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors
+                                                        ${activeTab === value
+                                                        ? 'bg-blue-50 text-blue-700 font-semibold'
+                                                        : 'text-gray-700 hover:bg-gray-50'}`}
+                                                >
+                                                    <Icon className="w-4 h-4 shrink-0" />
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* Desktop list */}
+                                        <div className="hidden sm:block">
+                                            {MORE_ITEMS.map(({ value, icon: Icon, label }) => (
+                                                <button
+                                                    key={value}
+                                                    onClick={() => handleTabChange(value)}
+                                                    className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors
+                                                        ${activeTab === value
+                                                        ? 'bg-blue-50 text-blue-700 font-semibold'
+                                                        : 'text-gray-700 hover:bg-gray-50'}`}
+                                                >
+                                                    <Icon className="w-4 h-4 shrink-0" />
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* ── Tab content ── */}
+                        {/* ── Tab content (unchanged) ── */}
                         <TabsContent value="plan">
                             <GatedFeature featureName="Study Plans">
                                 <PlanTab subjects={subjects} studyPack={dashboardData?.studyPacks.length || 0} />
