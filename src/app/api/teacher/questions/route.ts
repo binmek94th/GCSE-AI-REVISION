@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const rawSubject = searchParams.get('subject');
+        const flag = searchParams.get('flag')
         const subject = rawSubject ? formatPackId(rawSubject) : "all";
         const type = searchParams.get('type');
         const status = searchParams.get('status');
@@ -35,6 +36,9 @@ export async function GET(request: NextRequest) {
 
         if (type && type !== 'all')
             query = query.where('question_type', '==', type) as any;
+
+        if (flag && flag !== "all")
+            query = query.where('flag', '==', flag) as any;
 
         // Handle status filtering
         if (status && status !== 'all') {

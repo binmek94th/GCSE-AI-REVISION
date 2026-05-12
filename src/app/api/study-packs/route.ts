@@ -26,10 +26,6 @@ export async function GET(req: Request) {
 
         const examBoard = userDoc.data()?.preferences?.examBoard;
 
-        console.log(userDoc.data().preferences);
-
-        console.log(examBoard);
-
         if (!examBoard) {
             return NextResponse.json(
                 { error: "Exam board not set in preferences" },
