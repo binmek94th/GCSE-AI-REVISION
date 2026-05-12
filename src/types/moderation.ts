@@ -26,6 +26,7 @@ export interface Question {
   created_at: any;
   correctAnswer: string;
   updated_at: any;
+  flag: string;
   moderation_status?: 'pending' | 'approved' | 'rejected' | 'deleted';
   moderated_at?: any;
   moderation_notes?: string;

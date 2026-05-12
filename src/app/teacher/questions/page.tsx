@@ -15,6 +15,7 @@ export default function QuestionsModeration() {
     const [filters, setFilters] = useState({
         subject: '',
         status: 'all',
+        flag: 'all',
     });
 
     // Pagination state
@@ -56,6 +57,7 @@ export default function QuestionsModeration() {
             const params = new URLSearchParams();
             if (filters.subject) params.append('subject', filters.subject);
             if (filters.status) params.append('status', filters.status);
+            if (filters.flag && filters.flag !== 'all') params.append('flag', filters.flag);
             params.append('page', page.toString());
             params.append('limit', pagination.limit.toString());
             if (lastDocId) params.append('lastDocId', lastDocId);
@@ -166,8 +168,6 @@ export default function QuestionsModeration() {
 
             if (data.success) {
                 toast.success('Question updated successfully!');
-
-                // Update local state with the updated question
                 updateQuestionInList(selectedQuestion.id, data.question);
                 setEditMode(false);
             } else {
@@ -194,17 +194,14 @@ export default function QuestionsModeration() {
 
             if (response.ok) {
                 toast.success('Question approved!');
-
                 updateQuestionInList(selectedQuestion.id, {
                     moderation_status: 'approved',
                     moderation_notes: editForm.moderation_notes,
                 });
-
                 if (filters.status === 'pending') {
                     removeQuestionFromList(selectedQuestion.id);
                 }
-            }
-            else {
+            } else {
                 toast.error("Error approving question");
             }
         } catch (error) {
@@ -231,17 +228,16 @@ export default function QuestionsModeration() {
 
             if (response.ok) {
                 toast.success('Question rejected');
-
                 updateQuestionInList(selectedQuestion.id, {
                     moderation_status: 'rejected',
                     moderation_notes: notes,
                 });
-
                 if (filters.status === 'pending') {
                     removeQuestionFromList(selectedQuestion.id);
                 }
+            } else {
+                toast.error('Error rejecting question');
             }
-            else toast.error('Error rejecting question');
         } catch (error) {
             console.error('Error rejecting question:', error);
             toast.error("Error rejecting question");
@@ -259,10 +255,10 @@ export default function QuestionsModeration() {
 
             if (response.ok) {
                 toast.success('Question deleted');
-
                 removeQuestionFromList(selectedQuestion.id);
+            } else {
+                toast.error('Error deleting question');
             }
-            else toast.error('Error deleting question');
         } catch (error) {
             console.error('Error deleting question:', error);
             toast.error("Error deleting question");
@@ -287,12 +283,12 @@ export default function QuestionsModeration() {
         setEditForm(prev => ({ ...prev, options: newOptions }));
     };
 
-    // Helper function to get the correct answer text
-    const getCorrectAnswerText = (question: Question): string => {
-        if (typeof question.options === 'object' && !Array.isArray(question.options)) {
-            return question.options[question.correctAnswer] || question.correct_answer || '';
+    const getStatusBadgeClass = (status: string | undefined) => {
+        switch (status) {
+            case 'approved': return 'bg-green-100 text-green-800';
+            case 'rejected': return 'bg-red-100 text-red-800';
+            default:         return 'bg-yellow-100 text-yellow-800'; // pending
         }
-        return question.correct_answer || '';
     };
 
     return (
@@ -302,13 +298,12 @@ export default function QuestionsModeration() {
 
                 {/* Filters */}
                 <div className="bg-white rounded-lg shadow p-4 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         {/* Subject */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Subject
                             </label>
-
                             <Select
                                 value={filters.subject}
                                 onValueChange={(value) =>
@@ -329,11 +324,11 @@ export default function QuestionsModeration() {
                             </Select>
                         </div>
 
+                        {/* Status */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Status
                             </label>
-
                             <Select
                                 value={filters.status}
                                 onValueChange={(value) =>
@@ -345,15 +340,30 @@ export default function QuestionsModeration() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Status</SelectItem>
-                                    <SelectItem key={"pending"} value={"pending"}>
-                                        pending
-                                    </SelectItem>
-                                    <SelectItem key={"approved"} value={"approved"}>
-                                        approved
-                                    </SelectItem>
-                                    <SelectItem key={"rejected"} value={"rejected"}>
-                                        rejected
-                                    </SelectItem>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="approved">Approved</SelectItem>
+                                    <SelectItem value="rejected">Rejected</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Flag */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Flag
+                            </label>
+                            <Select
+                                value={filters.flag}
+                                onValueChange={(value) =>
+                                    setFilters(prev => ({ ...prev, flag: value }))
+                                }
+                            >
+                                <SelectTrigger className="w-full cursor-pointer">
+                                    <SelectValue placeholder="All Flags" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Flags</SelectItem>
+                                    <SelectItem value="irrelevant">Irrelevant</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -361,7 +371,7 @@ export default function QuestionsModeration() {
                         {/* Reset */}
                         <div className="flex items-end">
                             <button
-                                onClick={() => setFilters({ subject: "all", status: "" })}
+                                onClick={() => setFilters({ subject: 'all', status: 'all', flag: 'all' })}
                                 className="w-full px-3 py-2 border cursor-pointer border-gray-300 rounded-md text-sm bg-gray-50 hover:bg-gray-100"
                             >
                                 Reset Filters
@@ -370,7 +380,7 @@ export default function QuestionsModeration() {
                     </div>
                 </div>
 
-                { loading ? <Spinner></Spinner> :
+                {loading ? <Spinner /> :
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Questions List */}
                         <div className="bg-white rounded-lg shadow">
@@ -378,9 +388,7 @@ export default function QuestionsModeration() {
                                 <h2 className="text-xl font-semibold">Questions ({questions.length})</h2>
                             </div>
                             <div className="overflow-y-auto max-h-[calc(100vh-400px)]">
-                                {loading ? (
-                                    <Spinner></Spinner>
-                                ) : questions.length === 0 ? (
+                                {questions.length === 0 ? (
                                     <div className="p-8 text-center text-gray-500">No questions found</div>
                                 ) : (
                                     questions.map((question) => (
@@ -396,29 +404,26 @@ export default function QuestionsModeration() {
                                                     <p className="font-medium text-gray-900 line-clamp-2">
                                                         {question.question}
                                                     </p>
-                                                    <div className="flex gap-2 mt-2">
-                          <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                            {question.subject}
-                          </span>
+                                                    <div className="flex flex-wrap gap-2 mt-2">
                                                         <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                            {question.difficulty}
-                          </span>
+                                                            {question.subject}
+                                                        </span>
                                                         <span className="text-xs px-2 py-1 bg-gray-100 rounded">
-                            {question.tier}
-                          </span>
+                                                            {question.difficulty}
+                                                        </span>
+                                                        <span className="text-xs px-2 py-1 bg-gray-100 rounded">
+                                                            {question.tier}
+                                                        </span>
+                                                        {question.flag && (
+                                                            <span className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded font-medium">
+                                                                🚩 {question.flag}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
-                                                <span
-                                                    className={`ml-2 px-2 py-1 text-xs font-medium rounded whitespace-nowrap ${
-                                                        question.moderation_status === 'approved'
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : question.moderation_status === 'rejected'
-                                                                ? 'bg-red-100 text-red-800'
-                                                                : 'bg-yellow-100 text-yellow-800'
-                                                    }`}
-                                                >
-                        {question.moderation_status || 'pending'}
-                      </span>
+                                                <span className={`ml-2 px-2 py-1 text-xs font-medium rounded whitespace-nowrap ${getStatusBadgeClass(question.moderation_status)}`}>
+                                                    {question.moderation_status || 'pending'}
+                                                </span>
                                             </div>
                                         </div>
                                     ))
@@ -434,11 +439,7 @@ export default function QuestionsModeration() {
                                 >
                                     ← Previous
                                 </button>
-
-                                <span className="text-sm text-gray-700">
-                                Page {pagination.page}
-                            </span>
-
+                                <span className="text-sm text-gray-700">Page {pagination.page}</span>
                                 <button
                                     onClick={handleNextPage}
                                     disabled={!pagination.hasMore || loading}
@@ -471,6 +472,16 @@ export default function QuestionsModeration() {
                                                     <p className="text-sm font-medium text-gray-700 mb-2">Question:</p>
                                                     <p className="text-gray-900">{selectedQuestion.question}</p>
                                                 </div>
+
+                                                {/* Flag badge in detail view */}
+                                                {selectedQuestion.flag && (
+                                                    <div className="mb-4 flex items-center gap-2">
+                                                        <span className="text-sm font-medium text-gray-700">Flag:</span>
+                                                        <span className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded font-medium">
+                                                            🚩 {selectedQuestion.flag}
+                                                        </span>
+                                                    </div>
+                                                )}
 
                                                 <div className="mb-4">
                                                     <p className="text-sm font-medium text-gray-700 mb-2">Options:</p>
@@ -545,149 +556,143 @@ export default function QuestionsModeration() {
                                             </>
                                         ) : (
                                             // Edit Mode
-                                            <>
-                                                <div className="space-y-4">
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">Question Text</label>
-                                                        <textarea
-                                                            value={editForm.question_text}
-                                                            onChange={(e) => setEditForm(prev => ({ ...prev, question_text: e.target.value }))}
-                                                            rows={3}
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                        />
-                                                    </div>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Question Text</label>
+                                                    <textarea
+                                                        value={editForm.question_text}
+                                                        onChange={(e) => setEditForm(prev => ({ ...prev, question_text: e.target.value }))}
+                                                        rows={3}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                                    />
+                                                </div>
 
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                            Options
-                                                        </label>
-                                                        <div className="space-y-2">
-                                                            {editForm.options.map((option, index) => (
-                                                                <div key={index} className="flex gap-2">
-                                                                    <input
-                                                                        type="text"
-                                                                        value={option}
-                                                                        onChange={(e) => handleOptionChange(index, e.target.value)}
-                                                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-                                                                        placeholder={`Option ${index + 1}`}
-                                                                    />
-                                                                    {editForm.options.length > 2 && (
-                                                                        <button
-                                                                            onClick={() => handleRemoveOption(index)}
-                                                                            className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                                                                        >
-                                                                            Remove
-                                                                        </button>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                        {editForm.options.length < 6 && (
-                                                            <button
-                                                                onClick={handleAddOption}
-                                                                className="mt-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-                                                            >
-                                                                Add Option
-                                                            </button>
-                                                        )}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Options</label>
+                                                    <div className="space-y-2">
+                                                        {editForm.options.map((option, index) => (
+                                                            <div key={index} className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    value={option}
+                                                                    onChange={(e) => handleOptionChange(index, e.target.value)}
+                                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                                                                    placeholder={`Option ${index + 1}`}
+                                                                />
+                                                                {editForm.options.length > 2 && (
+                                                                    <button
+                                                                        onClick={() => handleRemoveOption(index)}
+                                                                        className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                                                    >
+                                                                        Remove
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ))}
                                                     </div>
+                                                    {editForm.options.length < 6 && (
+                                                        <button
+                                                            onClick={handleAddOption}
+                                                            className="mt-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                                                        >
+                                                            Add Option
+                                                        </button>
+                                                    )}
+                                                </div>
 
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
+                                                    <select
+                                                        value={editForm.correct_answer}
+                                                        onChange={(e) => setEditForm(prev => ({ ...prev, correct_answer: e.target.value }))}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                                    >
+                                                        <option value="">Select correct answer</option>
+                                                        {editForm.options.map((option, index) => (
+                                                            <option key={index} value={option}>{option}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Explanation</label>
+                                                    <textarea
+                                                        value={editForm.explanation}
+                                                        onChange={(e) => setEditForm(prev => ({ ...prev, explanation: e.target.value }))}
+                                                        rows={3}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                                    />
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
                                                         <select
-                                                            value={editForm.correct_answer}
-                                                            onChange={(e) => setEditForm(prev => ({ ...prev, correct_answer: e.target.value }))}
+                                                            value={editForm.subject}
+                                                            onChange={(e) => setEditForm(prev => ({ ...prev, subject: e.target.value }))}
                                                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                                         >
-                                                            <option value="">Select correct answer</option>
-                                                            {editForm.options.map((option, index) => (
-                                                                <option key={index} value={option}>
-                                                                    {option}
-                                                                </option>
-                                                            ))}
+                                                            <option value="Mathematics">Mathematics</option>
+                                                            <option value="English">English</option>
+                                                            <option value="Chemistry">Chemistry</option>
+                                                            <option value="Biology">Biology</option>
+                                                            <option value="Physics">Physics</option>
                                                         </select>
                                                     </div>
 
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">Explanation</label>
-                                                        <textarea
-                                                            value={editForm.explanation}
-                                                            onChange={(e) => setEditForm(prev => ({ ...prev, explanation: e.target.value }))}
-                                                            rows={3}
+                                                        <label className="block text-sm font-medium text-gray-700 mb-2">Topic</label>
+                                                        <input
+                                                            type="text"
+                                                            value={editForm.topic}
+                                                            onChange={(e) => setEditForm(prev => ({ ...prev, topic: e.target.value }))}
                                                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                                         />
-                                                    </div>
-
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-                                                            <select
-                                                                value={editForm.subject}
-                                                                onChange={(e) => setEditForm(prev => ({ ...prev, subject: e.target.value }))}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                            >
-                                                                <option value="Mathematics">Mathematics</option>
-                                                                <option value="English">English</option>
-                                                                <option value="Chemistry">Chemistry</option>
-                                                                <option value="Biology">Biology</option>
-                                                                <option value="Physics">Physics</option>
-                                                            </select>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-2">Topic</label>
-                                                            <input
-                                                                type="text"
-                                                                value={editForm.topic}
-                                                                onChange={(e) => setEditForm(prev => ({ ...prev, topic: e.target.value }))}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                            />
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
-                                                            <select
-                                                                value={editForm.difficulty}
-                                                                onChange={(e) => setEditForm(prev => ({ ...prev, difficulty: e.target.value as any }))}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                            >
-                                                                <option value="easy">Easy</option>
-                                                                <option value="medium">Medium</option>
-                                                                <option value="hard">Hard</option>
-                                                            </select>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-                                                            <select
-                                                                value={editForm.question_type}
-                                                                onChange={(e) => setEditForm(prev => ({ ...prev, question_type: e.target.value as any }))}
-                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                            >
-                                                                <option value="quiz">Quiz</option>
-                                                                <option value="mock_test">Mock Test</option>
-                                                            </select>
-                                                        </div>
                                                     </div>
 
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-2">Moderation Notes</label>
-                                                        <textarea
-                                                            value={editForm.moderation_notes}
-                                                            onChange={(e) => setEditForm(prev => ({ ...prev, moderation_notes: e.target.value }))}
-                                                            rows={3}
+                                                        <label className="block text-sm font-medium text-gray-700 mb-2">Difficulty</label>
+                                                        <select
+                                                            value={editForm.difficulty}
+                                                            onChange={(e) => setEditForm(prev => ({ ...prev, difficulty: e.target.value as any }))}
                                                             className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                                        />
+                                                        >
+                                                            <option value="easy">Easy</option>
+                                                            <option value="medium">Medium</option>
+                                                            <option value="hard">Hard</option>
+                                                        </select>
                                                     </div>
 
-                                                    <button
-                                                        onClick={handleUpdateQuestion}
-                                                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                                                    >
-                                                        Save Changes
-                                                    </button>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                                                        <select
+                                                            value={editForm.question_type}
+                                                            onChange={(e) => setEditForm(prev => ({ ...prev, question_type: e.target.value as any }))}
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                                        >
+                                                            <option value="quiz">Quiz</option>
+                                                            <option value="mock_test">Mock Test</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
-                                            </>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">Moderation Notes</label>
+                                                    <textarea
+                                                        value={editForm.moderation_notes}
+                                                        onChange={(e) => setEditForm(prev => ({ ...prev, moderation_notes: e.target.value }))}
+                                                        rows={3}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                                    />
+                                                </div>
+
+                                                <button
+                                                    onClick={handleUpdateQuestion}
+                                                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                                >
+                                                    Save Changes
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </>
