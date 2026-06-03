@@ -103,6 +103,7 @@ function Dashboard() {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            console.log(currentUser);
             if (!currentUser) { router.push("/auth/login"); return; }
             if (!currentUser.emailVerified) { router.push("/verify-email"); return; }
 

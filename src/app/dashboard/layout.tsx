@@ -17,6 +17,7 @@ export default function DashboardLayout({
 
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, (user) => {
+            console.log(user);
             if (!user) {
                 router.replace('/auth/login');
                 return;

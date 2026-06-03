@@ -20,7 +20,6 @@ interface Stats {
 }
 
 export default function TeacherDashboard() {
-    const router = useRouter();
     const [stats, setStats] = useState<Stats>({
         materials: { total: 0, pending: 0, approved: 0, rejected: 0 },
         questions: { total: 0, pending: 0, approved: 0, rejected: 0 },
