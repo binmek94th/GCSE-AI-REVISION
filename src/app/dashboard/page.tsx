@@ -177,6 +177,8 @@ function Dashboard() {
     const desktopActiveMoreLabel = MORE_ITEMS.find(i => i.value === activeTab)?.label;
     const mobileActiveMoreLabel  = MOBILE_MORE_ITEMS.find(i => i.value === activeTab)?.label;
 
+    const currentStreak = dashboardData?.streak.currentStreak ?? 0;
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
             {showMoodChecker && <MoodChecker onClose={closeMoodChecker} onSubmit={handleSubmitMood} />}
@@ -200,10 +202,17 @@ function Dashboard() {
                         {dashboardData && (
                             <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200">
                                 <span className="text-2xl">🔥</span>
-                                <div>
-                                    <div className="text-sm font-semibold text-gray-900">{dashboardData.streak.currentStreak} Day Streak</div>
-                                    {dashboardData.streak.currentStreak > 2 && <div className="text-xs text-gray-500">Keep it up!</div>}
-                                </div>
+                                {currentStreak > 0 ? (
+                                    <div>
+                                        <div className="text-sm font-semibold text-gray-900">{currentStreak} Day Streak</div>
+                                        {currentStreak > 2 && <div className="text-xs text-gray-500">Keep it up!</div>}
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <div className="text-sm font-semibold text-gray-900">Start your streak today</div>
+                                        <div className="text-xs text-gray-500">Study to begin a streak</div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -290,23 +299,18 @@ function Dashboard() {
 
                             <span className="w-px h-5 bg-gray-200 shrink-0 mx-1" />
 
-                            {/* ── More dropdown ──
-                                On desktop: shows the old MORE_TABS (studypack, my-materials, etc.)
-                                On mobile:  shows ALL collapsed tabs via MOBILE_MORE_ITEMS
-                            */}
+                            {/* ── More dropdown ── */}
                             <div className="relative shrink-0" ref={moreRef}>
                                 <button
                                     onClick={() => setShowMoreDropdown(v => !v)}
                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer
                                         ${
-                                        // active styles: mobile uses broader set, desktop uses narrower set
-                                        (isMobileMoreActive)  // isMobileMoreActive is a superset so covers both
+                                        (isMobileMoreActive)
                                             ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
                                             : 'text-gray-600 hover:bg-gray-100'
                                     }`}
                                 >
                                     <MoreHorizontal className="w-4 h-4" />
-                                    {/* Label: show active tab name when a collapsed tab is active */}
                                     <span>
                                         {isMobileMoreActive
                                             ? (mobileActiveMoreLabel ?? desktopActiveMoreLabel ?? 'More')
@@ -317,12 +321,6 @@ function Dashboard() {
 
                                 {showMoreDropdown && (
                                     <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
-                                        {/*
-                                            Mobile: render ALL MOBILE_MORE_ITEMS
-                                            Desktop: render only MORE_ITEMS
-                                            We achieve this with sm: visibility classes on two separate lists.
-                                        */}
-
                                         {/* Mobile list */}
                                         <div className="sm:hidden">
                                             {MOBILE_MORE_ITEMS.map(({ value, icon: Icon, label }) => (
@@ -361,7 +359,7 @@ function Dashboard() {
                             </div>
                         </div>
 
-                        {/* ── Tab content (unchanged) ── */}
+                        {/* ── Tab content ── */}
                         <TabsContent value="plan">
                             <GatedFeature featureName="Study Plans">
                                 <PlanTab subjects={subjects} studyPack={dashboardData?.studyPacks.length || 0} />

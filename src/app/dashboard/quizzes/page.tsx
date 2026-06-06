@@ -323,9 +323,20 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                             );
                         })
                     ) : (
-                        <p className="text-gray-500 text-center py-8">
-                            No quiz results yet. Start your first quiz!
-                        </p>
+                        <div className="flex flex-col items-center text-center py-8 gap-4">
+                            <p className="text-gray-500">No quiz results yet. Start your first quiz!</p>
+                            <Button
+                                className="bg-purple-600 hover:bg-purple-700 cursor-pointer"
+                                onClick={startQuiz}
+                                disabled={loading || !selectedPackId}
+                            >
+                                {loading ? (
+                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Loading Questions...</>
+                                ) : (
+                                    <><Play className="w-4 h-4 mr-2" />Start Quick Quiz</>
+                                )}
+                            </Button>
+                        </div>
                     )}
                 </CardContent>
             </Card>

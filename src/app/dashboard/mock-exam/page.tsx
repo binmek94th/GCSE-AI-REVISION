@@ -101,7 +101,7 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
     if (studyPack === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-full space-y-4">
-                <p className="text-gray-600">No subjects found. Please add study packs to take mock exam.</p>
+                <p className="text-gray-800">No subjects found. Please add study packs to take mock exam.</p>
                 <Button onClick={handleClick}>Browse Study Packs</Button>
             </div>
         );
@@ -185,13 +185,13 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <p className="text-gray-600">
+                    <p className="text-gray-800">
                         Take a comprehensive mock exam to assess your knowledge and exam readiness.
                     </p>
 
                     {/* Paper Selection */}
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">
+                        <label className="text-sm font-semibold text-gray-900">
                             Select Paper
                         </label>
                         <Select
@@ -217,7 +217,7 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
 
                     {/* Question Count Selection */}
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">
+                        <label className="text-sm font-semibold text-gray-900">
                             Exam Length
                         </label>
                         <Select
@@ -241,11 +241,11 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
                         </Select>
                     </div>
 
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800">
+                    <div className="p-3 bg-blue-50 border border-blue-300 rounded-lg">
+                        <p className="text-sm text-blue-900">
                             <strong>Note:</strong> Questions are intelligently selected based on your performance:
                         </p>
-                        <ul className="text-sm text-blue-700 mt-2 space-y-1 ml-4 list-disc">
+                        <ul className="text-sm text-blue-900 mt-2 space-y-1 ml-4 list-disc">
                             <li>Priority given to previously incorrect answers</li>
                             <li>Unstudied material included for comprehensive coverage</li>
                             <li>Timed exam environment to simulate exam conditions</li>
@@ -253,8 +253,8 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
                     </div>
 
                     {error && (
-                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <p className="text-sm text-red-600">{error}</p>
+                        <div className="p-3 bg-red-50 border border-red-300 rounded-lg">
+                            <p className="text-sm font-medium text-red-700">{error}</p>
                         </div>
                     )}
 
@@ -294,21 +294,21 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
                     ) : mockTestHistory.length > 0 ? (
                         <div className="space-y-3">
                             {mockTestHistory.map((test) => (
-                                <div key={test.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                <div key={test.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors">
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <h4 className="text-gray-900 font-semibold">{test.subject}</h4>
-                                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                                    test.score >= 90 ? 'bg-green-100 text-green-700' :
-                                                        test.score >= 80 ? 'bg-blue-100 text-blue-700' :
-                                                            test.score >= 70 ? 'bg-yellow-100 text-yellow-700' :
-                                                                'bg-orange-100 text-orange-700'
+                                                <h4 className="text-gray-900 font-bold">{test.subject}</h4>
+                                                <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                                    test.score >= 90 ? 'bg-green-100 text-green-800' :
+                                                        test.score >= 80 ? 'bg-blue-100 text-blue-800' :
+                                                            test.score >= 70 ? 'bg-yellow-100 text-yellow-800' :
+                                                                'bg-orange-100 text-orange-800'
                                                 }`}>
                                                     {test.score}%
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-3 text-sm text-gray-600">
+                                            <div className="flex items-center gap-3 text-sm font-medium text-gray-700">
                                                 <span>{formatDate(test.date)}</span>
                                                 <span>•</span>
                                                 <span>{test.correctCount}/{test.totalCount} correct</span>
@@ -334,9 +334,23 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-8">
-                            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-500">No mock exams completed yet. Start your first mock exam!</p>
+                        <div className="flex flex-col items-center text-center py-8">
+                            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p className="text-gray-700 font-medium mb-4">No mock exams completed yet. Start your first mock exam!</p>
+                            <Button
+                                className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                                onClick={startMockTest}
+                                disabled={loading || !selectedPaperId}
+                            >
+                                {loading ? (
+                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Preparing Exam...</>
+                                ) : (
+                                    <><Play className="w-4 h-4 mr-2" />Start Mock Exam</>
+                                )}
+                            </Button>
+                            {!selectedPaperId && (
+                                <p className="text-xs text-gray-500 mt-2">Pick a paper above to begin.</p>
+                            )}
                         </div>
                     )}
                 </CardContent>
@@ -350,25 +364,25 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="p-4 bg-blue-50 rounded-lg">
-                                <p className="text-sm text-gray-600 mb-1">Exams Completed</p>
-                                <p className="text-2xl font-bold text-blue-600">{mockTestHistory.length}</p>
+                            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-sm font-semibold text-gray-700 mb-1">Exams Completed</p>
+                                <p className="text-2xl font-bold text-blue-700">{mockTestHistory.length}</p>
                             </div>
-                            <div className="p-4 bg-green-50 rounded-lg">
-                                <p className="text-sm text-gray-600 mb-1">Average Score</p>
-                                <p className="text-2xl font-bold text-green-600">
+                            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                                <p className="text-sm font-semibold text-gray-700 mb-1">Average Score</p>
+                                <p className="text-2xl font-bold text-green-700">
                                     {Math.round(mockTestHistory.reduce((acc, t) => acc + t.score, 0) / mockTestHistory.length)}%
                                 </p>
                             </div>
-                            <div className="p-4 bg-purple-50 rounded-lg">
-                                <p className="text-sm text-gray-600 mb-1">Best Score</p>
-                                <p className="text-2xl font-bold text-purple-600">
+                            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                                <p className="text-sm font-semibold text-gray-700 mb-1">Best Score</p>
+                                <p className="text-2xl font-bold text-purple-700">
                                     {Math.max(...mockTestHistory.map(t => t.score))}%
                                 </p>
                             </div>
-                            <div className="p-4 bg-orange-50 rounded-lg">
-                                <p className="text-sm text-gray-600 mb-1">Total Questions</p>
-                                <p className="text-2xl font-bold text-orange-600">
+                            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                                <p className="text-sm font-semibold text-gray-700 mb-1">Total Questions</p>
+                                <p className="text-2xl font-bold text-orange-700">
                                     {mockTestHistory.reduce((acc, t) => acc + t.totalCount, 0)}
                                 </p>
                             </div>
