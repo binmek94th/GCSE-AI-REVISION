@@ -199,15 +199,15 @@ function HomePage() {
                             className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4"
                         >
                             <button
-                                onClick={() => onNavigate('/onboarding')}
-                                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors shadow-lg text-sm sm:text-base"
+                                onClick={() => onNavigate('/auth/signup')}
+                                className="w-full cursor-pointer sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors shadow-lg text-sm sm:text-base"
                                 style={{ boxShadow: '0 8px 24px rgba(147,51,234,0.3)' }}
                             >
                                 Start Free Study Plan
                             </button>
                             <button
                                 onClick={() => onNavigate('/subjects')}
-                                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors border-2 border-purple-200 text-sm sm:text-base"
+                                className="w-full cursor-pointer sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors border-2 border-purple-200 text-sm sm:text-base"
                             >
                                 See How It Works
                             </button>
@@ -585,7 +585,7 @@ function HomePage() {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
-                                    className={`py-2.5 px-3 sm:px-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                                    className={`py-2.5 px-3 cursor-pointer sm:px-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
                                         activeTab === tab.id
                                             ? 'bg-white text-purple-600 shadow-md'
                                             : 'text-gray-500 hover:text-gray-700'
@@ -745,7 +745,7 @@ function HomePage() {
                     </motion.div>
                     <button
                         onClick={() => onNavigate('/onboarding')}
-                        className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors text-sm sm:text-base"
+                        className="w-full sm:w-auto px-6 cursor-pointer sm:px-8 py-3 sm:py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors text-sm sm:text-base"
                         style={{ boxShadow: '0 8px 24px rgba(147,51,234,0.3)' }}
                     >
                         Start Free and Try It
@@ -842,7 +842,7 @@ function HomePage() {
                             </ul>
                             <button
                                 onClick={() => onNavigate('/onboarding')}
-                                className="w-full py-3 bg-gray-100 text-gray-900 rounded-full font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base"
+                                className="w-full py-3 bg-gray-100 cursor-pointer text-gray-900 rounded-full font-semibold hover:bg-gray-200 transition-colors text-sm sm:text-base"
                             >
                                 Start Free
                             </button>
@@ -880,7 +880,7 @@ function HomePage() {
                             </ul>
                             <button
                                 onClick={() => onNavigate('/onboarding')}
-                                className="w-full py-3 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors text-sm sm:text-base"
+                                className="w-full py-3 bg-purple-600 cursor-pointer text-white rounded-full font-semibold hover:bg-purple-700 transition-colors text-sm sm:text-base"
                                 style={{ boxShadow: '0 6px 20px rgba(147,51,234,0.3)' }}
                             >
                                 Go Pro Monthly
@@ -920,7 +920,7 @@ function HomePage() {
                             </ul>
                             <button
                                 onClick={() => onNavigate('/onboarding')}
-                                className="w-full py-3 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors shadow-lg text-sm sm:text-base"
+                                className="w-full cursor-pointer py-3 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors shadow-lg text-sm sm:text-base"
                             >
                                 Go Pro Annual
                             </button>
@@ -958,7 +958,7 @@ function HomePage() {
                             >
                                 <button
                                     onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                                    className="w-full px-4 sm:px-6 py-4 sm:py-5 flex justify-between items-center text-left hover:bg-gray-50 transition-colors gap-3"
+                                    className="w-full px-4 cursor-pointer sm:px-6 py-4 sm:py-5 flex justify-between items-center text-left hover:bg-gray-50 transition-colors gap-3"
                                 >
                                     <span className="font-semibold text-gray-900 text-sm sm:text-base">{faq.q}</span>
                                     <ChevronDown
@@ -1007,14 +1007,14 @@ function HomePage() {
                     >
                         <button
                             onClick={() => onNavigate('/onboarding')}
-                            className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors text-sm sm:text-base"
+                            className="w-full sm:w-auto cursor-pointer px-6 sm:px-8 py-3 sm:py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors text-sm sm:text-base"
                             style={{ boxShadow: '0 8px 24px rgba(147,51,234,0.3)' }}
                         >
                             Start Free Study Plan
                         </button>
                         <button
-                            onClick={() => onNavigate('/pricing')}
-                            className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors border-2 border-purple-200 text-sm sm:text-base"
+                            onClick={() => onNavigate('/subscribe')}
+                            className="w-full cursor-pointer sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors border-2 border-purple-200 text-sm sm:text-base"
                         >
                             See Pricing
                         </button>
@@ -1063,7 +1063,7 @@ function HomePage() {
                             <h4 className="font-semibold text-white mb-3 sm:mb-4 text-sm sm:text-base">Subjects</h4>
                             <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                                 {['GCSE Maths', 'GCSE Science', 'A Level Maths', 'View all subjects'].map((l, i) => (
-                                    <li key={i}><a href="#" className="hover:text-white transition-colors">{l}</a></li>
+                                    <li key={i}><a href="/subjects" className="hover:text-white transition-colors">{l}</a></li>
                                 ))}
                             </ul>
                         </div>
@@ -1073,9 +1073,9 @@ function HomePage() {
                             <h4 className="font-semibold text-white mb-3 sm:mb-4 text-sm sm:text-base">Support</h4>
                             <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
                                 {[
-                                    { label: 'Pricing', href: '/pricing' },
-                                    { label: 'Help Centre', href: '#' },
-                                    { label: 'Contact', href: '#' },
+                                    { label: 'Pricing', href: '/subscribe' },
+                                    { label: 'Contact', href: '/support' },
+                                    { label: 'Cookies', href: '/cookies' },
                                     { label: 'Privacy Policy', href: '/privacy' },
                                     { label: 'Terms of Service', href: '/terms' },
                                 ].map((l, i) => (
