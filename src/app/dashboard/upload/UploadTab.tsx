@@ -3,11 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { auth, db } from '@/lib/firebase';
 import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc } from 'firebase/firestore';
+import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'firebase/storage';
+import Link from 'next/link';
 import {
     Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from '@/app/components/ui/select';
-import Link from 'next/link'
-import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'firebase/storage';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import {
+    Upload, FileText, Sparkles, Save, CalendarPlus, Check, Loader2,
+    Layers, HelpCircle, Copy, BookOpen, X, RotateCcw, AlertCircle,
+} from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,11 +46,11 @@ const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
     a_level: 'A Level',
 };
 
-const MODE_OPTIONS: { value: GenerationMode; label: string; description: string; icon: string; color: string }[] = [
-    { value: 'both',       label: 'Full package',    description: 'Study notes + quiz questions', icon: '📚', color: '#EFF6FF' },
-    { value: 'materials',  label: 'Study notes only', description: 'Summaries & key concepts',    icon: '📝', color: '#F0FDF4' },
-    { value: 'questions',  label: 'Questions only',   description: 'MCQ quiz questions',          icon: '❓', color: '#FFFBEB' },
-    { value: 'flashcards', label: 'Flashcards',       description: 'Term & definition pairs',     icon: '🃏', color: '#FFF0F6' },
+const MODE_OPTIONS: { value: GenerationMode; label: string; description: string; icon: typeof Layers }[] = [
+    { value: 'both',       label: 'Full package',     description: 'Study notes + quiz questions', icon: Layers },
+    { value: 'materials',  label: 'Study notes only', description: 'Summaries & key concepts',     icon: BookOpen },
+    { value: 'questions',  label: 'Questions only',   description: 'MCQ quiz questions',           icon: HelpCircle },
+    { value: 'flashcards', label: 'Flashcards',       description: 'Term & definition pairs',      icon: Copy },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -81,66 +87,34 @@ function AddToPlanModal({
     adding: boolean;
 }) {
     return (
-        <div style={{
-            position: 'fixed', inset: 0, zIndex: 100,
-            background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 16,
-        }}>
-            <div style={{
-                background: '#fff', borderRadius: 16, padding: '28px 24px',
-                maxWidth: 380, width: '100%',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-                fontFamily: "'Inter', system-ui, sans-serif",
-            }}>
-                {/* Icon */}
-                <div style={{
-                    width: 48, height: 48, borderRadius: 12, marginBottom: 16,
-                    background: 'linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22,
-                }}>📅</div>
-
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: '0 0 8px' }}>
-                    Add to your study plan?
-                </h3>
-                <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: '0 0 22px' }}>
-                    Your <strong style={{ color: '#111827' }}>{subjectName}</strong> materials have been saved.
-                    Would you like to add this subject to your daily study plan so it shows up in your schedule?
-                </p>
-
-                <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                        onClick={onSkip}
-                        disabled={adding}
-                        style={{
-                            flex: 1, padding: '10px', fontSize: 13, fontWeight: 500,
-                            borderRadius: 9, border: '1px solid #E5E7EB',
-                            background: '#F9FAFB', color: '#374151',
-                            cursor: adding ? 'not-allowed' : 'pointer',
-                            fontFamily: 'inherit',
-                        }}
-                    >
-                        Skip for now
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        disabled={adding}
-                        style={{
-                            flex: 1, padding: '10px', fontSize: 13, fontWeight: 500,
-                            borderRadius: 9, border: 'none',
-                            background: adding
-                                ? '#93C5FD'
-                                : 'linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%)',
-                            color: '#fff',
-                            cursor: adding ? 'not-allowed' : 'pointer',
-                            fontFamily: 'inherit',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        }}
-                    >
-                        {adding ? <><LoadingSpinner color="#fff" size={13} />Adding…</> : '✅ Yes, add to plan'}
-                    </button>
-                </div>
-            </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <Card className="max-w-sm w-full">
+                <CardContent className="pt-6 space-y-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center">
+                        <CalendarPlus className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="space-y-2">
+                        <h3 className="text-lg font-bold text-gray-900">Add to your study plan?</h3>
+                        <p className="text-sm text-gray-800 leading-relaxed">
+                            Your <span className="font-semibold text-gray-900">{subjectName}</span> materials have been
+                            saved. Would you like to add this subject to your daily study plan so it shows up in your
+                            schedule?
+                        </p>
+                    </div>
+                    <div className="flex gap-3 pt-1">
+                        <Button variant="outline" className="flex-1 cursor-pointer" onClick={onSkip} disabled={adding}>
+                            Skip for now
+                        </Button>
+                        <Button className="flex-1 bg-blue-600 hover:bg-blue-700 cursor-pointer" onClick={onConfirm} disabled={adding}>
+                            {adding ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Adding...</>
+                            ) : (
+                                <><Check className="w-4 h-4 mr-2" />Yes, add to plan</>
+                            )}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
@@ -348,47 +322,27 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                 />
             )}
 
-            <div style={{ colorScheme: 'light', fontFamily: "'Inter', system-ui, sans-serif", height: '100%' }}>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: content ? '360px 1fr' : '1fr',
-                    height: '100%',
-                    transition: 'grid-template-columns 0.25s ease',
-                }}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                    {/* ════ LEFT — Upload panel ════ */}
-                    <div style={{
-                        padding: '28px 24px',
-                        borderRight: content ? '1px solid #E5E7EB' : 'none',
-                        overflowY: 'auto',
-                        background: '#FAFAFA',
-                    }}>
+                {/* ════ Upload / setup card ════ */}
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                            <Upload className="w-5 h-5 text-blue-600" />
+                            Generate from Notes
+                        </CardTitle>
+                        <Link
+                            href="/dashboard/generated_material"
+                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                        >
+                            My Materials
+                        </Link>
+                    </CardHeader>
 
-                        <div style={{ marginBottom: 22 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                                    <div style={{
-                                        width: 32, height: 32, borderRadius: 8,
-                                        background: 'linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
-                                    }}>📎</div>
-                                    <h2 style={{ fontSize: 16, fontWeight: 500, color: '#111827', margin: 0 }}>
-                                        Generate from notes
-                                    </h2>
-                                </div>
-                                <div>
-                                    <Link
-                                        href="/dashboard/generated_material"
-                                        className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-                                    >
-                                        Materials
-                                    </Link>
-                                </div>
-                            </div>
-                            <p style={{ fontSize: 12.5, color: '#6B7280', lineHeight: 1.6, margin: 0 }}>
-                                Upload a PDF, photo, or paste text — create study materials saved to your account.
-                            </p>
-                        </div>
+                    <CardContent className="space-y-4">
+                        <p className="text-gray-800">
+                            Upload a PDF, photo, or paste text to create study materials saved to your account.
+                        </p>
 
                         <RateLimitBar remaining={remaining} limit={dailyLimit} isPro={isPro} />
 
@@ -401,114 +355,96 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                                 e.dataTransfer.files[0] && handleFile(e.dataTransfer.files[0]);
                             }}
                             onClick={() => !file && fileInputRef.current?.click()}
-                            style={{
-                                border: `2px dashed ${isDragging ? '#3B82F6' : '#D1D5DB'}`,
-                                borderRadius: 12,
-                                padding: file ? '12px 14px' : '24px 14px',
-                                textAlign: 'center',
-                                cursor: file ? 'default' : 'pointer',
-                                background: isDragging ? '#EFF6FF' : '#fff',
-                                transition: 'all 0.2s',
-                                marginBottom: 14,
-                            }}
+                            className={`rounded-lg border-2 border-dashed transition-colors ${
+                                isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
+                            } ${file ? 'p-3 cursor-default' : 'p-6 cursor-pointer hover:border-gray-400'}`}
                         >
                             <input
                                 ref={fileInputRef}
                                 type="file"
                                 accept=".pdf,.png,.jpg,.jpeg,.txt,.md"
-                                style={{ display: 'none' }}
+                                className="hidden"
                                 onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])}
                             />
 
                             {file ? (
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                        <div style={{
-                                            width: 34, height: 34, borderRadius: 8, background: '#EFF6FF',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0,
-                                        }}>
-                                            {file.type === 'application/pdf' ? '📄' : file.type.startsWith('image/') ? '🖼️' : '📃'}
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                            <FileText className="w-5 h-5 text-blue-600" />
                                         </div>
-                                        <div style={{ textAlign: 'left', minWidth: 0 }}>
-                                            <div style={{ fontSize: 12, fontWeight: 500, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
-                                                {file.name}
-                                            </div>
-                                            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 1 }}>
-                                                {(file.size / 1024).toFixed(0)} KB
-                                            </div>
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">{file.name}</div>
+                                            <div className="text-xs font-medium text-gray-600">{(file.size / 1024).toFixed(0)} KB</div>
                                         </div>
                                     </div>
-                                    <button
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="cursor-pointer"
                                         onClick={e => { e.stopPropagation(); clearFile(); }}
-                                        style={{
-                                            background: '#F3F4F6', border: 'none', borderRadius: 6,
-                                            width: 26, height: 26, cursor: 'pointer',
-                                            fontSize: 12, color: '#6B7280', flexShrink: 0,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        }}
-                                    >✕</button>
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </Button>
                                 </div>
                             ) : (
-                                <>
-                                    <div style={{ fontSize: 26, marginBottom: 6, opacity: 0.45 }}>☁️</div>
-                                    <div style={{ fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 3 }}>
-                                        Drop here or <span style={{ color: '#3B82F6' }}>browse</span>
+                                <div className="text-center">
+                                    <Upload className="w-7 h-7 text-gray-400 mx-auto mb-2" />
+                                    <div className="text-sm font-semibold text-gray-900">
+                                        Drop a file here or <span className="text-blue-600">browse</span>
                                     </div>
-                                    <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+                                    <div className="text-xs font-medium text-gray-600 mt-1">
                                         PDF, image or .txt · max {MAX_FILE_SIZE_MB}MB
                                     </div>
-                                </>
+                                </div>
                             )}
                         </div>
 
                         {!file && (
-                            <div style={{ marginBottom: 18 }}>
-                                <label style={s.sectionLabel}>Or paste notes</label>
+                            <div className="space-y-2">
+                                <label className="text-sm font-semibold text-gray-900">Or paste notes</label>
                                 <textarea
                                     value={pasteText}
                                     onChange={e => setPasteText(e.target.value)}
                                     rows={4}
                                     placeholder="Paste your notes, textbook excerpt, or any study content…"
-                                    style={{
-                                        width: '100%', fontSize: 12.5, borderRadius: 8,
-                                        border: '1px solid #E5E7EB', padding: '9px 11px',
-                                        background: '#fff', color: '#111827',
-                                        resize: 'vertical', lineHeight: 1.6,
-                                        outline: 'none', boxSizing: 'border-box',
-                                        fontFamily: 'inherit',
-                                    }}
+                                    className="w-full text-sm rounded-md border border-gray-300 p-3 text-gray-900 leading-relaxed resize-y outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 />
                             </div>
                         )}
 
-                        <div style={{ marginBottom: 18 }}>
-                            <label style={s.sectionLabel}>What to generate</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-                                {MODE_OPTIONS.map(opt => (
-                                    <button
-                                        key={opt.value}
-                                        onClick={() => setMode(opt.value)}
-                                        style={{
-                                            background: mode === opt.value ? opt.color : '#fff',
-                                            border: `1.5px solid ${mode === opt.value ? '#3B82F6' : '#E5E7EB'}`,
-                                            borderRadius: 10, padding: '10px 11px',
-                                            cursor: 'pointer', textAlign: 'left',
-                                            transition: 'all 0.15s', fontFamily: 'inherit',
-                                        }}
-                                    >
-                                        <div style={{ fontSize: 17, marginBottom: 4 }}>{opt.icon}</div>
-                                        <div style={{ fontSize: 12, fontWeight: 500, color: '#111827', marginBottom: 1 }}>{opt.label}</div>
-                                        <div style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.35 }}>{opt.description}</div>
-                                    </button>
-                                ))}
+                        {/* Mode selection */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-gray-900">What to generate</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {MODE_OPTIONS.map(opt => {
+                                    const Icon = opt.icon;
+                                    const selected = mode === opt.value;
+                                    return (
+                                        <button
+                                            key={opt.value}
+                                            onClick={() => setMode(opt.value)}
+                                            className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors cursor-pointer ${
+                                                selected
+                                                    ? 'border-blue-500 bg-blue-50'
+                                                    : 'border-gray-200 bg-white hover:border-gray-300'
+                                            }`}
+                                        >
+                                            <Icon className={`w-5 h-5 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                                            <span className="text-sm font-semibold text-gray-900">{opt.label}</span>
+                                            <span className="text-xs text-gray-600 leading-snug">{opt.description}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-                            <div style={{ flex: 1 }}>
-                                <label style={s.sectionLabel}>Difficulty</label>
+                        {/* Difficulty + count */}
+                        <div className="flex gap-3">
+                            <div className="flex-1 space-y-2">
+                                <label className="text-sm font-semibold text-gray-900">Difficulty</label>
                                 <Select value={difficulty} onValueChange={v => setDifficulty(v as DifficultyLevel)}>
-                                    <SelectTrigger className="w-full text-sm h-9"><SelectValue /></SelectTrigger>
+                                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectGroup>
                                             <SelectLabel>Level</SelectLabel>
@@ -521,12 +457,12 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                             </div>
 
                             {(mode === 'both' || mode === 'questions' || mode === 'flashcards') && (
-                                <div style={{ width: 100 }}>
-                                    <label style={s.sectionLabel}>
+                                <div className="w-28 space-y-2">
+                                    <label className="text-sm font-semibold text-gray-900">
                                         {mode === 'flashcards' ? 'Cards' : 'Questions'}
                                     </label>
                                     <Select value={String(questionCount)} onValueChange={v => setQuestionCount(Number(v))}>
-                                        <SelectTrigger className="w-full text-sm h-9"><SelectValue /></SelectTrigger>
+                                        <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                                         <SelectContent>
                                             <SelectGroup>
                                                 {Array.from({ length: 8 }, (_, i) => i + 3).map(n => (
@@ -540,50 +476,38 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                         </div>
 
                         {error && (
-                            <div style={{
-                                background: '#FEF2F2', border: '1px solid #FECACA',
-                                borderRadius: 8, padding: '9px 12px',
-                                fontSize: 12.5, color: '#DC2626', marginBottom: 14,
-                                display: 'flex', gap: 7, alignItems: 'flex-start',
-                            }}>
-                                <span style={{ flexShrink: 0 }}>⚠️</span>
-                                <span>{error}</span>
+                            <div className="p-3 bg-red-50 border border-red-300 rounded-lg flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 text-red-700 mt-0.5 flex-shrink-0" />
+                                <p className="text-sm font-medium text-red-700">{error}</p>
                             </div>
                         )}
 
-                        <button
+                        <Button
+                            className="w-full bg-blue-600 hover:bg-blue-700 cursor-pointer"
                             onClick={generate}
                             disabled={!canGenerate}
-                            style={{
-                                width: '100%', padding: '11px',
-                                fontSize: 13.5, fontWeight: 500, borderRadius: 10, border: 'none',
-                                background: canGenerate
-                                    ? 'linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%)'
-                                    : '#E5E7EB',
-                                color: canGenerate ? '#fff' : '#9CA3AF',
-                                cursor: canGenerate ? 'pointer' : 'not-allowed',
-                                transition: 'all 0.2s', fontFamily: 'inherit',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                                letterSpacing: '-0.01em',
-                            }}
                         >
-                            {generating ? <><LoadingSpinner color="#fff" size={15} />Generating…</> : '✨ Generate study materials'}
-                        </button>
-                    </div>
+                            {generating ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</>
+                            ) : (
+                                <><Sparkles className="w-4 h-4 mr-2" />Generate study materials</>
+                            )}
+                        </Button>
+                    </CardContent>
+                </Card>
 
-                    {/* ════ RIGHT — Viewer ════ */}
-                    {content && (
-                        <GeneratedViewer
-                            content={content}
-                            mode={mode}
-                            difficulty={difficulty}
-                            savedId={savedId}
-                            saving={saving}
-                            addedToPlan={addedToPlan}
-                            onSave={save}
-                        />
-                    )}
-                </div>
+                {/* ════ Generated viewer ════ */}
+                {content && (
+                    <GeneratedViewer
+                        content={content}
+                        mode={mode}
+                        difficulty={difficulty}
+                        savedId={savedId}
+                        saving={saving}
+                        addedToPlan={addedToPlan}
+                        onSave={save}
+                    />
+                )}
             </div>
         </>
     );
@@ -602,11 +526,11 @@ function GeneratedViewer({
     addedToPlan: boolean;
     onSave: () => void;
 }) {
-    const tabs: { key: ViewerTab; label: string; count: number; available: boolean }[] = [
-        { key: 'notes',      label: 'Study Notes', count: content.materials.length,  available: content.materials.length > 0 },
-        { key: 'questions',  label: 'Quiz',        count: content.questions.length,   available: content.questions.length > 0 },
-        { key: 'flashcards', label: 'Flashcards',  count: content.flashcards.length,  available: content.flashcards.length > 0 },
-    ].filter(t => t.available) as { key: ViewerTab; label: string; count: number; available: boolean }[];
+    const tabs = ([
+        { key: 'notes',      label: 'Study Notes', count: content.materials.length },
+        { key: 'questions',  label: 'Quiz',        count: content.questions.length },
+        { key: 'flashcards', label: 'Flashcards',  count: content.flashcards.length },
+    ] as { key: ViewerTab; label: string; count: number }[]).filter(t => t.count > 0);
 
     const [activeTab, setActiveTab] = useState<ViewerTab>(tabs[0]?.key ?? 'notes');
     const [answers, setAnswers]     = useState<Record<number, string>>({});
@@ -617,268 +541,190 @@ function GeneratedViewer({
         ? content.questions.filter((q, i) => q.choices.find(c => c.isCorrect)?.option === answers[i]).length
         : 0;
     const pct = content.questions.length ? Math.round((score / content.questions.length) * 100) : 0;
+    const answeredCount = Object.keys(answers).length;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', background: '#fff' }}>
-
-            {/* Sticky header */}
-            <div style={{
-                padding: '18px 24px 0',
-                borderBottom: '1px solid #E5E7EB',
-                background: '#fff',
-                position: 'sticky', top: 0, zIndex: 2,
-            }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
-                    <div style={{ minWidth: 0 }}>
-                        <h3 style={{ fontSize: 16, fontWeight: 500, color: '#111827', margin: '0 0 7px', lineHeight: 1.3 }}>
-                            {content.subject}
-                        </h3>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                            <span style={{ ...s.pill, background: '#EFF6FF', color: '#1D4ED8', borderColor: '#BFDBFE' }}>
+        <Card>
+            <CardHeader className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <CardTitle className="text-xl">{content.subject}</CardTitle>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
                                 {DIFFICULTY_LABELS[difficulty]}
                             </span>
                             {content.topics.slice(0, 3).map(t => (
-                                <span key={t} style={{ ...s.pill, background: '#F9FAFB', color: '#6B7280', borderColor: '#E5E7EB' }}>{t}</span>
+                                <span key={t} className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">{t}</span>
                             ))}
                         </div>
                     </div>
 
-                    {/* Save / saved state — shows "added to plan" badge when applicable */}
                     {!savedId ? (
-                        <button
-                            onClick={onSave}
-                            disabled={saving}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '8px 14px', fontSize: 12, fontWeight: 500,
-                                borderRadius: 8, border: 'none',
-                                cursor: saving ? 'not-allowed' : 'pointer',
-                                background: 'linear-gradient(135deg, #1D4ED8, #3B82F6)',
-                                color: '#fff', flexShrink: 0, opacity: saving ? 0.7 : 1,
-                                fontFamily: 'inherit', whiteSpace: 'nowrap',
-                                letterSpacing: '-0.01em',
-                            }}
-                        >
-                            {saving ? <LoadingSpinner color="#fff" size={12} /> : '💾'}
-                            {saving ? 'Saving…' : 'Save to account'}
-                        </button>
+                        <Button className="bg-blue-600 hover:bg-blue-700 cursor-pointer flex-shrink-0" size="sm" onClick={onSave} disabled={saving}>
+                            {saving ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
+                            ) : (
+                                <><Save className="w-4 h-4 mr-2" />Save to account</>
+                            )}
+                        </Button>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, flexShrink: 0 }}>
-                            <div style={{
-                                display: 'flex', alignItems: 'center', gap: 5,
-                                padding: '6px 12px', fontSize: 12, fontWeight: 500,
-                                borderRadius: 8, background: '#F0FDF4', color: '#16A34A',
-                                border: '1px solid #BBF7D0', whiteSpace: 'nowrap',
-                            }}>
-                                ✓ Saved
-                            </div>
+                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">
+                                <Check className="w-3.5 h-3.5" /> Saved
+                            </span>
                             {addedToPlan && (
-                                <div style={{
-                                    display: 'flex', alignItems: 'center', gap: 5,
-                                    padding: '4px 10px', fontSize: 11, fontWeight: 500,
-                                    borderRadius: 8, background: '#EFF6FF', color: '#1D4ED8',
-                                    border: '1px solid #BFDBFE', whiteSpace: 'nowrap',
-                                }}>
-                                    📅 Added to plan
-                                </div>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                    <CalendarPlus className="w-3.5 h-3.5" /> Added to plan
+                                </span>
                             )}
                         </div>
                     )}
                 </div>
 
                 {/* Tabs */}
-                <div style={{ display: 'flex', gap: 0, marginBottom: -1 }}>
+                <div className="flex gap-1 border-b border-gray-200 -mb-2">
                     {tabs.map(tab => (
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
-                            style={{
-                                padding: '8px 16px 11px',
-                                fontSize: 13, fontWeight: activeTab === tab.key ? 600 : 400,
-                                color: activeTab === tab.key ? '#1D4ED8' : '#6B7280',
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                borderBottom: `2px solid ${activeTab === tab.key ? '#3B82F6' : 'transparent'}`,
-                                fontFamily: 'inherit',
-                                display: 'flex', alignItems: 'center', gap: 6,
-                                transition: 'all 0.15s',
-                            }}
+                            className={`flex items-center gap-1.5 px-3 py-2 text-sm transition-colors cursor-pointer border-b-2 -mb-px ${
+                                activeTab === tab.key
+                                    ? 'border-blue-600 text-blue-700 font-bold'
+                                    : 'border-transparent text-gray-700 font-semibold hover:text-gray-900'
+                            }`}
                         >
                             {tab.label}
-                            {tab.count > 0 && (
-                                <span style={{
-                                    fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 20,
-                                    background: activeTab === tab.key ? '#EFF6FF' : '#F3F4F6',
-                                    color: activeTab === tab.key ? '#1D4ED8' : '#9CA3AF',
-                                }}>{tab.count}</span>
-                            )}
+                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                activeTab === tab.key ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
+                            }`}>{tab.count}</span>
                         </button>
                     ))}
                 </div>
-            </div>
+            </CardHeader>
 
-            {/* Content area */}
-            <div style={{ padding: '20px 24px', flex: 1 }}>
+            <CardContent className="space-y-3">
 
+                {/* ── Notes ── */}
                 {activeTab === 'notes' && content.materials.map((m, i) => (
-                    <div key={i} style={{ ...s.card, marginBottom: 10 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#3B82F6', flexShrink: 0 }} />
-                            <h4 style={{ fontSize: 13.5, fontWeight: 500, color: '#111827', margin: 0 }}>{m.title}</h4>
+                    <div key={i} className="p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+                            <h4 className="text-sm font-bold text-gray-900">{m.title}</h4>
                         </div>
-                        <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.75, margin: 0, fontWeight: 300 }}>{m.content}</p>
+                        <p className="text-sm text-gray-800 leading-relaxed">{m.content}</p>
                     </div>
                 ))}
 
+                {/* ── Quiz ── */}
                 {activeTab === 'questions' && (
                     <>
                         {submitted && (
-                            <div style={{
-                                background: pct >= 70 ? '#F0FDF4' : '#FEF2F2',
-                                border: `1px solid ${pct >= 70 ? '#BBF7D0' : '#FECACA'}`,
-                                borderRadius: 12, padding: '14px 18px', marginBottom: 16,
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            }}>
+                            <div className={`p-4 rounded-lg border flex items-center justify-between ${
+                                pct >= 70 ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'
+                            }`}>
                                 <div>
-                                    <div style={{ fontSize: 20, fontWeight: 500, color: pct >= 70 ? '#16A34A' : '#DC2626' }}>
+                                    <div className={`text-xl font-bold ${pct >= 70 ? 'text-green-800' : 'text-red-700'}`}>
                                         {score}/{content.questions.length} · {pct}%
                                     </div>
-                                    <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>
+                                    <div className="text-sm font-medium text-gray-800 mt-1">
                                         {pct === 100 ? '🎉 Perfect score!'
                                             : pct >= 70 ? 'Good effort — review the ones you missed.'
                                                 : "Keep revising — you'll get there!"}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => { setAnswers({}); setSubmitted(false); }}
-                                    style={{
-                                        padding: '7px 14px', fontSize: 12, fontWeight: 600,
-                                        borderRadius: 8, border: '1px solid #E5E7EB',
-                                        background: '#fff', color: '#374151', cursor: 'pointer', fontFamily: 'inherit',
-                                    }}
-                                >↺ Retry</button>
+                                <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => { setAnswers({}); setSubmitted(false); }}>
+                                    <RotateCcw className="w-4 h-4 mr-2" /> Retry
+                                </Button>
                             </div>
                         )}
 
-                        {content.questions.map((q, i) => {
-                            return (
-                                <div key={i} style={{ ...s.card, marginBottom: 12 }}>
-                                    <div style={{ fontSize: 10.5, fontWeight: 500, color: '#3B82F6', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                        Question {i + 1}
-                                    </div>
-                                    <p style={{ fontSize: 13.5, fontWeight: 500, color: '#111827', lineHeight: 1.55, margin: '0 0 12px' }}>
-                                        {q.text}
-                                    </p>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                                        {q.choices.map(c => {
-                                            const isSelected = answers[i] === c.option;
-                                            const isCorrect  = submitted && c.isCorrect;
-                                            const isWrong    = submitted && isSelected && !c.isCorrect;
-                                            return (
-                                                <button
-                                                    key={c.option}
-                                                    onClick={() => !submitted && setAnswers(a => ({ ...a, [i]: c.option }))}
-                                                    style={{
-                                                        display: 'flex', alignItems: 'flex-start', gap: 10,
-                                                        padding: '9px 12px', borderRadius: 8,
-                                                        cursor: submitted ? 'default' : 'pointer',
-                                                        border: isCorrect  ? '1.5px solid #86EFAC'
-                                                            : isWrong    ? '1.5px solid #FCA5A5'
-                                                                : isSelected ? '1.5px solid #93C5FD'
-                                                                    : '1px solid #E5E7EB',
-                                                        background: isCorrect ? '#F0FDF4' : isWrong ? '#FEF2F2' : isSelected ? '#EFF6FF' : '#FAFAFA',
-                                                        textAlign: 'left', fontFamily: 'inherit', width: '100%',
-                                                        transition: 'all 0.12s',
-                                                    }}
-                                                >
-                                                    <span style={{
-                                                        fontSize: 10, fontWeight: 500, minWidth: 20, height: 20,
-                                                        borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                                                        background: isCorrect ? '#16A34A' : isWrong ? '#DC2626' : isSelected ? '#3B82F6' : '#E5E7EB',
-                                                        color: (isCorrect || isWrong || isSelected) ? '#fff' : '#6B7280',
-                                                    }}>{c.option}</span>
-                                                    <span style={{ fontSize: 12.5, color: '#374151', lineHeight: 1.5, paddingTop: 1 }}>{c.text}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    {submitted && q.explanation && (
-                                        <div style={{
-                                            marginTop: 11, padding: '9px 12px', borderRadius: 8,
-                                            background: '#FFFBEB', border: '1px solid #FDE68A',
-                                            fontSize: 12, color: '#92400E', lineHeight: 1.6,
-                                        }}>
-                                            💡 {q.explanation}
-                                        </div>
-                                    )}
+                        {content.questions.map((q, i) => (
+                            <div key={i} className="p-4 border border-gray-200 rounded-lg">
+                                <div className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-1.5">
+                                    Question {i + 1}
                                 </div>
-                            );
-                        })}
+                                <p className="text-sm font-semibold text-gray-900 leading-snug mb-3">{q.text}</p>
+                                <div className="flex flex-col gap-2">
+                                    {q.choices.map(c => {
+                                        const isSelected = answers[i] === c.option;
+                                        const isCorrect  = submitted && c.isCorrect;
+                                        const isWrong    = submitted && isSelected && !c.isCorrect;
+                                        const cls = isCorrect ? 'border-green-500 bg-green-50'
+                                            : isWrong ? 'border-red-500 bg-red-50'
+                                                : isSelected ? 'border-blue-500 bg-blue-50'
+                                                    : 'border-gray-200 bg-gray-50 hover:border-gray-300';
+                                        const badge = isCorrect ? 'bg-green-600 text-white'
+                                            : isWrong ? 'bg-red-600 text-white'
+                                                : isSelected ? 'bg-blue-600 text-white'
+                                                    : 'bg-gray-200 text-gray-800';
+                                        return (
+                                            <button
+                                                key={c.option}
+                                                onClick={() => !submitted && setAnswers(a => ({ ...a, [i]: c.option }))}
+                                                className={`flex items-start gap-3 p-2.5 rounded-lg border text-left w-full transition-colors ${cls} ${submitted ? 'cursor-default' : 'cursor-pointer'}`}
+                                            >
+                                                <span className={`flex items-center justify-center w-5 h-5 rounded text-[11px] font-bold flex-shrink-0 ${badge}`}>
+                                                    {c.option}
+                                                </span>
+                                                <span className="text-sm text-gray-900 leading-snug">{c.text}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {submitted && q.explanation && (
+                                    <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-300 text-sm font-medium text-amber-900 leading-relaxed">
+                                        💡 {q.explanation}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
 
                         {!submitted && (
-                            <button
+                            <Button
+                                className="w-full bg-blue-600 hover:bg-blue-700 cursor-pointer"
                                 onClick={() => setSubmitted(true)}
-                                disabled={Object.keys(answers).length < content.questions.length}
-                                style={{
-                                    width: '100%', padding: '11px', fontSize: 13, fontWeight: 500,
-                                    borderRadius: 10, border: 'none', fontFamily: 'inherit',
-                                    background: Object.keys(answers).length === content.questions.length
-                                        ? 'linear-gradient(135deg, #1D4ED8, #3B82F6)' : '#E5E7EB',
-                                    color: Object.keys(answers).length === content.questions.length ? '#fff' : '#9CA3AF',
-                                    cursor: Object.keys(answers).length === content.questions.length ? 'pointer' : 'not-allowed',
-                                    letterSpacing: '-0.01em',
-                                }}
+                                disabled={answeredCount < content.questions.length}
                             >
-                                Submit · {Object.keys(answers).length}/{content.questions.length} answered
-                            </button>
+                                Submit · {answeredCount}/{content.questions.length} answered
+                            </Button>
                         )}
                     </>
                 )}
 
+                {/* ── Flashcards ── */}
                 {activeTab === 'flashcards' && (
                     <>
-                        <p style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12, marginTop: 0 }}>
-                            Click a card to flip it.
-                        </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9 }}>
+                        <p className="text-sm font-medium text-gray-700">Click a card to flip it.</p>
+                        <div className="grid grid-cols-2 gap-3">
                             {content.flashcards.map((f, i) => (
                                 <button
                                     key={i}
                                     onClick={() => setFlipped(p => ({ ...p, [i]: !p[i] }))}
-                                    style={{
-                                        borderRadius: 12, padding: '14px',
-                                        border: flipped[i] ? '1.5px solid #93C5FD' : '1px solid #E5E7EB',
-                                        background: flipped[i] ? '#EFF6FF' : '#FAFAFA',
-                                        cursor: 'pointer', textAlign: 'left',
-                                        minHeight: 80, fontFamily: 'inherit',
-                                        transition: 'all 0.2s', width: '100%',
-                                    }}
+                                    className={`p-4 rounded-lg border text-left min-h-[80px] w-full transition-colors cursor-pointer ${
+                                        flipped[i] ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                                    }`}
                                 >
                                     {flipped[i] ? (
                                         <>
-                                            <div style={{ fontSize: 9.5, fontWeight: 500, color: '#3B82F6', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Definition</div>
-                                            <div style={{ fontSize: 12, color: '#1D4ED8', lineHeight: 1.6 }}>{f.definition}</div>
+                                            <div className="text-[10px] font-bold text-blue-700 uppercase tracking-wide mb-1.5">Definition</div>
+                                            <div className="text-sm text-blue-900 leading-relaxed">{f.definition}</div>
                                         </>
                                     ) : (
                                         <>
-                                            <div style={{ fontSize: 9.5, fontWeight: 500, color: '#9CA3AF', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Term</div>
-                                            <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', lineHeight: 1.45 }}>{f.term}</div>
+                                            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wide mb-1.5">Term</div>
+                                            <div className="text-sm font-bold text-gray-900 leading-snug">{f.term}</div>
                                         </>
                                     )}
                                 </button>
                             ))}
                         </div>
-                        <button
-                            onClick={() => setFlipped({})}
-                            style={{
-                                marginTop: 12, padding: '7px 14px', fontSize: 12, fontWeight: 500,
-                                borderRadius: 8, border: '1px solid #E5E7EB',
-                                background: '#fff', color: '#6B7280', cursor: 'pointer', fontFamily: 'inherit',
-                            }}
-                        >Reset all</button>
+                        <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setFlipped({})}>
+                            <RotateCcw className="w-4 h-4 mr-2" /> Reset all
+                        </Button>
                     </>
                 )}
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -889,57 +735,27 @@ function RateLimitBar({ remaining, limit, isPro }: { remaining: number | null; l
     const rem       = remaining ?? limit;
     const exhausted = rem === 0;
     return (
-        <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            background: exhausted ? '#FEF2F2' : '#F9FAFB',
-            border: `1px solid ${exhausted ? '#FECACA' : '#E5E7EB'}`,
-            borderRadius: 10, padding: '9px 13px', marginBottom: 18,
-        }}>
-            <div style={{ display: 'flex', gap: 4 }}>
+        <div className={`flex items-center gap-3 p-3 rounded-lg border ${
+            exhausted ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200'
+        }`}>
+            <div className="flex gap-1">
                 {Array.from({ length: Math.min(limit, 10) }).map((_, i) => (
-                    <div key={i} style={{
-                        width: 7, height: 7, borderRadius: '50%',
-                        background: i < used ? (exhausted ? '#EF4444' : '#F59E0B') : '#22C55E',
-                    }} />
+                    <span
+                        key={i}
+                        className={`w-1.5 h-1.5 rounded-full ${
+                            i < used ? (exhausted ? 'bg-red-500' : 'bg-amber-500') : 'bg-green-500'
+                        }`}
+                    />
                 ))}
             </div>
-            <span style={{ fontSize: 12, color: exhausted ? '#DC2626' : '#6B7280', flex: 1 }}>
+            <span className={`text-sm font-medium flex-1 ${exhausted ? 'text-red-700' : 'text-gray-700'}`}>
                 {exhausted
                     ? <strong>Limit reached — resets midnight</strong>
-                    : <><strong style={{ color: '#111827' }}>{rem}/{limit}</strong> left today</>}
+                    : <><strong className="text-gray-900">{rem}/{limit}</strong> left today</>}
             </span>
             {isPro && (
-                <span style={{
-                    fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 20,
-                    background: '#EFF6FF', color: '#1D4ED8', letterSpacing: '0.04em',
-                }}>PRO</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 tracking-wide">PRO</span>
             )}
         </div>
     );
 }
-
-function LoadingSpinner({ color = '#6B7280', size = 18 }: { color?: string; size?: number }) {
-    return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-             style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="3" strokeOpacity="0.25" />
-            <path d="M12 2a10 10 0 0 1 10 10" stroke={color} strokeWidth="3" strokeLinecap="round" />
-        </svg>
-    );
-}
-
-const s = {
-    sectionLabel: {
-        fontSize: 10.5, fontWeight: 500, color: '#6B7280',
-        display: 'block', marginBottom: 6,
-        textTransform: 'uppercase', letterSpacing: '0.06em',
-    } as React.CSSProperties,
-    pill: {
-        display: 'inline-block', fontSize: 11, fontWeight: 500,
-        padding: '2px 9px', borderRadius: 20, border: '1px solid transparent',
-    } as React.CSSProperties,
-    card: {
-        background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: '13px 15px',
-    } as React.CSSProperties,
-};

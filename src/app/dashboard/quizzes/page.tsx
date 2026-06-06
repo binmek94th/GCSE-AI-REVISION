@@ -279,12 +279,13 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Recent Quiz Results</CardTitle>
                     <Button
+                        className={"cursor-pointer"}
                         variant="ghost"
                         size="sm"
                         onClick={() => fetchRecentQuizzes()}
                         disabled={loadingResults}
                     >
-                        <RefreshCw className={`w-4 h-4 ${loadingResults ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-4 h-4 cursor-pointer ${loadingResults ? 'animate-spin' : ''}`} />
                     </Button>
                 </CardHeader>
                 <CardContent className="space-y-3">

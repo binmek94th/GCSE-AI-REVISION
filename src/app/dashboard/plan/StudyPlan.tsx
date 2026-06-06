@@ -38,6 +38,29 @@ interface StudyPlan {
     assessment: Assessment; preferences: { hoursPerWeek: string; targetGrade: string; }; status: string;
 }
 
+// ─── Display formatting helpers ─────────────────────────────────────────────
+
+// Title-case each word in a string ("review incorrect" → "Review Incorrect").
+const toTitleCase = (str: string) =>
+    str
+        .split(' ')
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+
+// Format difficulty for display: strip any "gcse" prefix, swap underscores for
+// spaces, then title-case ("gcse_higher" → "Higher", "easy" → "Easy").
+const formatDifficulty = (difficulty: string | number) => {
+    const cleaned = String(difficulty)
+        .replace(/^gcse[_\s]*/i, '')
+        .replace(/_/g, ' ')
+        .trim();
+    return toTitleCase(cleaned);
+};
+
+// Format focus area for display ("review_incorrect" → "Review Incorrect").
+const formatFocus = (focus: string) => toTitleCase(focus.replace(/_/g, ' '));
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function StudyPlan() {
@@ -397,11 +420,11 @@ export default function StudyPlan() {
                                                         </div>
                                                         <div>
                                                             <p className="text-xs text-gray-500 uppercase">Difficulty</p>
-                                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>{session.difficulty}</p>
+                                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>{formatDifficulty(session.difficulty)}</p>
                                                         </div>
                                                         <div>
                                                             <p className="text-xs text-gray-500 uppercase">Focus</p>
-                                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>{session.focusArea.replace('_', ' ')}</p>
+                                                            <p className={`text-sm font-semibold ${isCompleted ? 'text-gray-500' : 'text-gray-900'}`}>{formatFocus(session.focusArea)}</p>
                                                         </div>
                                                     </div>
                                                     <ul className="space-y-1">
@@ -524,6 +547,7 @@ export default function StudyPlan() {
 
             {/* ── Material quiz modal (shown before confirming mark-as-done) ── */}
             <MaterialQuizModal
+                packId={selectedMaterial?.packId}
                 open={quizModalOpen}
                 materialId={selectedMaterial?.id ?? ''}
                 materialTitle={selectedMaterial?.title ?? ''}

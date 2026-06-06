@@ -32,6 +32,7 @@ async function getQuestionsByPack(
         .collection("questions")
         .where("subject", "==", formattedPackId)
         .where("moderation_status", "==", "approved")
+        .where("flag", "!=", "irrelevant")
         .orderBy("createdAt", "desc")
         .get();
 

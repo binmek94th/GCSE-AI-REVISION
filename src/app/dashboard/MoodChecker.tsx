@@ -77,7 +77,7 @@ export function MoodChecker({ onClose, onSubmit }: Props) {
             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6 relative">
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
                 >
                     <X className="w-5 h-5" />
                 </button>
@@ -96,7 +96,7 @@ export function MoodChecker({ onClose, onSubmit }: Props) {
                         <button
                             key={mood.value}
                             onClick={() => setSelectedMood(mood.value)}
-                            className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 ${
+                            className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
                                 selectedMood === mood.value
                                     ? `${mood.bgColor} border-current shadow-md scale-105`
                                     : 'bg-gray-50 border-gray-200 hover:border-gray-300'
@@ -120,7 +120,7 @@ export function MoodChecker({ onClose, onSubmit }: Props) {
                         disabled={!selectedMood || submitting}
                         className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
                             selectedMood && !submitting
-                                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg'
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg cursor-pointer'
                                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
                     >

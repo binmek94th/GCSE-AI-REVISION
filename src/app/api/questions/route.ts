@@ -49,6 +49,7 @@ export async function POST(req: Request) {
                 .where("exam_board", "==", selection.examBoard)
                 .where("tier", "==", subj.tier)
                 .where("moderation_status" , "==", "approved")
+                .where("flag", "!=", "irrelevant")
 
             const snapshot = await query.get();
             const questions = snapshot.docs.map((doc) => doc.data());

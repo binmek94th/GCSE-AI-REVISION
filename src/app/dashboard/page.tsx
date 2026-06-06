@@ -53,7 +53,7 @@ const MOBILE_MORE_ITEMS = [
 ];
 
 const TAB_CLASS =
-    "flex-1 flex items-center justify-center gap-1.5 text-sm data-[state=active]:bg-gradient-to-r hover:cursor-pointer " +
+    "flex-1 flex items-center justify-center gap-1.5 text-sm data-[state=active]:bg-gradient-to-r cursor-pointer " +
     "data-[state=active]:from-blue-500 data-[state=active]:to-indigo-600 " +
     "data-[state=active]:text-white data-[state=active]:shadow-md transition-all";
 
@@ -211,7 +211,7 @@ function Dashboard() {
                             <Button
                                 onClick={() => setShowProfileDropdown(v => !v)}
                                 variant="outline"
-                                className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-200 rounded-full px-4 py-2 transition-all"
+                                className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-200 rounded-full px-4 py-2 transition-all cursor-pointer"
                             >
                                 <User className="w-5 h-5 text-gray-700" />
                                 <ChevronDown className={`w-4 h-4 text-gray-700 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
@@ -219,11 +219,11 @@ function Dashboard() {
                             {showProfileDropdown && (
                                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                                     <button onClick={() => { setShowProfileDropdown(false); handleTabChange('profile'); }}
-                                            className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700 text-sm">
+                                            className="w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 text-gray-700 text-sm cursor-pointer">
                                         <User className="w-4 h-4" /><span>Profile</span>
                                     </button>
                                     <button onClick={() => { setShowProfileDropdown(false); handleLogout(); }}
-                                            className="w-full text-left px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-2 text-red-600 text-sm">
+                                            className="w-full text-left px-4 py-2 hover:bg-red-50 transition-colors flex items-center gap-2 text-red-600 text-sm cursor-pointer">
                                         <LogOut className="w-4 h-4" /><span>Logout</span>
                                     </button>
                                 </div>
@@ -297,7 +297,7 @@ function Dashboard() {
                             <div className="relative shrink-0" ref={moreRef}>
                                 <button
                                     onClick={() => setShowMoreDropdown(v => !v)}
-                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap cursor-pointer
                                         ${
                                         // active styles: mobile uses broader set, desktop uses narrower set
                                         (isMobileMoreActive)  // isMobileMoreActive is a superset so covers both
@@ -329,7 +329,7 @@ function Dashboard() {
                                                 <button
                                                     key={value}
                                                     onClick={() => handleTabChange(value)}
-                                                    className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors
+                                                    className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors cursor-pointer
                                                         ${activeTab === value
                                                         ? 'bg-blue-50 text-blue-700 font-semibold'
                                                         : 'text-gray-700 hover:bg-gray-50'}`}
@@ -346,7 +346,7 @@ function Dashboard() {
                                                 <button
                                                     key={value}
                                                     onClick={() => handleTabChange(value)}
-                                                    className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors
+                                                    className={`w-full text-left px-4 py-2.5 flex items-center gap-2.5 text-sm transition-colors cursor-pointer
                                                         ${activeTab === value
                                                         ? 'bg-blue-50 text-blue-700 font-semibold'
                                                         : 'text-gray-700 hover:bg-gray-50'}`}

@@ -6,6 +6,12 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDocs, orderBy, query, where, deleteDoc, doc } from 'firebase/firestore';
 import Spinner from '@/app/components/ui/Spinner';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { Button } from '@/app/components/ui/button';
+import {
+    BookOpen, FileText, HelpCircle, Copy, Layers, Trash2, ChevronRight,
+    Loader2, Paperclip, Calendar, AlertCircle, AlertTriangle,
+} from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,11 +45,26 @@ const MODE_LABELS: Record<GenerationMode, string> = {
     flashcards: 'Flashcards',
 };
 
-const MODE_COLORS: Record<GenerationMode, { bg: string; color: string }> = {
-    both:       { bg: '#EFF6FF', color: '#1D4ED8' },
-    materials:  { bg: '#F0FDF4', color: '#16A34A' },
-    questions:  { bg: '#FFFBEB', color: '#D97706' },
-    flashcards: { bg: '#FDF4FF', color: '#9333EA' },
+// Tailwind classes for each mode's badge + icon tile
+const MODE_BADGE: Record<GenerationMode, string> = {
+    both:       'bg-blue-100 text-blue-800',
+    materials:  'bg-green-100 text-green-800',
+    questions:  'bg-amber-100 text-amber-800',
+    flashcards: 'bg-purple-100 text-purple-800',
+};
+
+const MODE_ICON_TILE: Record<GenerationMode, string> = {
+    both:       'bg-blue-100 text-blue-600',
+    materials:  'bg-green-100 text-green-600',
+    questions:  'bg-amber-100 text-amber-600',
+    flashcards: 'bg-purple-100 text-purple-600',
+};
+
+const MODE_ICON: Record<GenerationMode, typeof Layers> = {
+    both:       Layers,
+    materials:  BookOpen,
+    questions:  HelpCircle,
+    flashcards: Copy,
 };
 
 // ─── Confirm Delete Dialog ────────────────────────────────────────────────────
@@ -60,66 +81,37 @@ function ConfirmDeleteDialog({
     deleting: boolean;
 }) {
     return (
-        <div style={{
-            position: 'fixed', inset: 0, zIndex: 100,
-            background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 16,
-        }}>
-            <div style={{
-                background: '#fff', borderRadius: 16, padding: '28px 24px',
-                maxWidth: 360, width: '100%',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-                fontFamily: 'system-ui, sans-serif',
-            }}>
-                {/* Icon */}
-                <div style={{
-                    width: 44, height: 44, borderRadius: 12, marginBottom: 16,
-                    background: '#FEF2F2',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-                }}>
-                    🗑️
-                </div>
-
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: '0 0 8px' }}>
-                    Delete material?
-                </h3>
-                <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.6, margin: '0 0 22px' }}>
-                    <strong style={{ color: '#111827' }}>{subjectName}</strong> will be permanently deleted.
-                    This cannot be undone.
-                </p>
-
-                <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                        onClick={onCancel}
-                        disabled={deleting}
-                        style={{
-                            flex: 1, padding: '10px', fontSize: 13, fontWeight: 500,
-                            borderRadius: 9, border: '1px solid #E5E7EB',
-                            background: '#F9FAFB', color: '#374151',
-                            cursor: deleting ? 'not-allowed' : 'pointer',
-                            fontFamily: 'inherit',
-                        }}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={onConfirm}
-                        disabled={deleting}
-                        style={{
-                            flex: 1, padding: '10px', fontSize: 13, fontWeight: 500,
-                            borderRadius: 9, border: 'none',
-                            background: deleting ? '#FCA5A5' : '#EF4444',
-                            color: '#fff',
-                            cursor: deleting ? 'not-allowed' : 'pointer',
-                            fontFamily: 'inherit',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        }}
-                    >
-                        {deleting ? 'Deleting…' : 'Yes, delete'}
-                    </button>
-                </div>
-            </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <Card className="max-w-sm w-full">
+                <CardContent className="pt-6 space-y-4">
+                    <div className="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center">
+                        <AlertTriangle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div className="space-y-2">
+                        <h3 className="text-lg font-bold text-gray-900">Delete material?</h3>
+                        <p className="text-sm text-gray-800 leading-relaxed">
+                            <span className="font-semibold text-gray-900">{subjectName}</span> will be permanently
+                            deleted. This cannot be undone.
+                        </p>
+                    </div>
+                    <div className="flex gap-3 pt-1">
+                        <Button variant="outline" className="flex-1 cursor-pointer" onClick={onCancel} disabled={deleting}>
+                            Cancel
+                        </Button>
+                        <Button
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+                            onClick={onConfirm}
+                            disabled={deleting}
+                        >
+                            {deleting ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Deleting...</>
+                            ) : (
+                                <><Trash2 className="w-4 h-4 mr-2" />Yes, delete</>
+                            )}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
@@ -219,160 +211,122 @@ export default function GeneratedMaterialsListPage() {
                 />
             )}
 
-            <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px', colorScheme: 'light' }}>
+            <div className="max-w-3xl mx-auto px-4 py-6">
 
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                    <div>
-                        <h1 style={{ fontSize: 20, fontWeight: 600, color: '#111827', margin: 0 }}>
-                            My Generated Materials
-                        </h1>
-                        <p style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>
-                            {materials.length === 0
-                                ? 'No materials yet — generate some from the Upload tab.'
-                                : `${materials.length} saved material${materials.length !== 1 ? 's' : ''}`}
-                        </p>
-                    </div>
+                <div className="mb-6">
+                    <h1 className="text-xl font-bold text-gray-900">My Generated Materials</h1>
+                    <p className="text-sm font-medium text-gray-700 mt-1">
+                        {materials.length === 0
+                            ? 'No materials yet — generate some from the Upload tab.'
+                            : `${materials.length} saved material${materials.length !== 1 ? 's' : ''}`}
+                    </p>
                 </div>
 
                 {/* Error */}
                 {error && (
-                    <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 20 }}>
-                        {error}
+                    <div className="mb-5 p-3 bg-red-50 border border-red-300 rounded-lg flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-700 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm font-medium text-red-700">{error}</p>
                     </div>
                 )}
 
                 {/* Empty state */}
                 {materials.length === 0 && !error && (
-                    <div style={{
-                        textAlign: 'center', padding: '60px 20px',
-                        background: '#F9FAFB', borderRadius: 16,
-                        border: '1px dashed #E5E7EB',
-                    }}>
-                        <div style={{ fontSize: 40, marginBottom: 12 }}>📚</div>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 6 }}>
-                            No materials yet
-                        </div>
-                        <div style={{ fontSize: 13, color: '#6B7280' }}>
+                    <div className="text-center py-16 px-5 bg-gray-50 border border-dashed border-gray-300 rounded-xl">
+                        <BookOpen className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                        <div className="text-base font-bold text-gray-900 mb-1">No materials yet</div>
+                        <div className="text-sm font-medium text-gray-700">
                             Upload your notes and generate study materials to see them here.
                         </div>
                     </div>
                 )}
 
                 {/* Material cards */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="flex flex-col gap-3">
                     {materials.map(m => {
-                        const modeStyle = MODE_COLORS[m.mode] ?? MODE_COLORS.both;
-                        const dateStr   = m.createdAt?.toDate?.()?.toLocaleDateString('en-GB', {
+                        const Icon    = MODE_ICON[m.mode] ?? Layers;
+                        const dateStr = m.createdAt?.toDate?.()?.toLocaleDateString('en-GB', {
                             day: 'numeric', month: 'short', year: 'numeric',
                         }) ?? '';
 
                         return (
-                            <div
+                            <Card
                                 key={m.id}
                                 onClick={() => router.push(`/dashboard/generated_material/${m.id}`)}
-                                style={{
-                                    background: '#fff',
-                                    border: '1px solid #E5E7EB',
-                                    borderRadius: 12,
-                                    padding: '16px 18px',
-                                    cursor: 'pointer',
-                                    transition: 'border-color 0.15s, box-shadow 0.15s',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 16,
-                                }}
-                                onMouseEnter={e => {
-                                    (e.currentTarget as HTMLDivElement).style.borderColor = '#93C5FD';
-                                    (e.currentTarget as HTMLDivElement).style.boxShadow = '0 2px 8px rgba(59,130,246,0.08)';
-                                }}
-                                onMouseLeave={e => {
-                                    (e.currentTarget as HTMLDivElement).style.borderColor = '#E5E7EB';
-                                    (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-                                }}
+                                className="cursor-pointer transition-colors hover:border-blue-300 hover:shadow-sm"
                             >
-                                {/* Icon */}
-                                <div style={{
-                                    width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                                    background: modeStyle.bg,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
-                                }}>
-                                    {m.mode === 'both' ? '📚' : m.mode === 'materials' ? '📝' : m.mode === 'questions' ? '❓' : '🃏'}
-                                </div>
-
-                                {/* Main content */}
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
-                                        <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>
-                                            {m.subjectName}
-                                        </span>
-                                        <span style={{
-                                            fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
-                                            background: modeStyle.bg, color: modeStyle.color,
-                                        }}>
-                                            {MODE_LABELS[m.mode]}
-                                        </span>
-                                        <span style={{
-                                            fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 20,
-                                            background: '#EFF6FF', color: '#1D4ED8',
-                                        }}>
-                                            {DIFFICULTY_LABELS[m.difficulty]}
-                                        </span>
+                                <CardContent className="flex items-center gap-4 py-4">
+                                    {/* Icon tile */}
+                                    <div className={`w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 ${MODE_ICON_TILE[m.mode] ?? MODE_ICON_TILE.both}`}>
+                                        <Icon className="w-5 h-5" />
                                     </div>
 
-                                    {m.topics.length > 0 && (
-                                        <div style={{ marginBottom: 6 }}>
-                                            {m.topics.slice(0, 4).map(t => (
-                                                <span key={t} style={{
-                                                    display: 'inline-block', fontSize: 11, color: '#6B7280',
-                                                    background: '#F9FAFB', border: '1px solid #E5E7EB',
-                                                    borderRadius: 20, padding: '1px 8px', margin: '0 4px 2px 0',
-                                                }}>
-                                                    {t}
-                                                </span>
-                                            ))}
-                                            {m.topics.length > 4 && (
-                                                <span style={{ fontSize: 11, color: '#9CA3AF' }}>
-                                                    +{m.topics.length - 4} more
-                                                </span>
+                                    {/* Main content */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                            <span className="text-sm font-bold text-gray-900">{m.subjectName}</span>
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${MODE_BADGE[m.mode] ?? MODE_BADGE.both}`}>
+                                                {MODE_LABELS[m.mode]}
+                                            </span>
+                                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                                                {DIFFICULTY_LABELS[m.difficulty]}
+                                            </span>
+                                        </div>
+
+                                        {m.topics.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5 mb-2">
+                                                {m.topics.slice(0, 4).map(t => (
+                                                    <span key={t} className="text-xs font-medium text-gray-700 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
+                                                        {t}
+                                                    </span>
+                                                ))}
+                                                {m.topics.length > 4 && (
+                                                    <span className="text-xs font-medium text-gray-600 self-center">
+                                                        +{m.topics.length - 4} more
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center gap-3 text-xs font-medium text-gray-700 flex-wrap">
+                                            {m.materialsCount > 0 && (
+                                                <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{m.materialsCount} notes</span>
+                                            )}
+                                            {m.questionsCount > 0 && (
+                                                <span className="flex items-center gap-1"><HelpCircle className="w-3.5 h-3.5" />{m.questionsCount} questions</span>
+                                            )}
+                                            {m.flashcardsCount > 0 && (
+                                                <span className="flex items-center gap-1"><Copy className="w-3.5 h-3.5" />{m.flashcardsCount} cards</span>
+                                            )}
+                                            {m.sourceFileName && (
+                                                <span className="flex items-center gap-1 min-w-0"><Paperclip className="w-3.5 h-3.5 flex-shrink-0" /><span className="truncate max-w-[140px]">{m.sourceFileName}</span></span>
+                                            )}
+                                            {dateStr && (
+                                                <span className="flex items-center gap-1 ml-auto"><Calendar className="w-3.5 h-3.5" />{dateStr}</span>
                                             )}
                                         </div>
-                                    )}
-
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, color: '#9CA3AF' }}>
-                                        {m.materialsCount > 0  && <span>📄 {m.materialsCount} notes</span>}
-                                        {m.questionsCount > 0  && <span>❓ {m.questionsCount} questions</span>}
-                                        {m.flashcardsCount > 0 && <span>🃏 {m.flashcardsCount} cards</span>}
-                                        {m.sourceFileName      && <span>📎 {m.sourceFileName}</span>}
-                                        {dateStr               && <span style={{ marginLeft: 'auto' }}>{dateStr}</span>}
                                     </div>
-                                </div>
 
-                                {/* Actions */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                                    <button
-                                        onClick={e => confirmDelete(m, e)}
-                                        disabled={deleting === m.id}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            padding: '4px 2px',
-                                            cursor: deleting === m.id ? 'not-allowed' : 'pointer',
-                                            fontSize: 12,
-                                            fontWeight: 500,
-                                            color: deleting === m.id ? '#FCA5A5' : '#EF4444',
-                                            opacity: deleting === m.id ? 0.6 : 1,
-                                            fontFamily: 'inherit',
-                                            whiteSpace: 'nowrap',
-                                            textDecoration: 'underline',
-                                            textUnderlineOffset: 2,
-                                        }}
-                                    >
-                                        {deleting === m.id ? 'Deleting…' : 'Delete'}
-                                    </button>
-                                    <div style={{ color: '#9CA3AF', fontSize: 16 }}>›</div>
-                                </div>
-                            </div>
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                                            onClick={e => confirmDelete(m, e)}
+                                            disabled={deleting === m.id}
+                                        >
+                                            {deleting === m.id ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="w-4 h-4" />
+                                            )}
+                                        </Button>
+                                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                </CardContent>
+                            </Card>
                         );
                     })}
                 </div>

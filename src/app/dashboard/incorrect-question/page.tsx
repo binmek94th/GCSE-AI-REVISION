@@ -118,7 +118,7 @@ function RetryIncorrectButton({ packId, onQuizComplete, onQuizStart }: RetryInco
 
     return (
         <Button
-            className="w-full bg-orange-600 hover:bg-orange-700"
+            className="w-full bg-orange-600 hover:bg-orange-700 cursor-pointer"
             onClick={startRetryQuiz}
             disabled={loading || loadingCount || incorrectCount === 0}
         >
@@ -134,8 +134,10 @@ function RetryIncorrectButton({ packId, onQuizComplete, onQuizStart }: RetryInco
                 </>
             ) : (
                 <>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Retry Failed Questions ({incorrectCount})
+                    <span className="flex items-center cursor-pointer">
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Retry Failed Questions ({incorrectCount})
+                    </span>
                 </>
             )}
         </Button>

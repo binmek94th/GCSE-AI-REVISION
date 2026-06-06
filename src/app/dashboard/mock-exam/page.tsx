@@ -181,7 +181,7 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <FileText className="w-5 h-5 text-blue-600" />
-                        Start Mock Exam
+                        Mock Exam
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -259,7 +259,7 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
                     )}
 
                     <Button
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className="w-full bg-blue-600 hover:bg-blue-700 cursor-pointer"
                         onClick={startMockTest}
                         disabled={loading || !selectedPaperId}
                     >
@@ -282,7 +282,7 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Recent Mock Exams</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={fetchMockTestHistory} disabled={loadingHistory}>
+                    <Button className={"cursor-pointer"} variant="ghost" size="sm" onClick={fetchMockTestHistory} disabled={loadingHistory}>
                         <RefreshCw className={`w-4 h-4 ${loadingHistory ? 'animate-spin' : ''}`} />
                     </Button>
                 </CardHeader>

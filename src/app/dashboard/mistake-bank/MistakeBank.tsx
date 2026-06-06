@@ -370,6 +370,11 @@ function HomeScreen({
     const subjects = ['All', ...Array.from(new Set(questions.map(q => q.subject))).sort()];
     const filtered = activeSubject === 'All' ? questions : questions.filter(q => q.subject === activeSubject);
 
+    const formatSubject = (subject: string) =>
+        subject
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, char => char.toUpperCase());
+
     return (
         <div className="space-y-5">
             {/* Header */}
@@ -387,7 +392,7 @@ function HomeScreen({
                 {/* Retake CTA */}
                 <button
                     onClick={onStartSetup}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors shadow-sm">
+                    className="flex items-center cursor-pointer gap-2 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors shadow-sm">
                     <RotateCcw className="w-3.5 h-3.5" />
                     Retake
                 </button>
@@ -397,7 +402,7 @@ function HomeScreen({
             <div className="border border-gray-200 rounded-xl overflow-hidden">
                 <button
                     onClick={() => setListOpen(v => !v)}
-                    className="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700">
+                    className="w-full cursor-pointer flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-medium text-gray-700">
                     <span>View all questions</span>
                     {listOpen
                         ? <ChevronUp className="w-4 h-4 text-gray-400" />
@@ -415,7 +420,7 @@ function HomeScreen({
                                             ${activeSubject === s
                                                 ? 'border-red-400 text-red-600'
                                                 : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-                                        {s}
+                                        {formatSubject(s)}
                                         <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full
                                             ${activeSubject === s ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
                                             {s === 'All' ? questions.length : questions.filter(q => q.subject === s).length}
