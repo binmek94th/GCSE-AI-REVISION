@@ -31,6 +31,8 @@ export async function GET(req: Request) {
             .firestore()
             .collection("questions")
             .where("subject", "==", subjectName)
+            .where("moderation_status", "==", "approved")
+            .where("flag", "!=", "irrelevant")
             .get();
 
         if (questionsSnapshot.empty) {
