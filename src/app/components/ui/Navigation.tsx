@@ -56,13 +56,13 @@ export function Navigation({ currentPage }: NavigationProps) {
     if (!showNavigation) return null;
 
     return (
-        <nav className="top-0 z-[40] bg-white/90 backdrop-blur-md border-b pointer-events-auto relative">
+        <nav className="sticky top-0 z-[40] bg-white/90 backdrop-blur-md border-b pointer-events-auto">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-20">
-                <div className="flex items-center justify-between h-20">
+                <div className="flex items-center justify-between h-15">
                     <Link href={"/"}>
                         <Image
-                            width={140}
-                            height={30}
+                            width={120}
+                            height={26}
                             src="/StudyCedoLogo.png"
                             alt="logo"
                         />
@@ -73,7 +73,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                             <button
                                 key={link.href}
                                 onClick={() => handleNavigate(link.href)}
-                                className={`px-4 py-2 text-sm hover:cursor-pointer font-medium transition-all duration-200 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded-xl ${
+                                className={`px-4 py- text-sm hover:cursor-pointer font-medium transition-all duration-200 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded-xl ${
                                     currentPage === link.href ? 'text-primary bg-primary/10' : 'text-text-muted hover:bg-bg-subtle'
                                 }`}
                             >

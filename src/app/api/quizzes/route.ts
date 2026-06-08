@@ -32,7 +32,6 @@ async function getQuestionsByPack(
         .collection("questions")
         .where("subject", "==", formattedPackId)
         .where("moderation_status", "==", "approved")
-        .where("flag", "!=", "irrelevant")
         .orderBy("createdAt", "desc")
         .get();
 
@@ -52,6 +51,8 @@ async function getQuestionsByPack(
         const progress = progressData?.[questionId];
 
         if (progress?.correct === true) return false;
+        if (question.flag === "irrelevant") return false;
+
         return !question.examBoard || question.examBoard === examBoard;
     });
 

@@ -32,7 +32,6 @@ export async function GET(req: Request) {
             .collection("questions")
             .where("subject", "==", subjectName)
             .where("moderation_status", "==", "approved")
-            .where("flag", "!=", "irrelevant")
             .get();
 
         if (questionsSnapshot.empty) {
@@ -42,9 +41,14 @@ export async function GET(req: Request) {
             );
         }
 
+        const allQuestionDocs = questionsSnapshot.docs.filter(doc => {
+            const data = doc.data();
+            return data.flag !== "irrelevant";
+        });
+
+
         console.log(`Found ${questionsSnapshot.size} questions for subject "${subjectName}"`);
 
-        const allQuestionDocs = questionsSnapshot.docs;
 
         // ── Step 3: User's question progress — keyed by packId ────────────────
         const progressDoc = await admin
