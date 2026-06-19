@@ -17,6 +17,8 @@ export default function DashboardLayout({
     const navItems = [
         { label: 'Study Materials', href: '/teacher/study-materials' },
         { label: 'Questions', href: '/teacher/questions' },
+        { label: 'A-Level Questions', href: '/teacher/a-level-questions' },
+        { label: 'A-Level Materials', href: '/teacher/a-level-materials' },
     ];
 
     const handleLogout = async () => {
