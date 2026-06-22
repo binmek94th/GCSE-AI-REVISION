@@ -199,7 +199,7 @@ function HomePage() {
                             className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4"
                         >
                             <button
-                                onClick={() => onNavigate('/auth/signup')}
+                                onClick={() => onNavigate('/auth/register')}
                                 className="w-full cursor-pointer sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-purple-600 text-white rounded-full font-semibold hover:bg-purple-700 transition-colors shadow-lg text-sm sm:text-base"
                                 style={{ boxShadow: '0 8px 24px rgba(147,51,234,0.3)' }}
                             >
