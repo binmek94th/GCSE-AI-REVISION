@@ -18,6 +18,7 @@ interface DashboardData {
     completedSessions: number;
     lastActivity: string;
     examBoard: string;
+    level: string;
 }
 
 interface MoodStatus {
