@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/app/components/ui/select";
 import {EXAM_DATA} from "@/app/onboarding/exam_data";
 import Spinner from "@/app/components/ui/Spinner";
 import {toast} from "sonner";
+import ReactCrop, {type Crop, type PixelCrop} from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 
 export interface Choice {
     option: string;        // "A", "B", "C", "D"
@@ -61,6 +63,56 @@ export interface Question {
     updatedAt?: any;
 }
 
+// Route Storage images through a same-origin proxy so the crop canvas isn't
+// CORS-tainted (Firebase download URLs aren't served with permissive CORS).
+// Uses the same /api/proxy-image route as the GCSE cropping flow.
+const getCropSrc = (url: string) =>
+    `/api/proxy-image?url=${encodeURIComponent(url)}`;
+
+// Draw the selected crop region (in natural-resolution pixels) onto a canvas
+// and export a JPEG blob.
+async function getCroppedBlob(image: HTMLImageElement, crop: PixelCrop): Promise<Blob> {
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.floor(crop.width * scaleX));
+    canvas.height = Math.max(1, Math.floor(crop.height * scaleY));
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get canvas 2d context');
+
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(
+        image,
+        crop.x * scaleX,
+        crop.y * scaleY,
+        crop.width * scaleX,
+        crop.height * scaleY,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+    );
+
+    return new Promise((resolve, reject) => {
+        canvas.toBlob(
+            (blob) => (blob ? resolve(blob) : reject(new Error('Canvas is empty'))),
+            'image/jpeg',
+            0.92,
+        );
+    });
+}
+
+function blobToDataURL(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
 export default function ALevelQuestionsModeration() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [loading, setLoading] = useState(true);
@@ -80,6 +132,18 @@ export default function ALevelQuestionsModeration() {
         lastDocId: null as string | null,
     });
 
+    // Cursor history for true previous-page navigation.
+    // cursorHistory[i] = the `startAfter` cursor used to fetch page (i + 1).
+    // Page 1 always starts with `null`.
+    const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null]);
+
+    // Image cropping state
+    const imgRef = useRef<HTMLImageElement | null>(null);
+    const [isCropping, setIsCropping] = useState(false);
+    const [crop, setCrop] = useState<Crop>();
+    const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+    const [cropSaving, setCropSaving] = useState(false);
+
     const [editForm, setEditForm] = useState({
         question_text: '',
         options: [] as string[],
@@ -95,13 +159,14 @@ export default function ALevelQuestionsModeration() {
     });
 
     useEffect(() => {
-        // Reset pagination when filters change
+        // Reset pagination + cursor history when filters change
         setPagination({
             page: 1,
             limit: 20,
             hasMore: false,
             lastDocId: null,
         });
+        setCursorHistory([null]);
         fetchQuestions(1, null);
     }, [filters]);
 
@@ -120,6 +185,7 @@ export default function ALevelQuestionsModeration() {
 
             if (data.success) {
                 toast.success('Image removed');
+                setIsCropping(false);
                 updateQuestionInList(selectedQuestion.id, { imageUrl: null, hasImage: false });
             } else {
                 toast.error(data.error || 'Failed to remove image');
@@ -163,21 +229,27 @@ export default function ALevelQuestionsModeration() {
 
     const handleNextPage = () => {
         if (pagination.hasMore && pagination.lastDocId) {
-            fetchQuestions(pagination.page + 1, pagination.lastDocId);
+            const nextPage = pagination.page + 1;
+            const cursor = pagination.lastDocId;
+
+            // Record the cursor that starts the next page so we can return to it.
+            setCursorHistory(prev => {
+                const next = [...prev];
+                next[nextPage - 1] = cursor;
+                return next;
+            });
+
+            fetchQuestions(nextPage, cursor);
         }
     };
 
     const handlePreviousPage = () => {
-        if (pagination.page > 1) {
-            // Reset to page 1 (limitation of cursor-based pagination)
-            setPagination({
-                page: 1,
-                limit: 20,
-                hasMore: false,
-                lastDocId: null,
-            });
-            fetchQuestions(1, null);
-        }
+        if (pagination.page <= 1) return;
+
+        const prevPage = pagination.page - 1;
+        // cursorHistory[prevPage - 1] is the cursor that originally started prevPage.
+        const cursor = cursorHistory[prevPage - 1] ?? null;
+        fetchQuestions(prevPage, cursor);
     };
 
     const subjects = Array.from(new Set(EXAM_DATA.map(e => e.subject))).sort();
@@ -206,6 +278,8 @@ export default function ALevelQuestionsModeration() {
 
     const handleSelectQuestion = (question: Question) => {
         setSelectedQuestion(question);
+        // Leave crop mode whenever a different question is opened.
+        setIsCropping(false);
 
         // A-Level questions store their options in a `choices` array of objects:
         // { option: "A", isCorrect: boolean, text: string }
@@ -239,6 +313,57 @@ export default function ALevelQuestionsModeration() {
             moderation_notes: question.moderation_notes || '',
         });
         setEditMode(false);
+    };
+
+    const startCrop = () => {
+        setCrop(undefined);          // initialised on image load
+        setCompletedCrop(undefined);
+        setIsCropping(true);
+    };
+
+    const onCropImageLoad = (_e: React.SyntheticEvent<HTMLImageElement>) => {
+        // Start with a centred, free-form selection covering most of the image.
+        setCrop({ unit: '%', x: 5, y: 5, width: 90, height: 90 });
+    };
+
+    const handleSaveCrop = async () => {
+        if (!selectedQuestion || !selectedQuestion.imageUrl) return;
+        if (!imgRef.current || !completedCrop?.width || !completedCrop?.height) {
+            toast.error('Select a crop area first');
+            return;
+        }
+
+        setCropSaving(true);
+        try {
+            const blob = await getCroppedBlob(imgRef.current, completedCrop);
+            const dataUrl = await blobToDataURL(blob);
+
+            const response = await fetch(`/api/teacher/alevel-questions/${selectedQuestion.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ croppedImage: dataUrl }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                toast.success('Image cropped');
+                // Prefer the URL the server returns; otherwise cache-bust so the
+                // overwritten file refreshes in the <img>.
+                const newUrl =
+                    data.imageUrl ??
+                    `${selectedQuestion.imageUrl}${selectedQuestion.imageUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+                updateQuestionInList(selectedQuestion.id, { imageUrl: newUrl, hasImage: true });
+                setIsCropping(false);
+            } else {
+                toast.error(data.error || 'Failed to crop image');
+            }
+        } catch (error) {
+            console.error('Error cropping image:', error);
+            toast.error('Failed to crop image');
+        } finally {
+            setCropSaving(false);
+        }
     };
 
     const handleUpdateQuestion = async () => {
@@ -563,17 +688,62 @@ export default function ALevelQuestionsModeration() {
                                                 {/* Question image, if present */}
                                                 {selectedQuestion.imageUrl && (
                                                     <div className="mb-4">
-                                                        <img
-                                                            src={selectedQuestion.imageUrl}
-                                                            alt="Question diagram"
-                                                            className="max-w-full rounded border border-gray-200"
-                                                        />
-                                                        <button
-                                                            onClick={handleRemoveImage}
-                                                            className="mt-2 px-3 py-1.5 text-sm cursor-pointer bg-red-600 text-white rounded-md hover:bg-red-700"
-                                                        >
-                                                            Remove Image
-                                                        </button>
+                                                        {isCropping ? (
+                                                            <div className="space-y-3">
+                                                                <ReactCrop
+                                                                    crop={crop}
+                                                                    onChange={(_, percentCrop) => setCrop(percentCrop)}
+                                                                    onComplete={(c) => setCompletedCrop(c)}
+                                                                >
+                                                                    <img
+                                                                        ref={imgRef}
+                                                                        src={getCropSrc(selectedQuestion.imageUrl)}
+                                                                        crossOrigin="anonymous"
+                                                                        alt="Crop question diagram"
+                                                                        onLoad={onCropImageLoad}
+                                                                        className="max-w-full rounded border border-gray-200"
+                                                                    />
+                                                                </ReactCrop>
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        onClick={handleSaveCrop}
+                                                                        disabled={cropSaving}
+                                                                        className="px-3 py-1.5 text-sm cursor-pointer bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        {cropSaving ? 'Saving…' : 'Save Crop'}
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setIsCropping(false)}
+                                                                        disabled={cropSaving}
+                                                                        className="px-3 py-1.5 text-sm cursor-pointer bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <img
+                                                                    src={selectedQuestion.imageUrl}
+                                                                    alt="Question diagram"
+                                                                    className="max-w-full rounded border border-gray-200"
+                                                                />
+                                                                <div className="mt-2 flex gap-2">
+                                                                    <button
+                                                                        onClick={startCrop}
+                                                                        className="px-3 py-1.5 text-sm cursor-pointer bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                                                    >
+                                                                        Crop Image
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={handleRemoveImage}
+                                                                        className="px-3 py-1.5 text-sm cursor-pointer bg-red-600 text-white rounded-md hover:bg-red-700"
+                                                                    >
+                                                                        Remove Image
+                                                                    </button>
+                                                                </div>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 )}
 
