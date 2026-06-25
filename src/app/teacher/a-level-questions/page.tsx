@@ -113,6 +113,43 @@ function blobToDataURL(blob: Blob): Promise<string> {
     });
 }
 
+// Build a windowed page list with ellipses for large page counts.
+// Always shows up to `windowSize` numbered pages (default 7), keeping the
+// current page centred where possible and clamping at the ends.
+function buildPageList(current: number, total: number, windowSize = 7): (number | 'dots')[] {
+    if (total <= windowSize) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const side = Math.floor(windowSize / 2);
+    let start = Math.max(1, current - side);
+    let end = start + windowSize - 1;
+
+    // Clamp to the end and re-pull start back so we always show `windowSize` numbers.
+    if (end > total) {
+        end = total;
+        start = end - windowSize + 1;
+    }
+
+    const pages: (number | 'dots')[] = [];
+
+    // Always anchor page 1, with a leading ellipsis if there's a gap.
+    if (start > 1) {
+        pages.push(1);
+        if (start > 2) pages.push('dots');
+    }
+
+    for (let i = start; i <= end; i++) pages.push(i);
+
+    // Always anchor the last page, with a trailing ellipsis if there's a gap.
+    if (end < total) {
+        if (end < total - 1) pages.push('dots');
+        pages.push(total);
+    }
+
+    return pages;
+}
+
 export default function ALevelQuestionsModeration() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [loading, setLoading] = useState(true);
@@ -124,18 +161,14 @@ export default function ALevelQuestionsModeration() {
         flag: 'all',
     });
 
-    // Pagination state
+    // Pagination state (offset/page-number based)
     const [pagination, setPagination] = useState({
         page: 1,
         limit: 20,
+        total: 0,
+        totalPages: 1,
         hasMore: false,
-        lastDocId: null as string | null,
     });
-
-    // Cursor history for true previous-page navigation.
-    // cursorHistory[i] = the `startAfter` cursor used to fetch page (i + 1).
-    // Page 1 always starts with `null`.
-    const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([null]);
 
     // Image cropping state
     const imgRef = useRef<HTMLImageElement | null>(null);
@@ -159,15 +192,9 @@ export default function ALevelQuestionsModeration() {
     });
 
     useEffect(() => {
-        // Reset pagination + cursor history when filters change
-        setPagination({
-            page: 1,
-            limit: 20,
-            hasMore: false,
-            lastDocId: null,
-        });
-        setCursorHistory([null]);
-        fetchQuestions(1, null);
+        // Reset to page 1 whenever filters change.
+        setPagination(prev => ({ ...prev, page: 1 }));
+        fetchQuestions(1);
     }, [filters]);
 
     const handleRemoveImage = async () => {
@@ -196,7 +223,7 @@ export default function ALevelQuestionsModeration() {
         }
     };
 
-    const fetchQuestions = async (page: number = 1, lastDocId: string | null = null) => {
+    const fetchQuestions = async (page: number = 1) => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
@@ -205,19 +232,19 @@ export default function ALevelQuestionsModeration() {
             if (filters.flag && filters.flag !== 'all') params.append('flag', filters.flag);
             params.append('page', page.toString());
             params.append('limit', pagination.limit.toString());
-            if (lastDocId) params.append('lastDocId', lastDocId);
 
             const response = await fetch(`/api/teacher/alevel-questions?${params}`);
             const data = await response.json();
 
             if (data.success) {
                 setQuestions(data.questions);
-                setPagination({
+                setPagination(prev => ({
+                    ...prev,
                     page,
-                    limit: pagination.limit,
-                    hasMore: data.pagination.hasMore,
-                    lastDocId: data.pagination.lastDocId,
-                });
+                    total: data.pagination.total ?? 0,
+                    totalPages: data.pagination.totalPages ?? 1,
+                    hasMore: data.pagination.hasMore ?? false,
+                }));
             }
         } catch (error) {
             console.error('Error fetching questions:', error);
@@ -227,30 +254,14 @@ export default function ALevelQuestionsModeration() {
         }
     };
 
-    const handleNextPage = () => {
-        if (pagination.hasMore && pagination.lastDocId) {
-            const nextPage = pagination.page + 1;
-            const cursor = pagination.lastDocId;
-
-            // Record the cursor that starts the next page so we can return to it.
-            setCursorHistory(prev => {
-                const next = [...prev];
-                next[nextPage - 1] = cursor;
-                return next;
-            });
-
-            fetchQuestions(nextPage, cursor);
-        }
+    const goToPage = (page: number) => {
+        if (loading) return;
+        if (page < 1 || page > pagination.totalPages || page === pagination.page) return;
+        fetchQuestions(page);
     };
 
-    const handlePreviousPage = () => {
-        if (pagination.page <= 1) return;
-
-        const prevPage = pagination.page - 1;
-        // cursorHistory[prevPage - 1] is the cursor that originally started prevPage.
-        const cursor = cursorHistory[prevPage - 1] ?? null;
-        fetchQuestions(prevPage, cursor);
-    };
+    const handleNextPage = () => goToPage(pagination.page + 1);
+    const handlePreviousPage = () => goToPage(pagination.page - 1);
 
     const subjects = Array.from(new Set(EXAM_DATA.map(e => e.subject))).sort();
 
@@ -596,8 +607,9 @@ export default function ALevelQuestionsModeration() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Questions List */}
                         <div className="bg-white rounded-lg shadow">
-                            <div className="p-4 border-b">
+                            <div className="p-4 border-b flex items-center justify-between">
                                 <h2 className="text-xl font-semibold">Questions ({questions.length})</h2>
+                                <span className="text-sm text-gray-500">{pagination.total} total</span>
                             </div>
                             <div className="overflow-y-auto max-h-[calc(100vh-400px)]">
                                 {questions.length === 0 ? (
@@ -643,21 +655,40 @@ export default function ALevelQuestionsModeration() {
                             </div>
 
                             {/* Pagination Controls */}
-                            <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
+                            <div className="p-4 border-t bg-gray-50 flex flex-wrap items-center justify-center gap-1">
                                 <button
                                     onClick={handlePreviousPage}
                                     disabled={pagination.page === 1 || loading}
-                                    className="px-4 py-2 text-sm font-medium cursor-pointer text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-2 text-sm font-medium cursor-pointer text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    ← Previous
+                                    ←
                                 </button>
-                                <span className="text-sm text-gray-700">Page {pagination.page}</span>
+
+                                {buildPageList(pagination.page, pagination.totalPages).map((p, i) =>
+                                    p === 'dots' ? (
+                                        <span key={`dots-${i}`} className="px-2 text-gray-400 select-none">…</span>
+                                    ) : (
+                                        <button
+                                            key={p}
+                                            onClick={() => goToPage(p)}
+                                            disabled={loading}
+                                            className={`min-w-[2.25rem] px-3 py-2 text-sm font-medium cursor-pointer rounded-md border disabled:cursor-not-allowed ${
+                                                p === pagination.page
+                                                    ? 'bg-blue-600 text-white border-blue-600'
+                                                    : 'text-gray-700 bg-white border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {p}
+                                        </button>
+                                    )
+                                )}
+
                                 <button
                                     onClick={handleNextPage}
                                     disabled={!pagination.hasMore || loading}
-                                    className="px-4 py-2 text-sm font-medium cursor-pointer text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-2 text-sm font-medium cursor-pointer text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Next →
+                                    →
                                 </button>
                             </div>
                         </div>
