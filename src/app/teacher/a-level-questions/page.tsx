@@ -160,6 +160,8 @@ export default function ALevelQuestionsModeration() {
         status: 'all',
         flag: 'all',
     });
+    const [pageInput, setPageInput] = useState('');
+
 
     // Pagination state (offset/page-number based)
     const [pagination, setPagination] = useState({
@@ -221,6 +223,13 @@ export default function ALevelQuestionsModeration() {
             console.error('Error removing image:', error);
             toast.error('Failed to remove image');
         }
+    };
+
+    const handleGoToPage = () => {
+        const target = parseInt(pageInput, 10);
+        if (Number.isNaN(target)) return;
+        goToPage(Math.min(Math.max(1, target), pagination.totalPages));
+        setPageInput('');
     };
 
     const fetchQuestions = async (page: number = 1) => {
@@ -690,6 +699,28 @@ export default function ALevelQuestionsModeration() {
                                 >
                                     →
                                 </button>
+
+                                {/* Go to page */}
+                                <div className="ml-2 flex items-center gap-1">
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={pagination.totalPages}
+                                        value={pageInput}
+                                        onChange={(e) => setPageInput(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleGoToPage(); }}
+                                        placeholder="Page"
+                                        disabled={loading}
+                                        className="w-20 px-2 py-2 text-sm border border-gray-300 rounded-md disabled:opacity-50"
+                                    />
+                                    <button
+                                        onClick={handleGoToPage}
+                                        disabled={loading || pageInput === ''}
+                                        className="px-3 py-2 text-sm font-medium cursor-pointer text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Go
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
