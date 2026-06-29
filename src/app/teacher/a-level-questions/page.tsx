@@ -445,16 +445,12 @@ export default function ALevelQuestionsModeration() {
     const handleReject = async () => {
         if (!selectedQuestion) return;
 
-        const notes = prompt('Rejection reason:');
-        if (!notes) return;
-
         try {
             const response = await fetch(`/api/teacher/alevel-questions/${selectedQuestion.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     moderation_status: 'rejected',
-                    moderation_notes: notes,
                 }),
             });
 
@@ -462,7 +458,6 @@ export default function ALevelQuestionsModeration() {
                 toast.success('Question rejected');
                 updateQuestionInList(selectedQuestion.id, {
                     moderation_status: 'rejected',
-                    moderation_notes: notes,
                 });
                 if (filters.status === 'pending') {
                     removeQuestionFromList(selectedQuestion.id);
