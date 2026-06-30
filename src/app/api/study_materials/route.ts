@@ -134,9 +134,15 @@ export async function POST(req: Request) {
             .doc(packId);
 
         await progressDocRef.set(
-            { [materialId]: done ?? true },
+            {
+                [materialId]: {
+                    done: done ?? true,
+                    completedAt: new Date().toISOString(),
+                },
+            },
             { merge: true }
         );
+        
         const userSnap = await userRef.get();
         const userData = userSnap.data() || {};
 

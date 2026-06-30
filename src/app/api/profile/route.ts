@@ -115,6 +115,8 @@ export async function GET(req: Request) {
         const profileData = {
             email: userRecord.email || "",
             displayName: userRecord.displayName || userData?.displayName || null,
+            // parent_email lives in Firestore, not on the Auth record.
+            parentEmail: userData?.parent_email ?? null,
             createdAt: userRecord.metadata.creationTime,
             tokens: userData?.tokens ?? 1000,
             totalStudyHours: totalStudyHours,

@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState } from "react";
-import { Mail, Calendar, Package, Clock, Award, TrendingUp, Edit2, X, Check, BookOpen, Target, CalendarClock } from "lucide-react";
+import { Mail, Calendar, Package, Clock, Award, TrendingUp, Edit2, X, Check, BookOpen, Target, CalendarClock, GraduationCap, Users } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
 import {useRouter} from "next/navigation";
 import SubscriptionPage from "@/app/dashboard/subscription/page";
 import {Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue} from "@/app/components/ui/select";
+import { toast } from "sonner";
 
 interface ProfileData {
     email: string;
@@ -15,6 +16,7 @@ interface ProfileData {
     tokens: number;
     totalStudyHours: number;
     studyPacks: number;
+    parentEmail?: string | null;
     stats: {
         quizzesCompleted: number;
         averageScore: number;
@@ -35,8 +37,11 @@ interface ProfileData {
         examBoard: string;
         hoursPerWeek: string;
         targetGrade: string;
+        level: string;
     };
 }
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ProfilePage() {
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
@@ -48,9 +53,15 @@ export default function ProfilePage() {
     const [editedPreferences, setEditedPreferences] = useState({
         examBoard: "",
         hoursPerWeek: "",
-        targetGrade: ""
+        targetGrade: "",
+        level: ""
     });
     const [savingPreferences, setSavingPreferences] = useState(false);
+
+    // Parent email
+    const [isEditingParentEmail, setIsEditingParentEmail] = useState(false);
+    const [editedParentEmail, setEditedParentEmail] = useState("");
+    const [savingParentEmail, setSavingParentEmail] = useState(false);
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
@@ -79,6 +90,7 @@ export default function ProfilePage() {
                 if (data.preferences) {
                     setEditedPreferences(data.preferences);
                 }
+                setEditedParentEmail(data.parentEmail ?? "");
 
             } catch (err) {
                 setError(err instanceof Error ? err.message : "An error occurred");
@@ -131,10 +143,56 @@ export default function ProfilePage() {
             } : null);
 
             setIsEditingPreferences(false);
+            toast.success("Preferences updated");
         } catch (err) {
-            alert(err instanceof Error ? err.message : "Failed to save preferences");
+            toast.error(err instanceof Error ? err.message : "Failed to save preferences");
         } finally {
             setSavingPreferences(false);
+        }
+    };
+
+    const handleEditParentEmail = () => {
+        setEditedParentEmail(profileData?.parentEmail ?? "");
+        setIsEditingParentEmail(true);
+    };
+
+    const handleCancelParentEmail = () => {
+        setIsEditingParentEmail(false);
+        setEditedParentEmail(profileData?.parentEmail ?? "");
+    };
+
+    const handleSaveParentEmail = async () => {
+        if (!user) return;
+
+        const trimmed = editedParentEmail.trim();
+        // Allow clearing; otherwise require a valid email.
+        if (trimmed && !EMAIL_RE.test(trimmed)) {
+            toast.error("Please enter a valid email address.");
+            return;
+        }
+
+        setSavingParentEmail(true);
+        try {
+            const idToken = await user.getIdToken();
+
+            const response = await fetch("/api/profile/parent-email", {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${idToken}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ parentEmail: trimmed || null }),
+            });
+
+            if (!response.ok) throw new Error("Failed to update parent email");
+
+            setProfileData(prev => prev ? { ...prev, parentEmail: trimmed || null } : null);
+            setIsEditingParentEmail(false);
+            toast.success(trimmed ? "Parent email saved" : "Parent email removed");
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to save parent email");
+        } finally {
+            setSavingParentEmail(false);
         }
     };
 
@@ -217,6 +275,95 @@ export default function ProfilePage() {
                 </div>
             </div>
 
+            {/* Parent Email Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Parent Email</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                            Where we send weekly progress updates
+                        </p>
+                    </div>
+                    {!isEditingParentEmail && (
+                        <button
+                            onClick={handleEditParentEmail}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                            <Edit2 className="w-4 h-4" />
+                            Edit
+                        </button>
+                    )}
+                </div>
+
+                {isEditingParentEmail ? (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Parent / guardian email
+                            </label>
+                            <input
+                                type="email"
+                                value={editedParentEmail}
+                                onChange={(e) => setEditedParentEmail(e.target.value)}
+                                placeholder="parent@example.com"
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Leave blank to stop progress emails.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3 pt-1">
+                            <button
+                                onClick={handleSaveParentEmail}
+                                disabled={savingParentEmail}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {savingParentEmail ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check className="w-4 h-4" />
+                                        Save Changes
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                onClick={handleCancelParentEmail}
+                                disabled={savingParentEmail}
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                ) : profileData.parentEmail ? (
+                    <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
+                        <Users className="w-5 h-5 text-blue-600 mt-0.5" />
+                        <div>
+                            <div className="text-xs text-gray-600 mb-1">Parent / guardian</div>
+                            <div className="text-sm font-semibold text-gray-900 break-all">
+                                {profileData.parentEmail}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-between gap-4 p-4 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-500">No parent email added yet.</p>
+                        <button
+                            onClick={handleEditParentEmail}
+                            className="shrink-0 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        >
+                            Add Email
+                        </button>
+                    </div>
+                )}
+            </div>
+
             {/* Study Preferences Section */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -235,6 +382,33 @@ export default function ProfilePage() {
                 {profileData.preferences ? (
                     isEditingPreferences ? (
                         <div className="space-y-4">
+                            {/* Level */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Level
+                                </label>
+                                <Select
+                                    value={editedPreferences.level}
+                                    onValueChange={(value) =>
+                                        setEditedPreferences((prev) => ({
+                                            ...prev,
+                                            level: value,
+                                        }))
+                                    }
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select level" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectLabel>Levels</SelectLabel>
+                                            <SelectItem value="GCSE">GCSE</SelectItem>
+                                            <SelectItem value="A-Level">A-Level</SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
                             {/* Exam Board */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -356,7 +530,17 @@ export default function ProfilePage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
+                                <GraduationCap className="w-5 h-5 text-indigo-600 mt-0.5" />
+                                <div>
+                                    <div className="text-xs text-gray-600 mb-1">Level</div>
+                                    <div className="text-sm font-semibold text-gray-900">
+                                        {profileData.preferences.level || "—"}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
                                 <BookOpen className="w-5 h-5 text-blue-600 mt-0.5" />
                                 <div>

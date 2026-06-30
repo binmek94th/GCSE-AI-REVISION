@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
         const userDoc = await db.collection('users').doc(userId).get();
 
         const examBoard = userDoc.data().preferences.examBoard
+        const level = userDoc.data().preferences.level;
 
         if (!userDoc.exists) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -34,11 +35,13 @@ export async function GET(req: NextRequest) {
             .collection('subjects')
             .get();
 
-        const studyPacks = studyPacksSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-            purchasedAt: doc.data().purchasedAt?.toDate().toISOString(),
-        }));
+        const studyPacks = studyPacksSnapshot.docs
+            .map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                purchasedAt: doc.data().purchasedAt?.toDate().toISOString(),
+            }))
+            .filter((pack: any) => !level || pack.level === level);
 
         const localNow = DateTime.now().setZone("Africa/Addis_Ababa");
         const startOfDay = localNow.startOf("day").toJSDate();
@@ -71,8 +74,11 @@ export async function GET(req: NextRequest) {
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayString = yesterday.toISOString().split("T")[0];
 
+        console.log(level);
+
         const dashboardData = {
             examBoard: examBoard,
+            level: level,
             streak: userData?.streak
                 ? {
                     ...userData.streak,

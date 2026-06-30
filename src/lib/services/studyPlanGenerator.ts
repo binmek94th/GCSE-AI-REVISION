@@ -217,7 +217,16 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
             userData?.preferences?.examBoard ??
             null;
 
-        // ── Enrolled subjects ─────────────────────────────────────────────────
+// ── Level (GCSE / A-Level) ────────────────────────────────────────────
+// Drives which study-materials collection and lookup strategy we use.
+        const level: string =
+            userData?.level ??
+            userData?.preferences?.level ??
+            'GCSE';
+        const isALevel = level === 'A-Level';
+        console.log(`User ${userId} level: ${level}`);
+
+// ── Enrolled subjects ─────────────────────────────────────────────────
         const subjectsSnapshot = await admin.firestore()
             .collection('users').doc(userId).collection('subjects').get();
 
@@ -226,9 +235,21 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
             return;
         }
 
+// Only process subjects matching the user's level.
+// Fail-open: docs not yet backfilled (no `level`) are still included.
+        const subjectDocs = subjectsSnapshot.docs.filter(d => {
+            const docLevel = d.data().level;
+            return !docLevel || docLevel === level;
+        });
+
+        if (subjectDocs.length === 0) {
+            console.log(`User ${userId} has no ${level} subjects enrolled. Skipping.`);
+            return;
+        }
+
         const packAnalyses: PackAnalysis[] = [];
 
-        for (const subjectDoc of subjectsSnapshot.docs) {
+        for (const subjectDoc of subjectDocs) {
             const packId = subjectDoc.id;
             const subjectData = subjectDoc.data();
 
@@ -240,18 +261,33 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                     ? (studyPackDoc.data()?.subject ?? subjectData.subject ?? packId)
                     : (subjectData.subject ?? packId);
 
-            const materialsQuery = admin.firestore()
-                .collection('study_materials')
-                .where('subject', '==', subjectName)
-                .where('moderation_status', '==', 'approved');
+            // GCSE materials are keyed by subject name in `study_materials`.
+            // A-Level materials live in `alevel_study_materials` and are linked
+            // to the pack via `study_pack_id` (which equals the pack/enrolment id).
+            const materialsQuery = isALevel
+                ? admin.firestore()
+                    .collection('alevel_study_materials')
+                    .where('study_pack_id', '==', packId)
+                    .where('moderation_status', '==', 'approved')
+                : admin.firestore()
+                    .collection('study_materials')
+                    .where('subject', '==', subjectName)
+                    .where('moderation_status', '==', 'approved');
 
             const materialsSnapshot = await materialsQuery.get();
 
-            const allMaterials: StudyMaterial[] = materialsSnapshot.docs.map(doc => ({
-                id: doc.id,
-                subject_pack_id: packId,
-                ...doc.data(),
-            } as StudyMaterial));
+            const allMaterials: StudyMaterial[] = materialsSnapshot.docs.map(doc => {
+                const d = doc.data();
+                return {
+                    id: doc.id,
+                    subject_pack_id: packId,
+                    ...d,
+                    // A-Level docs store a hash in `title`; the readable name is `topic`.
+                    title: isALevel
+                        ? (d.topic ?? d.title ?? 'Untitled')
+                        : (d.title ?? 'Untitled'),
+                } as StudyMaterial;
+            });
 
             const progressDoc = await admin.firestore()
                 .collection('users').doc(userId).collection('progress').doc(packId).get();
@@ -372,8 +408,6 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
         }
         // ─────────────────────────────────────────────────────────────────────
 
-        console.log(packAnalyses);
-
         const activePacks = packAnalyses.filter(
             pack => pack.incompleteMaterials.length > 0 || pack.incorrectQuestions.length > 0
         );
@@ -385,7 +419,7 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
             return;
         }
 
-        const rawPlan = await generateStudyPlanWithAI(preferences, activePacks);
+        const rawPlan = await generateStudyPlanWithAI(preferences, activePacks, level);
         const lookup = buildMaterialLookup(activePacks);
         const validatedSessions = enrichAndValidateSessions(rawPlan.sessions, activePacks, lookup);
         const finalSessions = padSessions(validatedSessions, activePacks, 8, 20);
@@ -403,11 +437,12 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                 plan: studyPlan,
                 createdAt: new Date(),
                 date: dateKey,
+                level,
                 preferences,
                 status: 'active',
             });
 
-        console.log(`Study plan generated for user: ${userId} | sessions: ${finalSessions.length} | packs: ${activePacks.length}`);
+        console.log(`Study plan generated for user: ${userId} | level: ${level} | sessions: ${finalSessions.length} | packs: ${activePacks.length}`);
     } catch (error) {
         console.error(`Error generating study plan for user ${userId}:`, error);
         throw error;
@@ -417,6 +452,7 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
 async function generateStudyPlanWithAI(
     preferences: UserPreferences,
     packAnalyses: PackAnalysis[],
+    level: string,
 ): Promise<StudyPlan> {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
@@ -448,9 +484,10 @@ async function generateStudyPlanWithAI(
             priorityScore: pack.progressPercent,
         })).sort((a, b) => a.priorityScore - b.priorityScore);
 
-        const prompt = `You are an educational planning assistant. Generate a personalized study plan for today.
+        const prompt = `You are an educational planning assistant. Generate a personalized ${level} study plan for today.
 
 User Information:
+- Qualification Level: ${level}
 - Target Grade: ${preferences.targetGrade || 'Not specified'}
 - Daily Study Time Available: ${avgDailyHours.toFixed(1)} hours (${Math.round(avgDailyHours * 60)} minutes)
 
@@ -493,7 +530,7 @@ Respond ONLY with a JSON object in this exact shape:
             messages: [
                 {
                     role: 'system',
-                    content: `You are an expert educational planner. Always respond with valid JSON only.
+                    content: `You are an expert ${level} educational planner. Always respond with valid JSON only.
 Never invent material IDs — only use IDs from the incompleteMaterials arrays provided.
 Create at least ${minSessions} sessions rotating across all subjects.`,
                 },

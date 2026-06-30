@@ -66,6 +66,8 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
     const [isTestActive, setIsTestActive] = useState(false);
     const router = useRouter();
 
+    console.log(selectedPaperId);
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
         return () => unsubscribe();

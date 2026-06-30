@@ -6,6 +6,7 @@ import { StudyPlanLoading } from "@/app/onboarding/StudyPlanLoading";
 
 interface Props {
     selectedSubjects: SubjectSelection;
+    level: string;
     setNextDisabled: (disabled: boolean) => void;
     setPlan: (data: any) => void;
 }
@@ -26,9 +27,12 @@ interface Question {
     subject: string;
     exam_board: string;
     tier: string;
+    level?: string;
+    imageUrl?: string | null;
+    imageDescription?: string;
 }
 
-const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) => {
+const Quiz: React.FC<Props> = ({ selectedSubjects, level, setNextDisabled, setPlan }) => {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
@@ -46,7 +50,7 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
                 const response = await fetch('/api/questions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ selections: selectedSubjects }),
+                    body: JSON.stringify({ selections: selectedSubjects, level }),
                 });
                 if (!response.ok) {
                     const errorData = await response.json();
@@ -63,7 +67,7 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
             }
         };
         fetchQuestions();
-    }, [selectedSubjects, setNextDisabled]);
+    }, [selectedSubjects, level, setNextDisabled]);
 
     const handleAnswerSelect = (questionId: string, optionKey: string) => {
         setAnswers(prev => ({ ...prev, [questionId]: optionKey }));
@@ -82,7 +86,7 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
             const response = await fetch('/api/questions/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ answers: payload, selectedSubjects }),
+                body: JSON.stringify({ answers: payload, selectedSubjects, level }),
             });
             if (!response.ok) {
                 const errData = await response.json();
@@ -223,6 +227,30 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, setNextDisabled, setPlan }) =
                                     {q.question}
                                 </p>
                             </div>
+
+                            {/* Figure / diagram for the question (only when an image exists) */}
+                            {q.imageUrl && (
+                                <div style={{ paddingLeft: 38, marginBottom: 14 }}>
+                                    <img
+                                        src={q.imageUrl}
+                                        alt={q.imageDescription || 'Question figure'}
+                                        loading="lazy"
+                                        style={{
+                                            display: 'block',
+                                            maxWidth: '100%',
+                                            height: 'auto',
+                                            borderRadius: 8,
+                                            border: '1px solid #E2E8F0',
+                                            backgroundColor: '#FFFFFF',
+                                        }}
+                                    />
+                                    {q.imageDescription && (
+                                        <p style={{ fontSize: 12, color: '#94A3B8', marginTop: 6, fontStyle: 'italic' }}>
+                                            {q.imageDescription}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 38 }}>
                                 {optionEntries.map(([key, value]) => {

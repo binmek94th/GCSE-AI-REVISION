@@ -188,7 +188,7 @@ function Dashboard() {
                 <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-3xl text-gray-900 mb-2">Welcome back! 👋</h1>
-                        <p className="text-gray-600">Ready to ace your GCSEs? Let&#39;s continue your journey.</p>
+                        <p className="text-gray-600">Ready to ace your Exam? Let&#39;s continue your journey.</p>
                     </div>
 
                     <div className="flex items-center gap-3 flex-wrap">

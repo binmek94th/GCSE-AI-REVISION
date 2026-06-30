@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import admin from "../../../lib/firebaseAdmin";
 import { EXAM_DATA } from "@/app/onboarding/exam_data";
+import {A_Level_EXAM_DATA} from "@/app/onboarding/a-levelExamData";
 
 export async function GET(req: Request) {
     try {
@@ -24,7 +25,13 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        const examBoard = userDoc.data()?.preferences?.examBoard;
+        const userData = userDoc.data();
+        const examBoard = userData?.preferences?.examBoard;
+
+        // Level the user is studying (GCSE / A-Level). Onboarding stores it
+        // top-level; fall back to preferences for safety.
+        const level: string =
+            userData?.level ?? userData?.preferences?.level ?? "GCSE";
 
         if (!examBoard) {
             return NextResponse.json(
@@ -33,9 +40,23 @@ export async function GET(req: Request) {
             );
         }
 
-        const allowedCombos = EXAM_DATA.filter(
+        console.log(level, examBoard);
+
+        // A-Level subjects are untiered, so they use a separate combo list.
+        const examData = level === "A-Level" ? A_Level_EXAM_DATA : EXAM_DATA;
+        const allowedCombos = examData.filter(
             (item) => item.exam_board === examBoard
         );
+
+        // Match a pack against the allowed combos for this level. Subject match is
+        // case-insensitive (folder-derived casing varies); tier is only checked
+        // for GCSE since A-Level has no tier.
+        const matchesCombo = (pack: any) =>
+            allowedCombos.some((combo: any) => {
+                if (combo.subject?.toLowerCase() !== pack.subject?.toLowerCase()) return false;
+                if (level === "A-Level") return true;
+                return combo.tier === pack.tier;
+            });
 
         const snapshot = await admin.firestore()
             .collection("study_packs")
@@ -44,13 +65,11 @@ export async function GET(req: Request) {
 
         const studyPacks = snapshot.docs
             .map((doc) => ({ id: doc.id, ...doc.data() }))
-            .filter((pack: any) =>
-                allowedCombos.some(
-                    (combo) =>
-                        combo.subject === pack.subject &&
-                        combo.tier === pack.tier
-                )
-            );
+            .filter((pack: any) => {
+
+                if (pack.level && pack.level !== level) return false;
+                return matchesCombo(pack);
+            });
 
         // Check which subjects the user is actively learning
         const subjectsSnapshot = await admin.firestore()

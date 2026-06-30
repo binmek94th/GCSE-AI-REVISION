@@ -24,6 +24,10 @@ export async function POST(req: Request) {
             ?? userDoc.data()?.preferences?.examBoard
             ?? null;
 
+        const level = userDoc.data()?.level
+            ?? userDoc.data()?.preferences?.level
+            ?? null;
+
         const subjectRef = admin.firestore()
             .collection("users")
             .doc(userId)
@@ -36,6 +40,7 @@ export async function POST(req: Request) {
         await subjectRef.set({
             subject,
             examBoard,
+            level,
             lastOpenedAt: admin.firestore.FieldValue.serverTimestamp(),
             ...(isNew && { enrolledAt: admin.firestore.FieldValue.serverTimestamp() }),
         }, { merge: true });

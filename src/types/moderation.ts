@@ -25,6 +25,7 @@ export interface Question {
   marks?: number;
   created_at: any;
   correctAnswer: string;
+  topic: string;
   updated_at: any;
   flag: string;
   moderation_status?: 'pending' | 'approved' | 'rejected' | 'deleted';

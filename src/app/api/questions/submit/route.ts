@@ -26,6 +26,11 @@ interface StudyMaterial {
     difficulty?: string;
 }
 
+// GCSE and A-Level study materials live in separate collections.
+function materialsCollectionForLevel(level: string): string {
+    return level === "A-Level" ? "alevel_study_materials" : "study_materials";
+}
+
 export async function POST(req: NextRequest) {
     const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
@@ -33,9 +38,10 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { answers, selectedSubjects } = body as {
+        const { answers, selectedSubjects, level } = body as {
             answers: QuizAnswer[];
             selectedSubjects: { subjects: SubjectSelection[]; examBoard: string };
+            level?: string;
         };
 
         if (!answers || !selectedSubjects) {
@@ -44,6 +50,10 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             );
         }
+
+        // Default to GCSE if the client didn't send a level (back-compat).
+        const resolvedLevel = level === "A-Level" ? "A-Level" : "GCSE";
+        const materialsCollection = materialsCollectionForLevel(resolvedLevel);
 
         // Calculate subject results from answers
         const subjectResults: Record<string, { correct: number; total: number; questions: QuizAnswer[] }> = {};
@@ -60,16 +70,16 @@ export async function POST(req: NextRequest) {
             subjectResults[subject].questions.push(answer);
         });
 
-        // Fetch study materials from Firebase for relevant subjects
+        // Fetch study materials from the level-appropriate collection.
         const relevantSubjects = selectedSubjects.subjects.map(s => s.name);
         const studyMaterialsSnapshot = await admin.firestore()
-            .collection('study_materials')
+            .collection(materialsCollection)
             .where('subject', 'in', relevantSubjects)
             .get();
 
         const studyMaterials: StudyMaterial[] = studyMaterialsSnapshot.docs.map(doc => ({
             id: doc.id,
-            title: doc.data().title,
+            title: doc.data().topic ? doc.data().topic : doc.data().title,
             subject: doc.data().subject,
             studyPackId: doc.data().studyPackId,
             content: doc.data().content,
@@ -97,7 +107,7 @@ export async function POST(req: NextRequest) {
         });
 
         // Create prompt for OpenAI
-        const prompt = `You are an expert GCSE tutor analyzing a student's quiz performance. Based on the quiz results and available study materials, recommend specific materials for the student to study.
+        const prompt = `You are an expert ${resolvedLevel} tutor analyzing a student's quiz performance. Based on the quiz results and available study materials, recommend specific materials for the student to study.
 
 Quiz Performance:
 ${subjectAnalysis.map(s => `
@@ -136,7 +146,7 @@ Format your response as a JSON object with this structure:
             messages: [
                 {
                     role: "system",
-                    content: "You are an expert GCSE tutor who provides personalized study recommendations based on quiz performance. Always respond with valid JSON."
+                    content: `You are an expert ${resolvedLevel} tutor who provides personalized study recommendations based on quiz performance. Always respond with valid JSON.`
                 },
                 {
                     role: "user",
@@ -167,6 +177,7 @@ Format your response as a JSON object with this structure:
                 recommendations: enrichedRecommendations
             },
             metadata: {
+                level: resolvedLevel,
                 totalQuestions: answers.length,
                 incorrectCount: incorrectAnswers.length,
                 subjectAnalysis

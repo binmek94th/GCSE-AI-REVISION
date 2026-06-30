@@ -15,24 +15,28 @@ export async function GET(req: Request) {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
 
-        const subjectsSnapshot = await admin
-            .firestore()
-            .collection("users")
-            .doc(userId)
-            .collection("subjects")
-            .get();
+        const userRef = admin.firestore().collection("users").doc(userId);
+
+        const userSnap = await userRef.get();
+        const userData = userSnap.data();
+        const level = userData?.level ?? userData?.preferences?.level ?? null;
+
+        const subjectsSnapshot = await userRef.collection("subjects").get();
 
         if (subjectsSnapshot.empty) {
-            return NextResponse.json({ packs: [] }, { status: 200 });
+            return NextResponse.json({ packs: [], level }, { status: 200 });
         }
 
-        const packs = subjectsSnapshot.docs.map((doc) => ({
-            id: doc.id,
-            subject: doc.data().subject,
-            examBoard: doc.data().examBoard,
-        }));
+        const packs = subjectsSnapshot.docs
+            .map((doc) => ({
+                id: doc.id,
+                subject: doc.data().subject,
+                examBoard: doc.data().examBoard,
+                level: doc.data().level,
+            }))
+            .filter((pack) => !level || pack.level === level);
 
-        return NextResponse.json({ packs }, { status: 200 });
+        return NextResponse.json({ packs, level }, { status: 200 });
     } catch (error) {
         console.error("Error fetching user subjects:", error);
         return NextResponse.json(
