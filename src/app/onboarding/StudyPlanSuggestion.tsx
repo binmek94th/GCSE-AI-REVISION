@@ -3,7 +3,7 @@
 import { BookOpen, TrendingUp, Target, Lightbulb, CheckCircle2, XCircle, X, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { QuizResultSuggestion, QuizSuggestionRecommendation } from "@/app/onboarding/Schema";
-import { MarkdownContent } from "@/app/dashboard/study_materials/Markdown";
+import { MarkdownContent } from "@/app/components/Markdown";
 import { useRouter } from "next/navigation";
 
 interface Props {

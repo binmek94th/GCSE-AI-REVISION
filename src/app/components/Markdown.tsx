@@ -13,7 +13,7 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
         const elements: JSX.Element[] = [];
 
         // List state
-        interface ListItem { text: string; equations: string[]; ordered: boolean; indent: number }
+        interface ListItem { text: string; equations: string[]; ordered: boolean; indent: number; isCheckbox?: boolean; checked?: boolean }
         let listItems: ListItem[] = [];
         let listKey = 0;
         let currentListItem: ListItem | null = null;
@@ -55,15 +55,51 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
                         }
                     },
                     items.map((item, idx) => (
-                        <li key={idx} style={{ color: '#475569' }}>
-                            <div>
-                                {parseInlineElements(item.text)}
-                                {item.equations.map((eq, eqIdx) => (
-                                    <div key={`eq-${eqIdx}`} style={{ margin: '8px 0', overflowX: 'auto' }}>
-                                        <BlockMath math={eq} />
+                        <li
+                            key={idx}
+                            style={{
+                                color: '#475569',
+                                listStyleType: item.isCheckbox ? 'none' : undefined,
+                            }}
+                        >
+                            {item.isCheckbox ? (
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginLeft: -20 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!item.checked}
+                                        readOnly
+                                        disabled
+                                        style={{
+                                            marginTop: 5,
+                                            width: 15,
+                                            height: 15,
+                                            accentColor: '#3B82F6',
+                                            cursor: 'default',
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                    <div style={{
+                                        textDecoration: item.checked ? 'line-through' : 'none',
+                                        color: item.checked ? '#94A3B8' : '#475569',
+                                    }}>
+                                        {parseInlineElements(item.text)}
+                                        {item.equations.map((eq, eqIdx) => (
+                                            <div key={`eq-${eqIdx}`} style={{ margin: '8px 0', overflowX: 'auto' }}>
+                                                <BlockMath math={eq} />
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    {parseInlineElements(item.text)}
+                                    {item.equations.map((eq, eqIdx) => (
+                                        <div key={`eq-${eqIdx}`} style={{ margin: '8px 0', overflowX: 'auto' }}>
+                                            <BlockMath math={eq} />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </li>
                     ))
                 );
@@ -322,7 +358,10 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
             }
 
             // ── Image ────────────────────────────────────────────────────
-            const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+            // NOTE: alt text can legitimately contain [ ] (e.g. "[IMAGE_1]" placeholders),
+            // so the alt group is greedy (.*) instead of [^\]]*, and relies on the
+            // anchored $ + single "](" separator to find the real boundary.
+            const imageMatch = trimmedLine.match(/^!\[(.*)\]\(([^)]+)\)$/);
             if (imageMatch) {
                 flushNonListState();
                 const [, alt, src] = imageMatch;
@@ -376,6 +415,20 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
                         parseInlineElements(headingText)
                     )
                 );
+                return;
+            }
+
+            // ── Checkbox / task-list items ("- [ ] text" / "- [x] text") ───
+            // Must be checked before the generic ordered/unordered list match,
+            // since "- [ ] text" would otherwise match the unordered pattern
+            // and render the literal "[ ]" as text.
+            const checkboxMatch = trimmedLine.match(/^[-*+]\s+\[([ xX])\]\s+(.+)$/);
+            if (checkboxMatch) {
+                if (currentListItem) listItems.push(currentListItem);
+                const checked = checkboxMatch[1].toLowerCase() === 'x';
+                const itemText = checkboxMatch[2];
+                const indentLevel = line.match(/^(\s*)/)?.[1].length ?? 0;
+                currentListItem = { text: itemText, equations: [], ordered: false, indent: indentLevel, isCheckbox: true, checked };
                 return;
             }
 

@@ -6,6 +6,7 @@ import { CheckCircle, XCircle, ChevronRight, Trophy, Zap } from 'lucide-react';
 import { Button } from "@/app/components/ui/button";
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
+import {MarkdownContent} from "@/app/components/Markdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -290,9 +291,9 @@ export function MaterialQuizModal({
 
                             {/* Body */}
                             <div style={{ padding: '18px 20px', overflowY: 'auto', maxHeight: 'calc(90vh - 160px)' }}>
-                                <p style={{ fontSize: 15, fontWeight: 600, color: '#0F172A', lineHeight: 1.6, marginBottom: 16 }}>
-                                    {current.question}
-                                </p>
+                                <div style={{ fontSize: 15, fontWeight: 600, color: '#0F172A', marginBottom: 16 }}>
+                                    <MarkdownContent content={current.question} />
+                                </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
                                     {choices.map(c => {
@@ -330,8 +331,8 @@ export function MaterialQuizModal({
                                                 }}>
                                                     {showCorrect ? '✓' : showWrong ? '✗' : c.option}
                                                 </span>
-                                                <span style={{ fontSize: 13.5, color: textCol, lineHeight: 1.5, paddingTop: 2 }}>
-                                                    {c.text}
+                                                <span style={{ fontSize: 13.5, color: textCol, lineHeight: 1.5, paddingTop: 2, flex: 1 }}>
+                                                    <MarkdownContent content={c.text} />
                                                 </span>
                                             </button>
                                         );
@@ -357,9 +358,9 @@ export function MaterialQuizModal({
                                                 {isCorrect ? 'Correct!' : `Correct answer: ${current.correctAnswer}`}
                                             </span>
                                         </div>
-                                        <p style={{ fontSize: 12.5, color: '#374151', margin: 0, lineHeight: 1.6 }}>
-                                            {current.explanation}
-                                        </p>
+                                        <div style={{ fontSize: 12.5, color: '#374151' }}>
+                                            <MarkdownContent content={current.explanation} />
+                                        </div>
                                     </div>
                                 )}
 

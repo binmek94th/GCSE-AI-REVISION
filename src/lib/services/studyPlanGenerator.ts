@@ -66,6 +66,12 @@ interface StudyPlan {
     error?: string;
 }
 
+// Max incomplete materials sent to the AI prompt per pack. Prevents token
+// usage/cost from scaling unboundedly with catalog size — a pack with 100+
+// approved materials would otherwise dump all of them into every daily
+// generation for every enrolled-but-inactive user.
+const MAX_MATERIALS_PER_PACK_IN_PROMPT = 15;
+
 function buildMaterialLookup(
     packAnalyses: PackAnalysis[]
 ): Map<string, Map<string, StudyMaterial>> {
@@ -78,6 +84,27 @@ function buildMaterialLookup(
         lookup.set(pack.packId, byId);
     }
     return lookup;
+}
+
+// Selects which materials from a pack get surfaced to the AI, capped to keep
+// prompt size predictable. Generated (student-uploaded, addedToPlan) materials
+// are always included first since they were explicitly requested by the student;
+// remaining slots are filled from the rest of incompleteMaterials in existing order.
+function selectMaterialsForPrompt(
+    materials: StudyMaterial[],
+    maxCount: number
+): StudyMaterial[] {
+    if (materials.length <= maxCount) return materials;
+
+    const generated = materials.filter(m => m._isGenerated);
+    const rest = materials.filter(m => !m._isGenerated);
+
+    const selected = generated.slice(0, maxCount);
+    if (selected.length < maxCount) {
+        selected.push(...rest.slice(0, maxCount - selected.length));
+    }
+
+    return selected;
 }
 
 function enrichAndValidateSessions(
@@ -465,25 +492,35 @@ async function generateStudyPlanWithAI(
         const [minHours, maxHours] = hoursPerWeek.split('-').map(h => parseInt(h));
         const avgDailyHours = ((minHours + maxHours) / 2) / 7;
 
-        const packsContext = packAnalyses.map(pack => ({
-            packId: pack.packId,
-            subject: pack.subject,
-            packName: pack.packName,
-            examBoard: pack.examBoard,
-            progressPercent: pack.progressPercent,
-            totalMaterials: pack.totalMaterials,
-            completedMaterials: pack.completedMaterials,
-            incompleteMaterials: pack.incompleteMaterials.map(m => ({
-                id: m.id,
-                title: m.title,
-                difficulty: m.difficulty || 'basic',
-                isGenerated: m._isGenerated ?? false,
-            })),
-            totalQuestions: pack.totalQuestions,
-            correctQuestions: pack.correctQuestions,
-            incorrectQuestionsCount: pack.incorrectQuestions.length,
-            priorityScore: pack.progressPercent,
-        })).sort((a, b) => a.priorityScore - b.priorityScore);
+        const packsContext = packAnalyses.map(pack => {
+            const materialsForPrompt = selectMaterialsForPrompt(
+                pack.incompleteMaterials,
+                MAX_MATERIALS_PER_PACK_IN_PROMPT
+            );
+
+            return {
+                packId: pack.packId,
+                subject: pack.subject,
+                packName: pack.packName,
+                examBoard: pack.examBoard,
+                progressPercent: pack.progressPercent,
+                totalMaterials: pack.totalMaterials,
+                completedMaterials: pack.completedMaterials,
+                incompleteMaterials: materialsForPrompt.map(m => ({
+                    id: m.id,
+                    title: m.title,
+                    difficulty: m.difficulty || 'basic',
+                    isGenerated: m._isGenerated ?? false,
+                })),
+                // Lets the model know there's more available than what's shown,
+                // so it doesn't assume the pack only has these few materials.
+                totalIncompleteAvailable: pack.incompleteMaterials.length,
+                totalQuestions: pack.totalQuestions,
+                correctQuestions: pack.correctQuestions,
+                incorrectQuestionsCount: pack.incorrectQuestions.length,
+                priorityScore: pack.progressPercent,
+            };
+        }).sort((a, b) => a.priorityScore - b.priorityScore);
 
         const prompt = `You are an educational planning assistant. Generate a personalized ${level} study plan for today.
 
@@ -494,6 +531,8 @@ User Information:
 
 Study Packs (sorted by priority — lowest progress first):
 ${JSON.stringify(packsContext, null, 2)}
+
+Note: incompleteMaterials shown per pack is capped at ${MAX_MATERIALS_PER_PACK_IN_PROMPT}. totalIncompleteAvailable shows the real count when it's higher — don't assume the pack has no more materials than what's listed.
 
 RULES:
 1. Create AT LEAST ${minSessions} sessions of ${sessionDuration} minutes each.

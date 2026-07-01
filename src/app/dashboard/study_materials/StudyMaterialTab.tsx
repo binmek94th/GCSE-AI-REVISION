@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import {FileText, Loader2, AlertCircle, BookOpen, ArrowLeft, ChevronRight, ChevronLeft, ChevronDown} from 'lucide-react';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {auth} from "@/lib/firebase";
-import {MarkdownContent} from "@/app/dashboard/study_materials/Markdown";
+import {MarkdownContent} from "@/app/components/Markdown";
 import {useDashboard} from "@/contexts/DashboardContext";
 import ContextualAiChat from "@/app/components/ContextualAiChat";
 import {useRouter, useSearchParams} from "next/navigation";

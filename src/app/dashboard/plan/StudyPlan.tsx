@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { MarkdownContent } from "@/app/dashboard/study_materials/Markdown";
+import { MarkdownContent } from "@/app/components/Markdown";
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, CheckCircle, ClipboardCheck, ChevronRight } from 'lucide-react';
 import { ScrollArea } from "@radix-ui/react-scroll-area";

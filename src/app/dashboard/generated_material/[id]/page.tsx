@@ -6,7 +6,7 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import Spinner from '@/app/components/ui/Spinner';
-import { MarkdownContent } from "@/app/dashboard/study_materials/Markdown";
+import { MarkdownContent } from "@/app/components/Markdown";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
