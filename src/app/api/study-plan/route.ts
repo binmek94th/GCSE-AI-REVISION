@@ -10,9 +10,24 @@ export async function GET(req: NextRequest) {
         }
 
         const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const userId = decodedToken.uid;0
+        const userId = decodedToken.uid;
 
         const db = admin.firestore();
+
+        // ---- Resolve the user's level (drives which collections we read) ----
+        const userDoc = await db.collection("users").doc(userId).get();
+        const userData = userDoc.data() || {};
+        const level =
+            userData?.level ?? userData?.preferences?.level ?? "GCSE";
+        const isALevel = level === "A-Level";
+
+        // GCSE and A-Level content live in separate collections.
+        const MATERIALS_COLLECTION = isALevel
+            ? "alevel_study_materials"
+            : "study_materials";
+        const QUESTIONS_COLLECTION = isALevel
+            ? "a-levelExamQuestions"
+            : "questions";
 
         const localNow = DateTime.now().setZone("Africa/Addis_Ababa");
         const startOfDay = localNow.startOf("day").toJSDate();
@@ -70,7 +85,7 @@ export async function GET(req: NextRequest) {
             adjustedPlan.breaks = adjustedPlan.breaks.slice(0, Math.max(0, count - 1));
         }
 
-        // ---- Fetch Material Details ----
+        // ---- Fetch Material Details (level-specific collection) ----
         const allMaterialIds = adjustedPlan.sessions
             ?.map((s: any) => s.materialId)
             .filter(Boolean) || [];
@@ -79,7 +94,7 @@ export async function GET(req: NextRequest) {
 
         if (allMaterialIds.length > 0) {
             const materialPromises = allMaterialIds.map((id: string) =>
-                db.collection("study_materials").doc(id).get()
+                db.collection(MATERIALS_COLLECTION).doc(id).get()
             );
             const materialSnapshots = await Promise.all(materialPromises);
 
@@ -103,14 +118,16 @@ export async function GET(req: NextRequest) {
                         questionToMaterialMap[q.id] = {
                             materialId: material.id,
                             subject: material.subject || session.subject,
-                            materialTitle: material.title || session.materialTitle,
+                            // A-Level materials use `topic` as the heading, not `title`.
+                            materialTitle:
+                                material.title || material.topic || session.materialTitle,
                         };
                     }
                 }
             }
         }
 
-        // ---- Fetch Full Question Details from Firestore ----
+        // ---- Fetch Full Question Details (level-specific collection) ----
         const fullQuestions: any[] = [];
         const questionsBySubject: Record<string, any[]> = {};
 
@@ -125,7 +142,7 @@ export async function GET(req: NextRequest) {
 
             for (const batch of questionBatches) {
                 const questionsSnapshot = await db
-                    .collection("questions")
+                    .collection(QUESTIONS_COLLECTION)
                     .where(admin.firestore.FieldPath.documentId(), "in", batch)
                     .get();
 
@@ -133,18 +150,48 @@ export async function GET(req: NextRequest) {
                     const qData = qDoc.data();
                     const metadata = questionToMaterialMap[qDoc.id];
 
-                    const questionData = {
-                        id: qDoc.id,
-                        question: qData.question,
-                        options: qData.options,
-                        correctAnswer: qData.correctAnswer,
-                        explanation: qData.explanation || null,
-                        subject: metadata?.subject || qData.subject,
-                        materialId: metadata?.materialId,
-                        materialTitle: metadata?.materialTitle,
-                        difficulty: qData.difficulty || "Elementary",
-                        createdAt: qData.createdAt?.toDate?.().toISOString?.() || qData.createdAt,
-                    };
+                    let questionData: any;
+
+                    if (isALevel) {
+                        // A-Level schema: questionText + choices[].{option,text,isCorrect}.
+                        // Normalise to the same options-map / correctAnswer shape GCSE uses.
+                        const choices = Array.isArray(qData.choices) ? qData.choices : [];
+                        const optionsMap: Record<string, string> = {};
+                        let correctAnswer: string | null = null;
+                        for (const c of choices) {
+                            if (c && c.option != null) {
+                                optionsMap[c.option] = c.text;
+                                if (c.isCorrect) correctAnswer = c.option;
+                            }
+                        }
+
+                        questionData = {
+                            id: qDoc.id,
+                            question: qData.questionText ?? qData.question ?? "",
+                            options: optionsMap,
+                            correctAnswer,
+                            explanation: qData.explanation || null,
+                            subject: metadata?.subject || qData.subject,
+                            materialId: metadata?.materialId,
+                            materialTitle: metadata?.materialTitle,
+                            difficulty: qData.difficulty || "Elementary",
+                            createdAt: qData.createdAt?.toDate?.().toISOString?.() || qData.createdAt,
+                        };
+                    } else {
+                        // GCSE schema: question + options (map) + correctAnswer.
+                        questionData = {
+                            id: qDoc.id,
+                            question: qData.question,
+                            options: qData.options,
+                            correctAnswer: qData.correctAnswer,
+                            explanation: qData.explanation || null,
+                            subject: metadata?.subject || qData.subject,
+                            materialId: metadata?.materialId,
+                            materialTitle: metadata?.materialTitle,
+                            difficulty: qData.difficulty || "Elementary",
+                            createdAt: qData.createdAt?.toDate?.().toISOString?.() || qData.createdAt,
+                        };
+                    }
 
                     // Group by subject
                     const subject = questionData.subject;
@@ -183,6 +230,7 @@ export async function GET(req: NextRequest) {
         const studyPlan = {
             id: doc.id,
             ...data,
+            level,
             plan: adjustedPlan,
             assessment: {
                 totalQuestions: fullQuestions.length,

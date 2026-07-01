@@ -9,7 +9,6 @@ const client = new Anthropic();
 
 const MAX_PDF_PAGES = 80;
 const MODEL = 'claude-sonnet-4-6';
-// Claude Sonnet's max output — use the full budget so responses never truncate
 const MAX_TOKENS = 8000;
 
 // ─── PDF page counter ─────────────────────────────────────────────────────────

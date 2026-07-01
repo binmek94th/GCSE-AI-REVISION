@@ -20,7 +20,7 @@ export async function PUT(request: NextRequest) {
 
         // Get the preferences from the request body
         const body = await request.json();
-        const { examBoard, hoursPerWeek, targetGrade } = body;
+        const { examBoard, hoursPerWeek, targetGrade, level } = body;
 
         // Validate preferences
         const validExamBoards = ["AQA", "OCR", "Edexcel", "WJEC", "CCEA"];
@@ -55,6 +55,7 @@ export async function PUT(request: NextRequest) {
             "preferences.examBoard": examBoard,
             "preferences.hoursPerWeek": hoursPerWeek,
             "preferences.targetGrade": targetGrade,
+            "preferences.level": level,
             updatedAt: new Date().toISOString()
         });
 
