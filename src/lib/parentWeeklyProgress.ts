@@ -325,7 +325,7 @@ function subjectRow(s: SubjectProgress): string {
            </table>
          </td></tr>
        </table>`
-        : `<div style="text-align:right;font-size:12px;color:#9ca3af;">Not enough data yet</div>`;
+        : `<div style="text-align:right;font-size:12px;color:#9ca3af;">No progress this week</div>`;
 
     return `<tr>
     <td style="padding:14px 0;border-bottom:1px solid #f0f0f0;vertical-align:top;">

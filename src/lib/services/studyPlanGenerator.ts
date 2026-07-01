@@ -281,6 +281,7 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                 return {
                     id: doc.id,
                     subject_pack_id: packId,
+                    material: d.content,
                     ...d,
                     // A-Level docs store a hash in `title`; the readable name is `topic`.
                     title: isALevel
