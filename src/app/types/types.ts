@@ -5,4 +5,5 @@ export interface Question {
     options: string[];
     answer: string;
     subject: string;
+    flag?: string;
 }
