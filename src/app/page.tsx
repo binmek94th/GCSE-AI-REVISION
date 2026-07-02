@@ -206,8 +206,11 @@ function HomePage() {
                                 Start Free Study Plan
                             </button>
                             <button
-                                onClick={() => onNavigate('/subjects')}
                                 className="w-full cursor-pointer sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors border-2 border-purple-200 text-sm sm:text-base"
+                                onClick={() => {
+                                    setActiveTab('plan');
+                                    document.getElementById('plan-section')?.scrollIntoView({ behavior: 'smooth' });
+                                }}
                             >
                                 See How It Works
                             </button>
@@ -598,14 +601,14 @@ function HomePage() {
                     </div>
 
                     {/* Tab content */}
-                    <div className="bg-white rounded-2xl p-5 sm:p-8 shadow-lg border border-gray-100">
+                    <div id="plan-section" className="bg-white rounded-2xl p-5 sm:p-8 shadow-lg border border-gray-100">
                         {activeTab === 'plan' && (
                             <div className="space-y-4">
                                 <h3 className="text-lg sm:text-xl font-semibold text-gray-900">My Plan</h3>
                                 <p className="text-gray-600 text-sm sm:text-base">See exactly what to study today, this week, and before your exam. No guesswork, no overwhelm.</p>
                                 <div className="bg-blue-50 rounded-xl p-4 sm:p-6 space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <span className="font-medium text-gray-900 text-sm sm:text-base">Today's Focus</span>
+                                        <span className="font-medium text-gray-900 text-sm sm:text-base">Today&#39;s Focus</span>
                                         <span className="text-xs sm:text-sm text-gray-500">3 topics</span>
                                     </div>
                                     <div className="space-y-2">
