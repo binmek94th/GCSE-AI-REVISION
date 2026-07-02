@@ -21,6 +21,9 @@ export async function GET(req: Request) {
 
         const userData = userDoc.data();
 
+        // ✅ Resolve the student's level to filter subject progress by
+        const level = userData?.level ?? userData?.preferences?.level ?? null;
+
         // Fetch subscription from subcollection
         const subColRef = db.collection("users").doc(uid).collection("subscriptions");
 
@@ -43,15 +46,12 @@ export async function GET(req: Request) {
             ? null
             : subscriptionSnapshot.docs[0].data();
 
-        // Get user metadata from Firebase Auth
         const userRecord = await admin.auth().getUser(uid);
 
-        // Fetch study packs from boughtPacks
         const packRef = db.collection("users").doc(uid).collection("boughtPacks");
         const packSnapshot = await packRef.get();
         const studyPacks = packSnapshot.size;
 
-        // Calculate quiz statistics from users/{uid}/question_progress/{subject} structure
         const userProgressRef = db.collection("users").doc(uid).collection("question_progress");
         const subjectsSnapshot = await userProgressRef.get();
 
@@ -60,12 +60,19 @@ export async function GET(req: Request) {
         const quizSessions = new Set<string>(); // Track unique quiz sessions by date
         const subjectProgress: { [subject: string]: { total: number; correct: number; accuracy: number } } = {};
 
-        // Iterate through each subject document
         for (const subjectDoc of subjectsSnapshot.docs) {
-            const subjectName = subjectDoc.id;
+            const subjectName = subjectDoc.id; // this is the packId
             const subjectData = subjectDoc.data();
 
-            // Iterate through all question IDs in the subject map
+            // ✅ Filter by level: look up the pack's level and skip if it
+            // doesn't match the student's level. Fail-open — if either the
+            // student's level or the pack's level is missing, don't filter,
+            // so progress is never silently hidden due to incomplete data.
+            const packDoc = await db.collection("study_packs").doc(subjectName).get();
+            const packLevel = packDoc.exists ? packDoc.data()?.level : undefined;
+            if (level && packLevel && packLevel !== level)
+                continue;
+
             for (const [questionId, progressData] of Object.entries(subjectData)) {
                 if (typeof progressData === 'object' && progressData !== null) {
                     const data = progressData as any;

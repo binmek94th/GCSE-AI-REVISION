@@ -209,22 +209,21 @@ export async function GET(req: NextRequest) {
             }
         }
 
-        // ---- Update Sessions with Material (without questions) ----
-        adjustedPlan.sessions = adjustedPlan.sessions?.map((session: any) => {
-            const material = materialDocs[session.materialId];
-            if (material) {
+        // ---- Update Sessions with Material (skip sessions with missing material) ----
+        // If a session's materialId doesn't resolve to a document in the
+        // level-specific materials collection, drop that session entirely
+        // instead of returning it with `material: null`.
+        adjustedPlan.sessions = (adjustedPlan.sessions || [])
+            .filter((session: any) => !!materialDocs[session.materialId])
+            .map((session: any) => {
+                const material = materialDocs[session.materialId];
                 // Remove questions array from material to avoid duplication
                 const { questions, ...materialWithoutQuestions } = material;
                 return {
                     ...session,
                     material: materialWithoutQuestions,
                 };
-            }
-            return {
-                ...session,
-                material: null,
-            };
-        });
+            });
 
         // ---- Build Final Response ----
         const studyPlan = {

@@ -11,9 +11,11 @@ export async function GET(request: NextRequest) {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
 
-        // Get user's examBoard preference
+        // Get user's examBoard + level preference
         const userDoc = await admin.firestore().collection('users').doc(userId).get();
-        const examBoard = userDoc.data()?.preferences?.examBoard ?? userDoc.data()?.examBoard ?? null;
+        const userData = userDoc.data();
+        const examBoard = userData?.preferences?.examBoard ?? userData?.examBoard ?? null;
+        const level = userData?.level ?? userData?.preferences?.level ?? null;
 
         // Get all progress documents for the user
         const progressSnapshot = await admin
@@ -53,8 +55,17 @@ export async function GET(request: NextRequest) {
                 continue;
             }
 
-            const subjectName = studyPackDoc.data()?.subject;
+            const studyPackData = studyPackDoc.data();
+            const subjectName = studyPackData?.subject;
             if (!subjectName) continue;
+
+            // ✅ Filter subjects by the user's level preference (fail-open if either
+            //    side is missing, so we never silently hide content due to a
+            //    missing level field on the pack or the user)
+            const packLevel = studyPackData?.level;
+            if (level && packLevel && packLevel !== level) {
+                continue;
+            }
 
             // ✅ Query materials the same way the study-materials GET does —
             //    by subject name + examBoard + approved, NOT by packId

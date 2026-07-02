@@ -355,105 +355,115 @@ function PlanTab({ subjects, studyPack }: PlanTabProps) {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-5">
-                        {subjects.map((subject, index) => {
-                            const displayName = subject.name
-                                .replace(/_/g, ' ')
-                                .replace(/\b\w/g, c => c.toUpperCase());
+                        {subjects.length === 0 ? (
+                            <div className="flex flex-col items-center text-center gap-2 py-6">
+                                <Award className="w-8 h-8 text-gray-300" />
+                                <p className="text-sm font-medium text-gray-600">No progress yet</p>
+                                <p className="text-xs text-gray-400">
+                                    Start a material or quiz to see your progress here.
+                                </p>
+                            </div>
+                        ) : (
+                            subjects.map((subject, index) => {
+                                const displayName = subject.name
+                                    .replace(/_/g, ' ')
+                                    .replace(/\b\w/g, c => c.toUpperCase());
 
-                            const quiz = findQuizStat(subject.name);
-                            const hasGrade = !!subject.grade && subject.grade.toUpperCase() !== 'N/A';
-                            const targetGrade = findTargetGrade(subject.name);
-                            const readiness = quiz && quiz.total > 0 ? getReadiness(quiz.accuracy, targetGrade) : null;
+                                const quiz = findQuizStat(subject.name);
+                                const hasGrade = !!subject.grade && subject.grade.toUpperCase() !== 'N/A';
+                                const targetGrade = findTargetGrade(subject.name);
+                                const readiness = quiz && quiz.total > 0 ? getReadiness(quiz.accuracy, targetGrade) : null;
 
-                            return (
-                                <div key={index} className="space-y-2">
-                                    {/* Subject name + target grade */}
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm font-medium text-gray-700">{displayName}</span>
-                                        {targetGrade
-                                            ? <Badge variant="outline" className="text-xs">🎯 Target {targetGrade}</Badge>
-                                            : hasGrade
-                                                ? <Badge variant="outline" className="text-xs">{subject.grade}</Badge>
-                                                : <Badge variant="outline" className="text-xs text-gray-400">New</Badge>}
-                                    </div>
-
-                                    {/* Material completion bar */}
-                                    <div className="space-y-1">
+                                return (
+                                    <div key={index} className="space-y-2">
+                                        {/* Subject name + target grade */}
                                         <div className="flex justify-between items-center">
-                                            <span className="text-xs text-gray-400">Materials</span>
-                                            <span className="text-xs text-gray-500">
-                                                {subject.progress > 0 ? `${subject.progress}%` : 'Not started'}
-                                            </span>
+                                            <span className="text-sm font-medium text-gray-700">{displayName}</span>
+                                            {targetGrade
+                                                ? <Badge variant="outline" className="text-xs">🎯 Target {targetGrade}</Badge>
+                                                : hasGrade
+                                                    ? <Badge variant="outline" className="text-xs">{subject.grade}</Badge>
+                                                    : <Badge variant="outline" className="text-xs text-gray-400">New</Badge>}
                                         </div>
-                                        <Progress value={subject.progress} className="h-1.5" />
-                                    </div>
 
-                                    {/* Readiness score vs target — or a friendly prompt when there's no data yet */}
-                                    {quiz && quiz.total > 0 ? (
+                                        {/* Material completion bar */}
                                         <div className="space-y-1">
                                             <div className="flex justify-between items-center">
-                                                <span className="text-xs text-gray-400 flex items-center gap-1">
-                                                    <Brain className="w-3 h-3" /> Readiness
-                                                </span>
-                                                <div className="flex items-center gap-2">
-                                                    {readiness && (
-                                                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${STATUS_STYLE[readiness.status].pill}`}>
-                                                            {STATUS_STYLE[readiness.status].label}
-                                                        </span>
-                                                    )}
-                                                    <span className={`text-xs font-semibold ${
-                                                        readiness ? STATUS_STYLE[readiness.status].text :
-                                                            quiz.accuracy >= 70 ? 'text-green-600' :
-                                                                quiz.accuracy >= 50 ? 'text-yellow-600' :
-                                                                    'text-red-500'
-                                                    }`}>
-                                                        {quiz.accuracy}%
-                                                    </span>
-                                                </div>
+                                                <span className="text-xs text-gray-400">Materials</span>
+                                                <span className="text-xs text-gray-500">
+                                {subject.progress > 0 ? `${subject.progress}%` : 'Not started'}
+                            </span>
                                             </div>
+                                            <Progress value={subject.progress} className="h-1.5" />
+                                        </div>
 
-                                            {/* Progress bar with a target marker */}
-                                            <div className="relative h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full transition-all ${
-                                                        readiness ? STATUS_STYLE[readiness.status].bar :
-                                                            quiz.accuracy >= 70 ? 'bg-green-500' :
-                                                                quiz.accuracy >= 50 ? 'bg-yellow-400' :
-                                                                    'bg-red-400'
-                                                    }`}
-                                                    style={{ width: `${quiz.accuracy}%` }}
-                                                />
-                                                {readiness && (
-                                                    <span
-                                                        className="absolute top-[-2px] bottom-[-2px] w-0.5 bg-gray-700/70 rounded"
-                                                        style={{ left: `${readiness.targetPct}%` }}
-                                                        title={`Grade ${readiness.targetGrade} target (~${readiness.targetPct}%)`}
+                                        {/* Readiness score vs target — or a friendly prompt when there's no data yet */}
+                                        {quiz && quiz.total > 0 ? (
+                                            <div className="space-y-1">
+                                                <div className="flex justify-between items-center">
+                                <span className="text-xs text-gray-400 flex items-center gap-1">
+                                    <Brain className="w-3 h-3" /> Readiness
+                                </span>
+                                                    <div className="flex items-center gap-2">
+                                                        {readiness && (
+                                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${STATUS_STYLE[readiness.status].pill}`}>
+                                            {STATUS_STYLE[readiness.status].label}
+                                        </span>
+                                                        )}
+                                                        <span className={`text-xs font-semibold ${
+                                                            readiness ? STATUS_STYLE[readiness.status].text :
+                                                                quiz.accuracy >= 70 ? 'text-green-600' :
+                                                                    quiz.accuracy >= 50 ? 'text-yellow-600' :
+                                                                        'text-red-500'
+                                                        }`}>
+                                        {quiz.accuracy}%
+                                    </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Progress bar with a target marker */}
+                                                <div className="relative h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+                                                    <div
+                                                        className={`h-full rounded-full transition-all ${
+                                                            readiness ? STATUS_STYLE[readiness.status].bar :
+                                                                quiz.accuracy >= 70 ? 'bg-green-500' :
+                                                                    quiz.accuracy >= 50 ? 'bg-yellow-400' :
+                                                                        'bg-red-400'
+                                                        }`}
+                                                        style={{ width: `${quiz.accuracy}%` }}
                                                     />
+                                                    {readiness && (
+                                                        <span
+                                                            className="absolute top-[-2px] bottom-[-2px] w-0.5 bg-gray-700/70 rounded"
+                                                            style={{ left: `${readiness.targetPct}%` }}
+                                                            title={`Grade ${readiness.targetGrade} target (~${readiness.targetPct}%)`}
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                {/* Status line: "43% — behind your Grade 8 target" */}
+                                                {readiness ? (
+                                                    <p className={`text-xs font-medium ${STATUS_STYLE[readiness.status].text}`}>
+                                                        {readiness.status === 'behind'   && `Behind your Grade ${readiness.targetGrade} target`}
+                                                        {readiness.status === 'on_track' && `On track for your Grade ${readiness.targetGrade} target`}
+                                                        {readiness.status === 'ahead'    && `Ahead of your Grade ${readiness.targetGrade} target`}
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-xs text-gray-400">
+                                                        {quiz.correct}/{quiz.total} questions correct
+                                                    </p>
                                                 )}
                                             </div>
-
-                                            {/* Status line: "43% — behind your Grade 8 target" */}
-                                            {readiness ? (
-                                                <p className={`text-xs font-medium ${STATUS_STYLE[readiness.status].text}`}>
-                                                    {readiness.status === 'behind'   && `Behind your Grade ${readiness.targetGrade} target`}
-                                                    {readiness.status === 'on_track' && `On track for your Grade ${readiness.targetGrade} target`}
-                                                    {readiness.status === 'ahead'    && `Ahead of your Grade ${readiness.targetGrade} target`}
-                                                </p>
-                                            ) : (
-                                                <p className="text-xs text-gray-400">
-                                                    {quiz.correct}/{quiz.total} questions correct
-                                                </p>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                                            <Brain className="w-3 h-3 text-gray-400 shrink-0" />
-                                            Complete a quiz to unlock your readiness score
-                                        </p>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                        ) : (
+                                            <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                                                <Brain className="w-3 h-3 text-gray-400 shrink-0" />
+                                                Complete a quiz to unlock your readiness score
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
                     </CardContent>
                 </Card>
             </div>

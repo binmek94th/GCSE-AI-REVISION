@@ -2,17 +2,23 @@ import { NextResponse } from "next/server";
 import admin from "@/lib/firebaseAdmin";
 
 // ------------------------
-// Fetch materials with pagination
+// Fetch materials with pagination (level-aware: GCSE vs A-Level collection)
 // ------------------------
-async function getMaterialsByPack(packId: string, examBoard: string, limit: number, page: number) {
-    console.log(packId)
+async function getMaterialsByPack(
+    packId: string,
+    examBoard: string,
+    limit: number,
+    page: number,
+    materialsCollection: string,
+    orderField: string
+) {
     const collectionRef = admin
         .firestore()
-        .collection("study_materials")
-        // .where("exam_board", "==", examBoard)
+        .collection(materialsCollection)
+        .where("exam_board", "==", examBoard)
         .where("moderation_status", "==", "approved")
         .where("subject", "==", packId)
-        .orderBy("title");
+        .orderBy(orderField);
 
     const allDocsSnapshot = await collectionRef.get();
     const allDocs = allDocsSnapshot.docs;
@@ -75,9 +81,23 @@ export async function GET(req: Request) {
             );
         }
 
+        // ✅ Resolve user's level and pick the matching materials collection.
+        // GCSE and A-Level content live in separate collections with slightly
+        // different schemas — A-Level materials use `topic` instead of `title`.
+        const level = userData?.level ?? userData?.preferences?.level ?? "GCSE";
+        const isALevel = level === "A-Level";
+        const MATERIALS_COLLECTION = isALevel ? "alevel_study_materials" : "study_materials";
+        const ORDER_FIELD = isALevel ? "topic" : "title";
 
         // Fetch materials
-        const { materials, total, hasMore } = await getMaterialsByPack(studyPack.data().subject, examBoard, limit, page);
+        const { materials, total, hasMore } = await getMaterialsByPack(
+            studyPack.data().subject,
+            examBoard,
+            limit,
+            page,
+            MATERIALS_COLLECTION,
+            ORDER_FIELD
+        );
 
         // Fetch user progress
         const progressDocRef = admin
@@ -142,7 +162,7 @@ export async function POST(req: Request) {
             },
             { merge: true }
         );
-        
+
         const userSnap = await userRef.get();
         const userData = userSnap.data() || {};
 

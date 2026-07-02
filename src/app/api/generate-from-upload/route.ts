@@ -9,37 +9,27 @@ export const runtime = 'nodejs';
 const client = new Anthropic();
 
 const MAX_PDF_PAGES = 80;
-// Hard cap on raw PDF bytes before we even attempt to parse. Prevents wasting
-// time/memory on pathological uploads; well above what a legitimate 80-page
-// revision PDF should be.
 const MAX_PDF_BYTES = 50 * 1024 * 1024; // 50MB
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 8000;
 const FILES_API_BETA = 'files-api-2025-04-14';
 
-const FREE_DAILY_LIMIT = 3;
-const PRO_DAILY_LIMIT = 15;
+// ✅ Monthly upload limit (replaces the old daily Free/Pro limit for this
+// route). Flat 5/month for every user; beyond that, purchased credits are
+// consumed one-per-upload. Adjust MONTHLY_UPLOAD_LIMIT if Pro users should
+// get a higher baseline — currently flat for all tiers per this request.
+const MONTHLY_UPLOAD_LIMIT = 5;
 
 // ─── Accurate PDF page counter ─────────────────────────────────────────────────
-/**
- * Parses the PDF structure with pdf-lib to get a real page count.
- * Replaces the old regex-on-raw-bytes approach, which silently undercounted
- * (often returning 0) on PDFs using compressed object streams / xref streams —
- * common output from Word, Google Docs, and most modern PDF producers.
- *
- * Fails CLOSED: if the PDF can't be parsed at all (corrupted, encrypted with
- * restrictions pdf-lib can't work around, etc.), we reject rather than let it
- * through — the old behavior of defaulting to a page count of 0 on parse
- * failure meant unparseable files bypassed the limit entirely.
- */
 async function getAccuratePdfPageCount(buffer: Buffer): Promise<number> {
     const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
     return doc.getPageCount();
 }
 
-function todayKey(): string {
-    return new Date().toISOString().slice(0, 10);
+function monthKey(): string {
+    // "YYYY-MM" — one usage doc per calendar month
+    return new Date().toISOString().slice(0, 7);
 }
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
@@ -55,46 +45,97 @@ async function getUidFromRequest(req: NextRequest): Promise<string | null> {
     }
 }
 
-// ─── Rate limit check + increment ─────────────────────────────────────────────
-async function checkAndIncrementLimit(uid: string, isPro: boolean): Promise<{
+// ─── Monthly upload allowance check + consume ──────────────────────────────────
+/**
+ * Checks the user's monthly upload usage. If under MONTHLY_UPLOAD_LIMIT,
+ * consumes one free monthly upload. If the monthly limit is exhausted,
+ * falls back to consuming one purchased credit (users/{uid}.uploadCredits)
+ * if available. Fails closed (not allowed) only if both are exhausted.
+ */
+async function checkAndConsumeUploadAllowance(uid: string): Promise<{
     allowed: boolean;
-    remaining: number;
-    limit: number;
+    usedCredit: boolean;
+    remainingThisMonth: number;
+    credits: number;
 }> {
-    const limit = isPro ? PRO_DAILY_LIMIT : FREE_DAILY_LIMIT;
     const limitRef = admin.firestore()
         .collection('users')
         .doc(uid)
-        .collection('generationLimits')
-        .doc(todayKey());
+        .collection('uploadLimits')
+        .doc(monthKey());
+
+    const userRef = admin.firestore().collection('users').doc(uid);
 
     return admin.firestore().runTransaction(async (tx) => {
-        const snap = await tx.get(limitRef);
-        const used = snap.exists ? (snap.data()!.count as number) : 0;
+        const [limitSnap, userSnap] = await Promise.all([tx.get(limitRef), tx.get(userRef)]);
 
-        if (used >= limit) return { allowed: false, remaining: 0, limit };
+        const used = limitSnap.exists ? (limitSnap.data()!.count as number) : 0;
+        const credits = userSnap.exists ? (userSnap.data()!.uploadCredits as number) || 0 : 0;
 
-        tx.set(
-            limitRef,
-            { count: FieldValue.increment(1), lastUsed: FieldValue.serverTimestamp() },
-            { merge: true }
-        );
+        if (used < MONTHLY_UPLOAD_LIMIT) {
+            tx.set(
+                limitRef,
+                { count: FieldValue.increment(1), lastUsed: FieldValue.serverTimestamp() },
+                { merge: true }
+            );
+            return {
+                allowed: true,
+                usedCredit: false,
+                remainingThisMonth: MONTHLY_UPLOAD_LIMIT - used - 1,
+                credits,
+            };
+        }
 
-        return { allowed: true, remaining: limit - used - 1, limit };
+        if (credits > 0) {
+            tx.set(
+                limitRef,
+                { count: FieldValue.increment(1), lastUsed: FieldValue.serverTimestamp() },
+                { merge: true }
+            );
+            tx.update(userRef, { uploadCredits: FieldValue.increment(-1) });
+            return {
+                allowed: true,
+                usedCredit: true,
+                remainingThisMonth: 0,
+                credits: credits - 1,
+            };
+        }
+
+        return { allowed: false, usedCredit: false, remainingThisMonth: 0, credits: 0 };
     });
 }
 
+/** Read-only status check (no consumption) — used by GET for the frontend to show usage before generating. */
+async function getUploadAllowanceStatus(uid: string): Promise<{
+    remainingThisMonth: number;
+    usedThisMonth: number;
+    credits: number;
+    limit: number;
+}> {
+    const limitRef = admin.firestore()
+        .collection('users')
+        .doc(uid)
+        .collection('uploadLimits')
+        .doc(monthKey());
+
+    const userRef = admin.firestore().collection('users').doc(uid);
+
+    const [limitSnap, userSnap] = await Promise.all([limitRef.get(), userRef.get()]);
+    const used = limitSnap.exists ? (limitSnap.data()!.count as number) : 0;
+    const credits = userSnap.exists ? (userSnap.data()!.uploadCredits as number) || 0 : 0;
+
+    return {
+        remainingThisMonth: Math.max(0, MONTHLY_UPLOAD_LIMIT - used),
+        usedThisMonth: used,
+        credits,
+        limit: MONTHLY_UPLOAD_LIMIT,
+    };
+}
+
 // ─── JSON repair ──────────────────────────────────────────────────────────────
-/**
- * If Claude's response was cut off mid-JSON (stop_reason === 'max_tokens'),
- * this attempts to close any open arrays/objects so JSON.parse has a chance.
- * It is a best-effort heuristic — it handles the most common truncation points.
- */
 function repairTruncatedJson(raw: string): string {
-    // Strip any markdown fences Claude may have included
     let text = raw.replace(/```json|```/g, '').trim();
 
-    // Track open brackets/braces to know what needs closing
     const stack: string[] = [];
     let inString = false;
     let escape = false;
@@ -111,16 +152,11 @@ function repairTruncatedJson(raw: string): string {
         else if (ch === '}' || ch === ']') stack.pop();
     }
 
-    // If we're still inside a string, close it
     if (inString) text += '"';
 
-    // Remove any trailing incomplete key or value (e.g. `,"term":` with no value)
-    // This catches the most common truncation pattern: a key without its value
     text = text.replace(/,\s*"[^"]*"\s*:\s*$/, '');
-    // Also remove a trailing comma before we close
     text = text.replace(/,\s*$/, '');
 
-    // Close any open arrays/objects in reverse order
     for (let i = stack.length - 1; i >= 0; i--) {
         text += stack[i] === '[' ? ']' : '}';
     }
@@ -129,14 +165,6 @@ function repairTruncatedJson(raw: string): string {
 }
 
 // ─── Document source types ─────────────────────────────────────────────────────
-// Two ways a client can supply a PDF:
-//  1. base64 (existing) — fine for small inline docs, but bloats the request
-//     body ~33% and is subject to platform body-size limits (e.g. Vercel's
-//     4.5MB serverless limit) well before hitting MAX_PDF_PAGES.
-//  2. firebase_storage (new) — client uploads to Storage first (same pattern
-//     already used elsewhere in the app) and sends just the path. Server
-//     downloads directly and forwards to Anthropic's Files API. Avoids the
-//     body-size ceiling entirely since the request payload is just a string.
 interface Base64DocumentSource {
     type: 'base64';
     media_type: string;
@@ -160,8 +188,6 @@ type DocumentPart = {
     [key: string]: unknown;
 };
 
-// Everything else a message part could legitimately be (text, images, etc.)
-// We don't care about the exact shape here — we pass these through untouched.
 interface OtherContentPart {
     type: string;
     [key: string]: unknown;
@@ -169,14 +195,6 @@ interface OtherContentPart {
 
 type IncomingContentPart = DocumentPart | OtherContentPart;
 
-// Local shape for the REQUEST BODY only — deliberately NOT Anthropic.MessageParam.
-// The client can send source shapes (firebase_storage) that the SDK's own
-// MessageParam type knows nothing about. Typing incoming messages against the
-// SDK type causes TypeScript to narrow `part.source` as an intersection of the
-// SDK's own Base64PDFSource and our custom Base64DocumentSource when using a
-// type guard — silently hiding fields like `path` that only exist on ours.
-// We stay in this local shape until the very end, then cast once for the
-// actual API call.
 interface IncomingMessage {
     role: 'user' | 'assistant';
     content: string | IncomingContentPart[];
@@ -186,18 +204,6 @@ function isDocumentPart(part: IncomingContentPart): part is DocumentPart {
     return part.type === 'document';
 }
 
-// ─── Resolve + validate every document part in the incoming messages ──────────
-/**
- * Walks all messages, and for each PDF document part:
- *  - downloads the bytes (from Storage, or decodes base64)
- *  - runs the accurate page-count check against MAX_PDF_PAGES
- *  - if the source came from Storage, uploads it to Anthropic's Files API and
- *    rewrites the part to reference the resulting file_id instead of raw bytes
- *
- * Throws a `ValidationError` (with a user-facing message) on any failure, so
- * the route handler can return a clean 400 rather than letting a parse
- * exception surface as a raw 500.
- */
 class ValidationError extends Error {}
 
 async function resolveDocumentParts(
@@ -212,7 +218,7 @@ async function resolveDocumentParts(
         for (let i = 0; i < msg.content.length; i++) {
             const part = msg.content[i];
             if (!isDocumentPart(part)) continue;
-            if (part.source.type === 'file') continue; // already resolved
+            if (part.source.type === 'file') continue;
 
             const isPdf =
                 (part.source.type === 'base64' || part.source.type === 'firebase_storage') &&
@@ -225,7 +231,6 @@ async function resolveDocumentParts(
             if (part.source.type === 'base64') {
                 buffer = Buffer.from(part.source.data, 'base64');
             } else {
-                // firebase_storage
                 const { path } = part.source;
                 try {
                     const [contents] = await bucket.file(path).download();
@@ -260,10 +265,6 @@ async function resolveDocumentParts(
                 );
             }
 
-            // For storage-sourced PDFs, hand the bytes to Anthropic's Files API
-            // and rewrite the part to reference the file_id. Base64 parts are
-            // left as-is (already small enough to have arrived inline) but have
-            // now had their page count verified accurately.
             if (part.source.type === 'firebase_storage') {
                 try {
                     const uploaded = await client.beta.files.upload({
@@ -285,6 +286,17 @@ async function resolveDocumentParts(
     return { messages, usedFilesApi };
 }
 
+// ─── GET handler — read-only usage/credit status for the frontend ─────────────
+export async function GET(req: NextRequest) {
+    const uid = await getUidFromRequest(req);
+    if (!uid) {
+        return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
+    }
+
+    const status = await getUploadAllowanceStatus(uid);
+    return NextResponse.json(status, { status: 200 });
+}
+
 // ─── POST handler ─────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
     // 1. Auth
@@ -293,23 +305,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
 
-    // 2. Check subscription tier
+    // 2. Confirm user exists
     const userSnap = await admin.firestore().collection('users').doc(uid).get();
     if (!userSnap.exists) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const userData = userSnap.data()!;
-    const isPro = userData.subscriptionStatus === 'active';
-
-    // 3. Rate limit
-    const { allowed, remaining, limit } = await checkAndIncrementLimit(uid, isPro);
+    // 3. Monthly upload limit + credit fallback
+    const { allowed, usedCredit, remainingThisMonth, credits } = await checkAndConsumeUploadAllowance(uid);
     if (!allowed) {
         return NextResponse.json(
             {
-                error: `Daily generation limit reached (${limit}/day). ${isPro ? 'Limit resets at midnight.' : 'Upgrade to Pro for more generations.'}`,
+                error: `You've used your ${MONTHLY_UPLOAD_LIMIT} free uploads this month and have no credits left.`,
                 limitReached: true,
-                limit,
+                limit: MONTHLY_UPLOAD_LIMIT,
+                credits: 0,
+                needsCredits: true,
             },
             { status: 429 }
         );
@@ -345,15 +356,13 @@ export async function POST(req: NextRequest) {
         flashcards: `Create ${questionCount} flashcard pairs (term + definition) only.`,
     };
 
-    // Use client-supplied system prompt if present, otherwise build one server-side
     const systemPrompt = clientSystem ?? `You are StudyCedo's AI tutor for UK ${difficultyLabels[difficulty] ?? 'GCSE Higher'} students. ${modeText[mode] ?? ''}
 Respond ONLY with valid, COMPLETE JSON — no markdown, no backticks, no preamble, no trailing text.
 CRITICAL: You MUST close every JSON array and object. The response must end with }}.
 Schema: {"subject":"","topics":[],"materials":[{"title":"","content":""}],"questions":[{"text":"","choices":[{"option":"A","text":"","isCorrect":false}],"explanation":""}],"flashcards":[{"term":"","definition":""}]}
-Return empty arrays [] for unused modes. Calibrate to ${difficultyLabels[difficulty] ?? 'GCSE Higher'}.`;
+Return empty arrays for unused modes. Calibrate to ${difficultyLabels[difficulty] ?? 'GCSE Higher'}.`;
 
-    // 5. Validate + resolve PDF document parts (accurate page count; Files API
-    // upload for storage-sourced PDFs to sidestep base64 body-size limits)
+    // 5. Validate + resolve PDF document parts
     let resolvedMessages: IncomingMessage[];
     let usedFilesApi = false;
     try {
@@ -374,14 +383,7 @@ Return empty arrays [] for unused modes. Calibrate to ${difficultyLabels[difficu
             model: MODEL,
             max_tokens: MAX_TOKENS,
             system: systemPrompt,
-            // Cast at the boundary: resolvedMessages is now guaranteed to only
-            // contain source shapes the SDK understands ('base64' or 'file'),
-            // since resolveDocumentParts rewrites every 'firebase_storage'
-            // source before returning. Everything else (text parts, etc.) was
-            // passed through untouched from the client.
             messages: resolvedMessages as unknown as Anthropic.MessageParam[],
-            // Only needed when a message references a file_id, but harmless to
-            // include unconditionally — the beta flag is a no-op otherwise.
             betas: usedFilesApi ? [FILES_API_BETA] : undefined,
         });
 
@@ -396,16 +398,13 @@ Return empty arrays [] for unused modes. Calibrate to ${difficultyLabels[difficu
 
             const repaired = repairTruncatedJson(rawText);
 
-            // Verify the repair actually produced valid JSON before sending it
             try {
                 JSON.parse(repaired);
-                // Repair succeeded — return it with a warning flag so the client can show a notice
                 return NextResponse.json(
-                    { content: repaired, remaining, truncated: true },
+                    { content: repaired, remainingThisMonth, usedCredit, credits, truncated: true },
                     { status: 200 }
                 );
             } catch {
-                // Repair failed — tell the client to try with fewer items/shorter notes
                 return NextResponse.json(
                     {
                         error: 'The generated content was too long to complete. Try reducing the number of questions, or paste a shorter excerpt of your notes.',
@@ -416,7 +415,10 @@ Return empty arrays [] for unused modes. Calibrate to ${difficultyLabels[difficu
             }
         }
 
-        return NextResponse.json({ content: rawText, remaining }, { status: 200 });
+        return NextResponse.json(
+            { content: rawText, remainingThisMonth, usedCredit, credits },
+            { status: 200 }
+        );
 
     } catch (err: unknown) {
         console.error('Anthropic API error:', err);

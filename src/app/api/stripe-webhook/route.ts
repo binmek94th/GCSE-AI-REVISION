@@ -218,8 +218,13 @@ export async function POST(req: Request) {
                     }
                 }
 
-                if (session.mode === "payment") {
-                    await handleStudyPackPurchaseFromPaymentLink(ref);
+                if (session.mode === 'payment' && session.metadata?.credits) {
+                    const uid = session.metadata.uid;
+                    const creditsToAdd = parseInt(session.metadata.credits, 10);
+
+                    await admin.firestore().collection('users').doc(uid).update({
+                        uploadCredits: admin.firestore.FieldValue.increment(creditsToAdd),
+                    });
                 }
 
                 break;

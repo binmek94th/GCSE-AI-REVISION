@@ -123,8 +123,8 @@ async function fetchALevelQuestions(
             .collection("a-levelExamQuestions")
             .withConverter(aLevelQuestionConverter)
             .where("subject", "==", subj.name)
-            .where("examBoard", "==", examBoard);
-    // .where("moderation_status", "==", "approved");
+            .where("examBoard", "==", examBoard)
+            .where("moderation_status", "==", "approved");
 
     const snapshot = await query.get();
     return snapshot.docs

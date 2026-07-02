@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { auth, db } from '@/lib/firebase';
-import { addDoc, collection, doc, getDoc, increment, serverTimestamp, setDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { getDownloadURL, getStorage, ref as storageRef, uploadBytes } from 'firebase/storage';
 import Link from 'next/link';
 import {
@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Button } from '@/app/components/ui/button';
 import {
     Upload, FileText, Sparkles, Save, CalendarPlus, Check, Loader2,
-    Layers, HelpCircle, Copy, BookOpen, X, RotateCcw, AlertCircle,
+    Layers, HelpCircle, Copy, BookOpen, X, RotateCcw, AlertCircle, Coins,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,8 +36,7 @@ interface GeneratedContent {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const FREE_DAILY_LIMIT = 3;
-const PRO_DAILY_LIMIT = 15;
+const MONTHLY_UPLOAD_LIMIT = 5;
 const MAX_FILE_SIZE_MB = 10;
 
 const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
@@ -53,24 +52,32 @@ const MODE_OPTIONS: { value: GenerationMode; label: string; description: string;
     { value: 'flashcards', label: 'Flashcards',       description: 'Term & definition pairs',      icon: Copy },
 ];
 
+// ✅ Credit packs — must match CREDIT_PACKS in app/api/credits/purchase/route.ts
+const CREDIT_PACKS = [
+    { id: 'pack_5',  credits: 5,  price: '£4.99' },
+    { id: 'pack_15', credits: 15, price: '£9.99' },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function todayKey(): string {
-    return new Date().toISOString().slice(0, 10);
+interface UploadStatus {
+    remainingThisMonth: number;
+    usedThisMonth: number;
+    credits: number;
+    limit: number;
 }
 
-async function getRemainingGenerations(uid: string, isPro: boolean): Promise<number> {
-    const snap = await getDoc(doc(db, 'users', uid, 'generationLimits', todayKey()));
-    const used = snap.exists() ? (snap.data().count as number) : 0;
-    return Math.max(0, (isPro ? PRO_DAILY_LIMIT : FREE_DAILY_LIMIT) - used);
-}
-
-async function incrementGenerationCount(uid: string): Promise<void> {
-    await setDoc(
-        doc(db, 'users', uid, 'generationLimits', todayKey()),
-        { count: increment(1), lastUsed: serverTimestamp() },
-        { merge: true }
-    );
+async function fetchUploadStatus(idToken: string): Promise<UploadStatus | null> {
+    try {
+        const res = await fetch('/api/generate-from-upload', {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (!res.ok) return null;
+        return await res.json();
+    } catch {
+        return null;
+    }
 }
 
 // ─── Add-to-Plan modal ────────────────────────────────────────────────────────
@@ -119,12 +126,56 @@ function AddToPlanModal({
     );
 }
 
+// ─── Buy Credits modal ────────────────────────────────────────────────────────
+
+function BuyCreditsModal({ onClose, onPurchase, purchasing }: {
+    onClose: () => void;
+    onPurchase: (packId: string) => void;
+    purchasing: string | null;
+}) {
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <Card className="max-w-sm w-full">
+                <CardContent className="pt-6 space-y-4">
+                    <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center">
+                        <Coins className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="space-y-2">
+                        <h3 className="text-lg font-bold text-gray-900">Buy more uploads</h3>
+                        <p className="text-sm text-gray-800 leading-relaxed">
+                            You've used your {MONTHLY_UPLOAD_LIMIT} free uploads this month. Buy a credit pack to keep
+                            generating — credits never expire and roll over month to month.
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        {CREDIT_PACKS.map(pack => (
+                            <button
+                                key={pack.id}
+                                onClick={() => onPurchase(pack.id)}
+                                disabled={purchasing !== null}
+                                className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                <span className="text-sm font-semibold text-gray-900">{pack.credits} credits</span>
+                                <span className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-blue-700">{pack.price}</span>
+                                    {purchasing === pack.id && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                    <Button variant="outline" className="w-full cursor-pointer" onClick={onClose} disabled={purchasing !== null}>
+                        Not now
+                    </Button>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function UploadTab() {
     const [uid, setUid]               = useState<string | null>(null);
-    const isPro                        = true;
-    const dailyLimit                   = isPro ? PRO_DAILY_LIMIT : FREE_DAILY_LIMIT;
 
     const [file, setFile]              = useState<File | null>(null);
     const [fileBase64, setFileBase64]  = useState<string | null>(null);
@@ -141,7 +192,11 @@ export default function UploadTab() {
     const [savedId, setSavedId]        = useState<string | null>(null);
     const [saving, setSaving]          = useState(false);
     const [error, setError]            = useState<string | null>(null);
-    const [remaining, setRemaining]    = useState<number | null>(null);
+
+    // ✅ Monthly usage + credits (replaces old daily Free/Pro `remaining` state)
+    const [status, setStatus]          = useState<UploadStatus | null>(null);
+    const [showBuyCredits, setShowBuyCredits] = useState(false);
+    const [purchasingPack, setPurchasingPack] = useState<string | null>(null);
 
     // Add-to-plan modal state
     const [showAddToPlan, setShowAddToPlan] = useState(false);
@@ -152,7 +207,10 @@ export default function UploadTab() {
         const u = auth.currentUser;
         if (!u) return;
         setUid(u.uid);
-        getRemainingGenerations(u.uid, isPro).then(setRemaining);
+        u.getIdToken().then(async (idToken) => {
+            const s = await fetchUploadStatus(idToken);
+            if (s) setStatus(s);
+        });
     }, []);
 
     const readBase64 = (f: File): Promise<string> =>
@@ -230,17 +288,50 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
 
             if (!res.ok) {
                 const e = await res.json();
+                if (e.needsCredits) {
+                    setShowBuyCredits(true);
+                }
                 throw new Error(e.error || 'Generation failed');
             }
 
-            const { content: raw } = await res.json();
+            const { content: raw, remainingThisMonth, credits } = await res.json();
             const parsed: GeneratedContent = JSON.parse(raw.replace(/```json|```/g, '').trim());
             setContent(parsed);
-            setRemaining(r => r !== null ? Math.max(0, r - 1) : null);
+            setStatus(prev => prev ? {
+                ...prev,
+                remainingThisMonth: remainingThisMonth ?? prev.remainingThisMonth,
+                usedThisMonth: prev.limit - (remainingThisMonth ?? prev.remainingThisMonth),
+                credits: credits ?? prev.credits,
+            } : prev);
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : 'Something went wrong.');
         } finally {
             setGenerating(false);
+        }
+    };
+
+    const buyCredits = async (packId: string) => {
+        if (!uid) return;
+        setPurchasingPack(packId);
+        try {
+            const u = auth.currentUser;
+            if (!u) throw new Error('Not authenticated');
+            const idToken = await u.getIdToken();
+
+            const res = await fetch('/api/credits/purchase', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+                body: JSON.stringify({ packId }),
+            });
+            if (!res.ok) throw new Error('Failed to start checkout');
+
+            const { url } = await res.json();
+            if (url) window.location.href = url; // redirect to Stripe Checkout
+        } catch (e) {
+            console.error(e);
+            setError('Failed to start checkout — please try again.');
+        } finally {
+            setPurchasingPack(null);
         }
     };
 
@@ -278,7 +369,6 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                 sourceType: file ? 'file' : 'text',
                 sourceFileName: file?.name ?? null,
             });
-            await incrementGenerationCount(uid);
             setSavedId(ref.id);
             setShowAddToPlan(true);
         } catch (e: any) {
@@ -289,7 +379,6 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
         }
     };
 
-    // Mark the saved material as "add to plan" by updating its Firestore doc
     const handleAddToPlan = async () => {
         if (!uid || !savedId) return;
         setAddingToPlan(true);
@@ -308,17 +397,25 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
         }
     };
 
-    const canGenerate = !generating && remaining !== 0 && (!!fileBase64 || !!pasteText.trim());
+    const hasAllowance = status ? (status.remainingThisMonth > 0 || status.credits > 0) : true;
+    const canGenerate = !generating && hasAllowance && (!!fileBase64 || !!pasteText.trim());
 
     return (
         <>
-            {/* Add-to-plan modal */}
             {showAddToPlan && content && (
                 <AddToPlanModal
                     subjectName={content.subject}
                     adding={addingToPlan}
                     onConfirm={handleAddToPlan}
                     onSkip={() => setShowAddToPlan(false)}
+                />
+            )}
+
+            {showBuyCredits && (
+                <BuyCreditsModal
+                    purchasing={purchasingPack}
+                    onPurchase={buyCredits}
+                    onClose={() => setShowBuyCredits(false)}
                 />
             )}
 
@@ -344,7 +441,7 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                             Upload a PDF, photo, or paste text to create study materials saved to your account.
                         </p>
 
-                        <RateLimitBar remaining={remaining} limit={dailyLimit} isPro={isPro} />
+                        <UploadLimitBar status={status} onBuyCredits={() => setShowBuyCredits(true)} />
 
                         {/* Drop zone */}
                         <div
@@ -489,6 +586,8 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                         >
                             {generating ? (
                                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating...</>
+                            ) : !hasAllowance ? (
+                                <><Coins className="w-4 h-4 mr-2" />No uploads left — buy credits</>
                             ) : (
                                 <><Sparkles className="w-4 h-4 mr-2" />Generate study materials</>
                             )}
@@ -728,12 +827,15 @@ function GeneratedViewer({
     );
 }
 
-// ─── Rate limit bar ───────────────────────────────────────────────────────────
+// ─── Upload limit bar (monthly usage + credits) ────────────────────────────────
 
-function RateLimitBar({ remaining, limit, isPro }: { remaining: number | null; limit: number; isPro: boolean }) {
-    const used      = remaining !== null ? limit - remaining : 0;
-    const rem       = remaining ?? limit;
-    const exhausted = rem === 0;
+function UploadLimitBar({ status, onBuyCredits }: { status: UploadStatus | null; onBuyCredits: () => void }) {
+    const limit = status?.limit ?? MONTHLY_UPLOAD_LIMIT;
+    const used = status?.usedThisMonth ?? 0;
+    const remaining = status?.remainingThisMonth ?? limit;
+    const credits = status?.credits ?? 0;
+    const exhausted = remaining === 0 && credits === 0;
+
     return (
         <div className={`flex items-center gap-3 p-3 rounded-lg border ${
             exhausted ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200'
@@ -750,12 +852,18 @@ function RateLimitBar({ remaining, limit, isPro }: { remaining: number | null; l
             </div>
             <span className={`text-sm font-medium flex-1 ${exhausted ? 'text-red-700' : 'text-gray-700'}`}>
                 {exhausted
-                    ? <strong>Limit reached — resets midnight</strong>
-                    : <><strong className="text-gray-900">{rem}/{limit}</strong> left today</>}
+                    ? <strong>No uploads left this month</strong>
+                    : <><strong className="text-gray-900">{remaining}/{limit}</strong> free uploads left this month</>}
+                {credits > 0 && (
+                    <span className="ml-1.5 text-amber-700 font-semibold">· {credits} credit{credits !== 1 ? 's' : ''}</span>
+                )}
             </span>
-            {isPro && (
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 tracking-wide">PRO</span>
-            )}
+            <button
+                onClick={onBuyCredits}
+                className="text-xs font-bold text-blue-700 hover:text-blue-900 cursor-pointer whitespace-nowrap"
+            >
+                Buy credits
+            </button>
         </div>
     );
 }

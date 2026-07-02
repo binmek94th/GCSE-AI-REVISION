@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {DateTime} from "luxon";
 import admin from "../../../lib/firebaseAdmin";
-import {doc, getDoc, updateDoc} from "@firebase/firestore";
-import {db} from "@/lib/firebase";
 
 
 export async function GET(request: NextRequest) {
@@ -127,10 +125,14 @@ export async function POST(request: NextRequest) {
 
 
 export async function checkMoodBadges(userId: string, mood: string) {
-    const userRef = doc(db, "users", userId);
-    const userSnap = await getDoc(userRef);
+    // ✅ Fixed: use Admin SDK throughout (this runs server-side inside an
+    // API route) instead of the client SDK's `doc`/`getDoc`/`updateDoc`,
+    // which was the source of the "Expected first argument to collection()..."
+    // error — the client `db` instance isn't valid in this server context.
+    const userRef = admin.firestore().collection('users').doc(userId);
+    const userSnap = await userRef.get();
 
-    if (!userSnap.exists()) return;
+    if (!userSnap.exists) return;
 
     const data = userSnap.data();
     const badges = data?.badges?.mood || [];
@@ -163,7 +165,7 @@ export async function checkMoodBadges(userId: string, mood: string) {
     // ✅ Mood Manager: 5 sessions logged with low mood
     if (lowMoods.includes(mood)) {
         const lowMoodCount = (data?.stats?.lowMoodSessions || 0) + 1;
-        await updateDoc(userRef, {
+        await userRef.update({
             "stats.lowMoodSessions": lowMoodCount,
             "stats.moodHistory": updatedHistory,
         });
@@ -172,18 +174,18 @@ export async function checkMoodBadges(userId: string, mood: string) {
             newBadges.push("Mood Manager");
         }
     } else {
-        await updateDoc(userRef, { "stats.moodHistory": updatedHistory });
+        await userRef.update({ "stats.moodHistory": updatedHistory });
     }
 
     if (mood === neutralMood) {
         const neutralStreak = (data?.stats?.neutralStreak || 0) + 1;
-        await updateDoc(userRef, { "stats.neutralStreak": neutralStreak });
+        await userRef.update({ "stats.neutralStreak": neutralStreak });
 
         if (neutralStreak >= 7 && !badges.includes("Calm Climber")) {
             newBadges.push("Calm Climber");
         }
     } else {
-        await updateDoc(userRef, { "stats.neutralStreak": 0 });
+        await userRef.update({ "stats.neutralStreak": 0 });
     }
 
     if (moodHistory.length >= 7 && newAverage - oldAverage >= 2 && !badges.includes("Bounce-Back Boss")) {
@@ -191,6 +193,6 @@ export async function checkMoodBadges(userId: string, mood: string) {
     }
 
     if (newBadges.length > badges.length) {
-        await updateDoc(userRef, { "badges.mood": newBadges });
+        await userRef.update({ "badges.mood": newBadges });
     }
 }

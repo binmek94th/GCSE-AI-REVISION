@@ -1,6 +1,45 @@
-// app/api/mistake-bank/route.ts
+
 import { NextResponse } from "next/server";
 import admin from "@/lib/firebaseAdmin";
+
+interface NormalizedQuestion {
+    question: string;
+    options: Record<string, string>;
+    correctAnswer: string;
+    explanation: string;
+    moderation_status?: string;
+}
+
+function normalizeGcseQuestion(qData: any): NormalizedQuestion {
+    return {
+        question: qData.question ?? qData.questionText ?? '',
+        options: qData.options ?? {},
+        correctAnswer: qData.correctAnswer ?? qData.answer ?? '',
+        explanation: qData.explanation ?? '',
+        moderation_status: qData.moderation_status,
+    };
+}
+
+function normalizeALevelQuestion(qData: any): NormalizedQuestion {
+    // A-Level choices are an array: { option, text, isCorrect }
+    const choices: { option: string; text: string; isCorrect?: boolean }[] = qData.choices ?? [];
+    const options: Record<string, string> = {};
+    let correctAnswer = '';
+
+    choices.forEach((c) => {
+        if (c?.option == null) return;
+        options[c.option] = c.text ?? '';
+        if (c.isCorrect) correctAnswer = c.option;
+    });
+
+    return {
+        question: qData.questionText ?? qData.question ?? '',
+        options,
+        correctAnswer,
+        explanation: qData.explanation ?? '',
+        moderation_status: qData.moderation_status,
+    };
+}
 
 export async function GET(req: Request) {
     try {
@@ -9,6 +48,11 @@ export async function GET(req: Request) {
 
         const decoded = await admin.auth().verifyIdToken(idToken);
         const userId = decoded.uid;
+
+        // Get user's level preference
+        const userDoc = await admin.firestore().collection('users').doc(userId).get();
+        const userData = userDoc.data();
+        const level = userData?.level ?? userData?.preferences?.level ?? null;
 
         // 1. All question_progress sub-docs (one per subject/pack)
         const progressSnap = await admin
@@ -46,23 +90,35 @@ export async function GET(req: Request) {
         await Promise.all(
             Object.entries(incorrectBySubject).map(async ([subjectId, wrongAnswers]) => {
                 const packDoc = await admin.firestore().collection("study_packs").doc(subjectId).get();
-                const subjectName = packDoc.exists ? (packDoc.data()?.subject ?? subjectId) : subjectId;
+                const packData = packDoc.exists ? packDoc.data() : null;
+                const subjectName = packData?.subject ?? subjectId;
+
+                const packLevel = packData?.level;
+                if (level && packLevel && packLevel !== level) return;
+
+                const isALevel = packLevel === 'A-Level' || packLevel === 'alevel' || packLevel === 'a-level';
+                const questionsCollection = isALevel ? 'a-levelExamQuestions' : 'questions';
 
                 await Promise.all(
                     wrongAnswers.map(async ({ questionId, userAnswer, answeredAt }) => {
-                        const qDoc = await admin.firestore().collection("questions").doc(questionId).get();
+                        const qDoc = await admin.firestore().collection(questionsCollection).doc(questionId).get();
                         if (!qDoc.exists) return;
                         const qData = qDoc.data()!;
-                        if (qData.moderation_status && qData.moderation_status !== "approved") return;
+
+                        const normalized = isALevel
+                            ? normalizeALevelQuestion(qData)
+                            : normalizeGcseQuestion(qData);
+
+                        if (normalized.moderation_status && normalized.moderation_status !== "approved") return;
 
                         results.push({
                             id: questionId,
                             subjectId,
                             subject: subjectName,
-                            question: qData.question ?? qData.questionText ?? '',
-                            options: qData.options ?? {},
-                            correctAnswer: qData.correctAnswer ?? qData.answer ?? '',
-                            explanation: qData.explanation ?? '',
+                            question: normalized.question,
+                            options: normalized.options,
+                            correctAnswer: normalized.correctAnswer,
+                            explanation: normalized.explanation,
                             userAnswer,
                             answeredAt,
                         });
