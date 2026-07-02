@@ -50,6 +50,11 @@ export async function GET(request: NextRequest) {
                 // Combine + sort (most recent first) for consistent ordering.
                 const combinedDocs = [...pendingSnapshot.docs, ...missingStatusDocs];
                 combinedDocs.sort((a, b) => {
+                    const aSubject = (a.data().subject || '').toLowerCase();
+                    const bSubject = (b.data().subject || '').toLowerCase();
+                    if (aSubject !== bSubject) {
+                        return aSubject.localeCompare(bSubject);
+                    }
                     const aTime = a.data().created_at?.toMillis() || 0;
                     const bTime = b.data().created_at?.toMillis() || 0;
                     return bTime - aTime;
