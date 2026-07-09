@@ -54,8 +54,8 @@ const MODE_OPTIONS: { value: GenerationMode; label: string; description: string;
 
 // ✅ Credit packs — must match CREDIT_PACKS in app/api/credits/purchase/route.ts
 const CREDIT_PACKS = [
-    { id: 'pack_5',  credits: 5,  price: '£4.99' },
-    { id: 'pack_15', credits: 15, price: '£9.99' },
+    { id: 'pack_5',  credits: 5,  price: '£7.99' },
+    { id: 'pack_15', credits: 15, price: '£18.99' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
