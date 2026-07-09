@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest) {
         const { examBoard, hoursPerWeek, targetGrade, level } = body;
 
         // Validate preferences
-        const validExamBoards = ["AQA", "OCR", "Edexcel", "WJEC", "CCEA"];
+        const validExamBoards = ["AQA", "OCR", "Edexcel", "WJEC", "CCEA", "Oxford AQA"];
         const validHoursPerWeek = ["0-5", "5-10", "10-15", "15-20", "20+"];
         const validTargetGrades = ["4", "5", "6", "7", "8", "9"];
 

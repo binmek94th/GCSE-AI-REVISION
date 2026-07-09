@@ -159,6 +159,7 @@ export default function ALevelQuestionsModeration() {
         subject: '',
         status: 'all',
         flag: 'all',
+        examBoard: 'all',
     });
     const [pageInput, setPageInput] = useState('');
 
@@ -239,6 +240,7 @@ export default function ALevelQuestionsModeration() {
             if (filters.subject) params.append('subject', filters.subject);
             if (filters.status) params.append('status', filters.status);
             if (filters.flag && filters.flag !== 'all') params.append('flag', filters.flag);
+            if (filters.examBoard && filters.examBoard !== 'all') params.append('examBoard', filters.examBoard);
             params.append('page', page.toString());
             params.append('limit', pagination.limit.toString());
 
@@ -273,6 +275,9 @@ export default function ALevelQuestionsModeration() {
     const handlePreviousPage = () => goToPage(pagination.page - 1);
 
     const subjects = Array.from(new Set(A_Level_EXAM_DATA.map(e => e.subject))).sort();
+    // ✅ Exam boards available for filtering, sourced from the same
+    // A_Level_EXAM_DATA constants used for subjects.
+    const examBoards = Array.from(new Set(A_Level_EXAM_DATA.map(e => e.exam_board))).sort();
 
     const updateQuestionInList = (questionId: string, updates: Partial<Question>) => {
         setQuestions(prevQuestions =>
@@ -525,7 +530,7 @@ export default function ALevelQuestionsModeration() {
 
                 {/* Filters */}
                 <div className="bg-white rounded-lg shadow p-4 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                         {/* Subject */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -545,6 +550,31 @@ export default function ALevelQuestionsModeration() {
                                     {subjects.map(subject => (
                                         <SelectItem key={subject} value={subject}>
                                             {subject}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Exam Board */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Exam Board
+                            </label>
+                            <Select
+                                value={filters.examBoard}
+                                onValueChange={(value) =>
+                                    setFilters(prev => ({ ...prev, examBoard: value }))
+                                }
+                            >
+                                <SelectTrigger className="w-full cursor-pointer">
+                                    <SelectValue placeholder="All Exam Boards" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Exam Boards</SelectItem>
+                                    {examBoards.map(board => (
+                                        <SelectItem key={board} value={board}>
+                                            {board}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -598,7 +628,7 @@ export default function ALevelQuestionsModeration() {
                         {/* Reset */}
                         <div className="flex items-end">
                             <button
-                                onClick={() => setFilters({ subject: 'all', status: 'all', flag: 'all' })}
+                                onClick={() => setFilters({ subject: 'all', status: 'all', flag: 'all', examBoard: 'all' })}
                                 className="w-full px-3 py-2 border cursor-pointer border-gray-300 rounded-md text-sm bg-gray-50 hover:bg-gray-100"
                             >
                                 Reset Filters
@@ -636,6 +666,11 @@ export default function ALevelQuestionsModeration() {
                                                         <span className="text-xs px-2 py-1 bg-gray-100 rounded">
                                                             {question.subject}
                                                         </span>
+                                                        {question.examBoard && (
+                                                            <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded">
+                                                                {question.examBoard}
+                                                            </span>
+                                                        )}
                                                         <span className="text-xs px-2 py-1 bg-gray-100 rounded">
                                                             {question.difficulty}
                                                         </span>
@@ -850,6 +885,10 @@ export default function ALevelQuestionsModeration() {
                                                     <div>
                                                         <p className="text-sm font-medium text-gray-700">Subject:</p>
                                                         <p className="text-sm text-gray-900">{selectedQuestion.subject}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium text-gray-700">Exam Board:</p>
+                                                        <p className="text-sm text-gray-900">{selectedQuestion.examBoard || '—'}</p>
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-medium text-gray-700">Topic:</p>

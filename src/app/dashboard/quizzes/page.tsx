@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import { Button } from "@/app/components/ui/button";
-import { Brain, Play, Loader2, RefreshCw } from 'lucide-react';
+import { Brain, Play, Loader2, RefreshCw, Package } from 'lucide-react';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { QuizComponent } from './QuizComponent';
@@ -62,6 +62,10 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
     const [error, setError] = useState<string | null>(null);
     const [recentQuizzes, setRecentQuizzes] = useState<Quiz[]>([]);
     const [availablePacks, setAvailablePacks] = useState<StudyPack[]>(initialPacks || []);
+    // ✅ Tracks whether the /api/user/packs fetch has completed, so we only
+    // show the "no packs" empty state once we actually know the list is
+    // empty — not during the brief window before the fetch resolves.
+    const [packsFetched, setPacksFetched] = useState<boolean>(!!initialPacks);
     const [selectedPackId, setSelectedPackId] = useState<string>('');
     const [user, setUser] = useState<any>(null);
     const [quizQuestions, setQuizQuestions] = useState<Question[] | null>(null);
@@ -112,6 +116,8 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
                 }
             } catch (err) {
                 console.error('Error fetching packs:', err);
+            } finally {
+                setPacksFetched(true);
             }
         };
 
@@ -126,6 +132,30 @@ function QuizzesTab({ initialPacks, studyPack }: QuizzesTabProps) {
             <div className="flex flex-col items-center justify-center h-full space-y-4">
                 <p className="text-gray-600">No subjects found. Please add study packs to see your progress.</p>
                 <Button onClick={handleClick}>Browse Study Packs</Button>
+            </div>
+        );
+    }
+
+    // ✅ Handles the case where the pack fetch succeeded but came back
+    // empty (e.g. {"packs":[],"level":"A-Level","examBoard":"Cambridge(CIE)"})
+    // — the user hasn't enrolled in any subjects matching their level/exam
+    // board yet, so prompt them to enroll instead of showing an empty select.
+    if (packsFetched && availablePacks.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full space-y-4 py-12 text-center">
+                <div className="w-14 h-14 rounded-xl bg-purple-100 flex items-center justify-center">
+                    <Package className="w-7 h-7 text-purple-600" />
+                </div>
+                <div className="space-y-1">
+                    <p className="text-gray-900 font-medium">No subjects enrolled yet</p>
+                    <p className="text-gray-600 text-sm max-w-sm">
+                        You haven&apos;t enrolled in any subjects for your current level and exam board. Browse study
+                        packs to get started.
+                    </p>
+                </div>
+                <Button className="bg-purple-600 hover:bg-purple-700 cursor-pointer" onClick={handleClick}>
+                    Browse Study Packs
+                </Button>
             </div>
         );
     }

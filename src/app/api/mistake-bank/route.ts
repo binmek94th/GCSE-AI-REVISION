@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import admin from "@/lib/firebaseAdmin";
 
@@ -49,10 +48,12 @@ export async function GET(req: Request) {
         const decoded = await admin.auth().verifyIdToken(idToken);
         const userId = decoded.uid;
 
-        // Get user's level preference
+        // Get user's level — read from preferences first, since that's the
+        // student-set source of truth; fall back to the top-level `level`
+        // field only if preferences.level isn't set.
         const userDoc = await admin.firestore().collection('users').doc(userId).get();
         const userData = userDoc.data();
-        const level = userData?.level ?? userData?.preferences?.level ?? null;
+        const level = userData?.preferences?.level ?? userData?.level ?? null;
 
         // 1. All question_progress sub-docs (one per subject/pack)
         const progressSnap = await admin
@@ -93,6 +94,10 @@ export async function GET(req: Request) {
                 const packData = packDoc.exists ? packDoc.data() : null;
                 const subjectName = packData?.subject ?? subjectId;
 
+                // Only return mistakes matching the student's level.
+                // Fail-open: if either the student's level or the pack's
+                // level is missing, don't filter — avoids silently hiding
+                // mistakes due to incomplete data.
                 const packLevel = packData?.level;
                 if (level && packLevel && packLevel !== level) return;
 

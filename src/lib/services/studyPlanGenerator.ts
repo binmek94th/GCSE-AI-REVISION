@@ -15,6 +15,7 @@ interface StudyMaterial {
     difficulty?: string;
     _isGenerated?: boolean;
     [key: string]: any;
+    _isUploadedQuestion?: boolean;
 }
 
 interface QuestionResult {
@@ -85,6 +86,9 @@ function buildMaterialLookup(
     }
     return lookup;
 }
+
+
+// ─────────────────────────────────────────────────────────────────────
 
 // Selects which materials from a pack get surfaced to the AI, capped to keep
 // prompt size predictable. Generated (student-uploaded, addedToPlan) materials
@@ -432,15 +436,71 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
                 });
             });
 
-            console.log(`Included ${generatedSnap.size} user-generated material(s) in plan for user: ${userId}`);
         }
         // ─────────────────────────────────────────────────────────────────────
+
+        // ── Uploaded questions the student asked AI to solve ───────────────────
+// Any unresolved (completed: false) uploaded_question docs get folded
+// into today's plan, grouped by subject, same as generated materials —
+// so topics the student got stuck on keep recurring until they mark
+// themselves as understanding it.
+        const uploadedQuestionsSnap = await admin.firestore()
+            .collection('users').doc(userId).collection('uploaded_question')
+            .where('completed', '==', false)
+            .get();
+
+        if (!uploadedQuestionsSnap.empty) {
+            const byUploadedSubject = new Map<string, StudyMaterial[]>();
+
+            uploadedQuestionsSnap.docs.forEach(d => {
+                const data = d.data();
+                const subject: string = data.subject ?? 'General';
+                if (!byUploadedSubject.has(subject)) byUploadedSubject.set(subject, []);
+
+                byUploadedSubject.get(subject)!.push({
+                    id: d.id,
+                    subject_pack_id: `uploaded_${subject}`,
+                    title: data.topic ?? 'Uploaded Question',
+                    difficulty: data.difficulty ?? 'medium',
+                    questionText: data.questionText,
+                    solution: data.solution,
+                    _isGenerated: true, // reuse the same "prioritize" flag the AI prompt already respects
+                    _isUploadedQuestion: true,
+                } as StudyMaterial);
+            });
+
+            byUploadedSubject.forEach((materials, subject) => {
+                const packId = `uploaded_${subject}`;
+
+                // Merge into an existing pack for this subject if one exists
+                // (either an enrolled pack or the generated-materials virtual pack).
+                const existing = packAnalyses.find(p => p.subject === subject);
+                if (existing) {
+                    existing.incompleteMaterials.push(...materials);
+                    existing.totalMaterials += materials.length;
+                    return;
+                }
+
+                packAnalyses.push({
+                    packId,
+                    packName: subject,
+                    subject,
+                    examBoard: examBoard ?? 'N/A',
+                    totalMaterials: materials.length,
+                    completedMaterials: 0,
+                    incompleteMaterials: materials,
+                    totalQuestions: 0,
+                    correctQuestions: 0,
+                    incorrectQuestions: [],
+                    progressPercent: 0,
+                });
+            });
+        }
 
         const activePacks = packAnalyses.filter(
             pack => pack.incompleteMaterials.length > 0 || pack.incorrectQuestions.length > 0
         );
 
-        console.log(activePacks);
 
         if (activePacks.length === 0) {
             console.log(`User ${userId} has completed all materials. Skipping.`);

@@ -19,6 +19,10 @@ export async function GET(request: NextRequest) {
         const subject = rawSubject ? formatPackId(rawSubject) : "all";
         const type = searchParams.get('type');
         const status = searchParams.get('status');
+        // ✅ Exam board filter — A-Level question docs store this as
+        // camelCase `examBoard` (distinct from study_packs' snake_case
+        // `exam_board`).
+        const examBoard = searchParams.get('examBoard');
 
         // Pagination parameters
         const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
@@ -35,6 +39,9 @@ export async function GET(request: NextRequest) {
 
         if (flag && flag !== "all")
             query = query.where('flag', '==', flag) as any;
+
+        if (examBoard && examBoard !== 'all')
+            query = query.where('examBoard', '==', examBoard) as any;
 
         // Handle status filtering
         if (status && status !== 'all') {

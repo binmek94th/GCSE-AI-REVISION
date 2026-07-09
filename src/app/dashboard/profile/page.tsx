@@ -43,6 +43,25 @@ interface ProfileData {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// ✅ Exam boards available per level. GCSE only offers the boards that
+// actually have GCSE content; A-Level includes the full set.
+const EXAM_BOARDS_BY_LEVEL: Record<string, { value: string; label: string }[]> = {
+    "GCSE": [
+        { value: "AQA", label: "AQA" },
+        { value: "OCR", label: "OCR" },
+        { value: "Edexcel", label: "Edexcel" },
+        { value: "WJEC", label: "WJEC" },
+    ],
+    "A-Level": [
+        { value: "AQA", label: "AQA" },
+        { value: "OCR", label: "OCR" },
+        { value: "Edexcel", label: "Edexcel" },
+        { value: "WJEC", label: "WJEC" },
+        { value: "CCEA", label: "CCEA" },
+        { value: "Oxford AQA", label: "Oxford AQA" },
+    ],
+};
+
 export default function ProfilePage() {
     const [profileData, setProfileData] = useState<ProfileData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -224,6 +243,12 @@ export default function ProfilePage() {
         );
     }
 
+    // ✅ Exam board options for the currently selected level in the edit form.
+    // Falls back to the full A-Level list if level isn't set yet, so the
+    // dropdown isn't empty before a level is chosen.
+    const availableExamBoards =
+        EXAM_BOARDS_BY_LEVEL[editedPreferences.level] ?? EXAM_BOARDS_BY_LEVEL["A-Level"];
+
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             {/* Simple Profile Header */}
@@ -390,10 +415,19 @@ export default function ProfilePage() {
                                 <Select
                                     value={editedPreferences.level}
                                     onValueChange={(value) =>
-                                        setEditedPreferences((prev) => ({
-                                            ...prev,
-                                            level: value,
-                                        }))
+                                        setEditedPreferences((prev) => {
+                                            // ✅ If the newly selected level doesn't offer the
+                                            // currently chosen exam board, clear it so an
+                                            // invalid combination can't be saved silently.
+                                            const stillValid = EXAM_BOARDS_BY_LEVEL[value]?.some(
+                                                (b) => b.value === prev.examBoard
+                                            );
+                                            return {
+                                                ...prev,
+                                                level: value,
+                                                examBoard: stillValid ? prev.examBoard : "",
+                                            };
+                                        })
                                     }
                                 >
                                     <SelectTrigger className="w-full">
@@ -429,11 +463,11 @@ export default function ProfilePage() {
                                     <SelectContent>
                                         <SelectGroup>
                                             <SelectLabel>Exam Boards</SelectLabel>
-                                            <SelectItem value="AQA">AQA</SelectItem>
-                                            <SelectItem value="OCR">OCR</SelectItem>
-                                            <SelectItem value="Edexcel">Edexcel</SelectItem>
-                                            <SelectItem value="WJEC">WJEC</SelectItem>
-                                            <SelectItem value="CCEA">CCEA</SelectItem>
+                                            {availableExamBoards.map((board) => (
+                                                <SelectItem key={board.value} value={board.value}>
+                                                    {board.label}
+                                                </SelectItem>
+                                            ))}
                                         </SelectGroup>
                                     </SelectContent>
                                 </Select>

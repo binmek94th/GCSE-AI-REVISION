@@ -69,6 +69,8 @@ export async function GET(req: Request) {
             // student's level or the pack's level is missing, don't filter,
             // so progress is never silently hidden due to incomplete data.
             const packDoc = await db.collection("study_packs").doc(subjectName).get();
+            console.log(packDoc.data())
+            console.log(level)
             const packLevel = packDoc.exists ? packDoc.data()?.level : undefined;
             if (level && packLevel && packLevel !== level)
                 continue;

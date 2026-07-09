@@ -20,13 +20,9 @@ export async function POST(req: Request) {
             .doc(userId)
             .get();
 
-        const examBoard = userDoc.data()?.examBoard
-            ?? userDoc.data()?.preferences?.examBoard
-            ?? null;
+        const examBoard = userDoc.data()?.preferences?.examBoard ?? null;
 
-        const level = userDoc.data()?.level
-            ?? userDoc.data()?.preferences?.level
-            ?? null;
+        const level = userDoc.data()?.preferences?.level ?? null;
 
         const subjectRef = admin.firestore()
             .collection("users")

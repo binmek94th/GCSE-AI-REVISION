@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import admin from "@/lib/firebaseAdmin";
 
+
 async function getQuestionsByPack(
     packId: string,
     userId: string,
@@ -52,8 +53,11 @@ async function getQuestionsByPack(
 
         if (progress?.correct === true) return false;
         if (question.flag === "irrelevant") return false;
+        const exam_board = question.examBoard || question.exam_board;
 
-        return !question.examBoard || question.examBoard === examBoard;
+        console.log(exam_board);
+
+        return !exam_board || exam_board === examBoard;
     });
 
     // Pagination
@@ -95,8 +99,18 @@ export async function GET(req: Request) {
         const studyPack = await admin.firestore().collection("study_packs")
             .doc(packId).get();
 
+        // ✅ Guard against a non-existent study pack — .data() returns
+        // undefined when the doc doesn't exist, and .subject on that
+        // was the source of the crash.
+        if (!studyPack.exists) {
+            return NextResponse.json(
+                { message: `Study pack "${packId}" not found` },
+                { status: 404 }
+            );
+        }
+
         const { questions, total, hasMore } = await getQuestionsByPack(
-            studyPack.data().subject,
+            studyPack.data()!.subject,
             userId,
             limit,
             page

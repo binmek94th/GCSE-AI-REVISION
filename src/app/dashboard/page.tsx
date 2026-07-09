@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import {
     Calendar, Brain, TestTube, MessageCircle, LogOut, User, ChevronDown,
-    Upload, BookOpen, AlertCircle, Package, Trophy, MoreHorizontal
+    Upload, BookOpen, AlertCircle, Package, Trophy, MoreHorizontal, Sparkles
 } from 'lucide-react';
 import PlanTab from "@/app/dashboard/plan/page";
 import StudyPackTab from "@/app/dashboard/studyPack/page";
@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import UploadTab from "@/app/dashboard/upload/UploadTab";
 import GeneratedMaterialsListPage from "@/app/dashboard/generated_material/page";
 import MistakeBankTab from "@/app/dashboard/mistake-bank/MistakeBank";
+import AskAIPage from "@/app/dashboard/ask-ai/page";
 
 // Tabs always visible on desktop; on mobile only "plan" shows in the bar —
 // everything else collapses into the More dropdown.
@@ -42,13 +43,14 @@ const MORE_ITEMS = [
 ];
 
 // On mobile these tabs collapse into "More"; on desktop they appear in the bar.
-const MOBILE_MORE_TABS = ['quizzes', 'mocktests', 'mistakes', 'tutor', 'upload', ...MORE_TABS];
+const MOBILE_MORE_TABS = ['quizzes', 'mocktests', 'mistakes', 'tutor', 'upload', 'ask-ai', ...MORE_TABS];
 const MOBILE_MORE_ITEMS = [
     { value: 'quizzes',      icon: Brain,          label: 'Quizzes' },
     { value: 'mocktests',    icon: TestTube,        label: 'Mocks' },
     { value: 'mistakes',     icon: AlertCircle,     label: 'Retry Failed' },
     { value: 'tutor',        icon: MessageCircle,   label: 'Tutor' },
     { value: 'upload',       icon: Upload,          label: 'Upload' },
+    { value: 'ask-ai',       icon: Sparkles,        label: 'Ask AI' },
     ...MORE_ITEMS,
 ];
 
@@ -288,6 +290,10 @@ function Dashboard() {
                                         <MessageCircle className="w-4 h-4" /> Tutor
                                     </TabsTrigger>
 
+                                    <TabsTrigger value="ask-ai" className={`${TAB_CLASS} hidden sm:flex`}>
+                                        <Sparkles className="w-4 h-4" /> Ask AI
+                                    </TabsTrigger>
+
                                     <span className="hidden sm:block w-px h-5 bg-gray-200 self-center mx-1.5" />
 
                                     <TabsTrigger value="upload" className={`${TAB_CLASS} hidden sm:flex`}>
@@ -383,6 +389,12 @@ function Dashboard() {
                                 <div className="w-[80%] mx-auto">
                                     <StudentAIChat />
                                 </div>
+                            </GatedFeature>
+                        </TabsContent>
+
+                        <TabsContent value="ask-ai">
+                            <GatedFeature featureName="Ask AI">
+                                <AskAIPage />
                             </GatedFeature>
                         </TabsContent>
 

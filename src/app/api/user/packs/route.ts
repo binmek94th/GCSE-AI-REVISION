@@ -20,11 +20,16 @@ export async function GET(req: Request) {
         const userSnap = await userRef.get();
         const userData = userSnap.data();
         const level = userData?.level ?? userData?.preferences?.level ?? null;
+        // ✅ Resolve exam board with the same fallback chain used for level
+        const examBoard = userData?.preferences?.examBoard ?? null;
+
+        console.log(examBoard);
+        console.log(level)
 
         const subjectsSnapshot = await userRef.collection("subjects").get();
 
         if (subjectsSnapshot.empty) {
-            return NextResponse.json({ packs: [], level }, { status: 200 });
+            return NextResponse.json({ packs: [], level, examBoard }, { status: 200 });
         }
 
         const packs = subjectsSnapshot.docs
@@ -34,9 +39,12 @@ export async function GET(req: Request) {
                 examBoard: doc.data().examBoard,
                 level: doc.data().level,
             }))
-            .filter((pack) => !level || pack.level === level);
 
-        return NextResponse.json({ packs, level }, { status: 200 });
+            .filter((pack) => !level || pack.level === level)
+            .filter((pack) => !examBoard || pack.examBoard === examBoard);
+
+
+        return NextResponse.json({ packs, level, examBoard }, { status: 200 });
     } catch (error) {
         console.error("Error fetching user subjects:", error);
         return NextResponse.json(
