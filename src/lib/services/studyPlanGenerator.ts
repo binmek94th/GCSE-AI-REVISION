@@ -203,20 +203,37 @@ function padSessions(
     return padded;
 }
 
+// Compares two sets of enrolled pack IDs for equality, order-independent.
+function packIdSetsEqual(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false;
+    const sortedA = [...a].sort();
+    const sortedB = [...b].sort();
+    return sortedA.every((id, i) => id === sortedB[i]);
+}
+
 export async function generateDailyStudyPlans(): Promise<{
     success: boolean;
     usersProcessed: number;
+    plansGenerated: number;
+    plansRegeneratedForSubjectChange: number;
+    plansSkipped: number;
     errors: string[];
 }> {
     const errors: string[] = [];
+    let plansGenerated = 0;
+    let plansRegeneratedForSubjectChange = 0;
+    let plansSkipped = 0;
 
     try {
-        console.log('Starting daily study plan generation...');
+        console.log('Starting daily study plan generation run...');
         const usersSnapshot = await admin.firestore().collection('users').get();
 
         const promises = usersSnapshot.docs.map(async (userDoc) => {
             try {
-                await generateStudyPlanForUser(userDoc.id);
+                const result = await generateStudyPlanForUser(userDoc.id);
+                if (result === 'generated') plansGenerated++;
+                else if (result === 'regenerated_subjects_changed') plansRegeneratedForSubjectChange++;
+                else if (result === 'skipped_already_exists') plansSkipped++;
             } catch (error) {
                 const msg = `Failed for user ${userDoc.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
                 errors.push(msg);
@@ -225,17 +242,36 @@ export async function generateDailyStudyPlans(): Promise<{
         });
 
         await Promise.allSettled(promises);
-        console.log('Daily study plan generation completed!');
-        return { success: true, usersProcessed: usersSnapshot.size, errors };
+        console.log(
+            `Daily study plan generation run completed! ` +
+            `Users scanned: ${usersSnapshot.size} | New: ${plansGenerated} | Regenerated (subjects changed): ${plansRegeneratedForSubjectChange} | Already up to date: ${plansSkipped} | Errors: ${errors.length}`
+        );
+        return { success: true, usersProcessed: usersSnapshot.size, plansGenerated, plansRegeneratedForSubjectChange, plansSkipped, errors };
     } catch (error) {
         console.error('Error in generateDailyStudyPlans:', error);
         throw error;
     }
 }
 
-export async function generateStudyPlanForUser(userId: string): Promise<void> {
+/**
+ * Generates today's study plan for a single user — but ONLY if:
+ *   (a) no plan exists yet for today, OR
+ *   (b) a plan exists, but the student's enrolled subjects have changed
+ *       since it was generated (added or dropped a subject).
+ *
+ * Designed to be safely called repeatedly (e.g. every 10 minutes via
+ * cron): most calls for most users will hit the early-exit check below
+ * (existing plan + unchanged subjects) and return immediately without
+ * touching materials, uploaded questions, or the OpenAI API.
+ *
+ * Returns which branch was taken, so the batch runner can report counts.
+ */
+export async function generateStudyPlanForUser(
+    userId: string
+): Promise<'generated' | 'regenerated_subjects_changed' | 'skipped_already_exists' | 'skipped_no_active_packs'> {
     try {
-        console.log(`Generating study plan for user: ${userId}`);
+        const localDate = DateTime.now().setZone("Africa/Addis_Ababa");
+        const dateKey = localDate.toISODate() || new Date().toISOString().split('T')[0];
 
         const userDoc = await admin.firestore().collection('users').doc(userId).get();
         if (!userDoc.exists) throw new Error(`User ${userId} not found`);
@@ -248,34 +284,61 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
             userData?.preferences?.examBoard ??
             null;
 
-// ── Level (GCSE / A-Level) ────────────────────────────────────────────
-// Drives which study-materials collection and lookup strategy we use.
+        // ── Level (GCSE / A-Level) ────────────────────────────────────────────
         const level: string =
             userData?.level ??
             userData?.preferences?.level ??
             'GCSE';
         const isALevel = level === 'A-Level';
-        console.log(`User ${userId} level: ${level}`);
 
-// ── Enrolled subjects ─────────────────────────────────────────────────
+        // ── Enrolled subjects ─────────────────────────────────────────────────
         const subjectsSnapshot = await admin.firestore()
             .collection('users').doc(userId).collection('subjects').get();
 
-        if (subjectsSnapshot.empty) {
-            console.log(`User ${userId} has no enrolled subjects. Skipping.`);
-            return;
-        }
-
-// Only process subjects matching the user's level.
-// Fail-open: docs not yet backfilled (no `level`) are still included.
+        // Only process subjects matching the user's level.
+        // Fail-open: docs not yet backfilled (no `level`) are still included.
         const subjectDocs = subjectsSnapshot.docs.filter(d => {
             const docLevel = d.data().level;
             return !docLevel || docLevel === level;
         });
 
+        const currentPackIds = subjectDocs.map(d => d.id);
+
+        // ✅ Existing-plan + subject-change check. A single cheap query (the
+        // subjectsSnapshot fetch above, which we need either way) plus one
+        // doc read here is far cheaper than the full generation path below,
+        // so this stays fast even called every 10 minutes.
+        const planRef = admin.firestore()
+            .collection('users').doc(userId).collection('dailyStudyPlans').doc(dateKey);
+        const existingPlanDoc = await planRef.get();
+
+        let subjectsChanged = false;
+        if (existingPlanDoc.exists) {
+            const existingData = existingPlanDoc.data()!;
+            const storedPackIds: string[] | undefined = existingData.enrolledPackIds;
+
+            if (!storedPackIds) {
+                // Legacy plan doc from before this field existed — we can't
+                // know whether subjects changed, so fail open and treat it
+                // as unchanged rather than force-regenerating every legacy
+                // plan on the first cron run after this update ships.
+                subjectsChanged = false;
+            } else {
+                subjectsChanged = !packIdSetsEqual(storedPackIds, currentPackIds);
+            }
+
+            if (!subjectsChanged) {
+                return 'skipped_already_exists';
+            }
+
+            console.log(`User ${userId} enrolled subjects changed since today's plan was generated — regenerating.`);
+        }
+
+        console.log(`Generating study plan for user: ${userId} | level: ${level}`);
+
         if (subjectDocs.length === 0) {
             console.log(`User ${userId} has no ${level} subjects enrolled. Skipping.`);
-            return;
+            return 'skipped_no_active_packs';
         }
 
         const packAnalyses: PackAnalysis[] = [];
@@ -440,10 +503,10 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
         // ─────────────────────────────────────────────────────────────────────
 
         // ── Uploaded questions the student asked AI to solve ───────────────────
-// Any unresolved (completed: false) uploaded_question docs get folded
-// into today's plan, grouped by subject, same as generated materials —
-// so topics the student got stuck on keep recurring until they mark
-// themselves as understanding it.
+        // Any unresolved (completed: false) uploaded_question docs get folded
+        // into today's plan, grouped by subject, same as generated materials —
+        // so topics the student got stuck on keep recurring until they mark
+        // themselves as understanding it.
         const uploadedQuestionsSnap = await admin.firestore()
             .collection('users').doc(userId).collection('uploaded_question')
             .where('completed', '==', false)
@@ -501,10 +564,9 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
             pack => pack.incompleteMaterials.length > 0 || pack.incorrectQuestions.length > 0
         );
 
-
         if (activePacks.length === 0) {
             console.log(`User ${userId} has completed all materials. Skipping.`);
-            return;
+            return 'skipped_no_active_packs';
         }
 
         const rawPlan = await generateStudyPlanWithAI(preferences, activePacks, level);
@@ -514,23 +576,25 @@ export async function generateStudyPlanForUser(userId: string): Promise<void> {
 
         const studyPlan: StudyPlan = { ...rawPlan, sessions: finalSessions };
 
-        const localDate = DateTime.now().setZone("Africa/Addis_Ababa");
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const dateKey = localDate.toISODate() || today.toISOString().split('T')[0];
+        await planRef.set({
+            plan: studyPlan,
+            createdAt: existingPlanDoc.exists ? existingPlanDoc.data()!.createdAt : new Date(),
+            regeneratedAt: existingPlanDoc.exists ? new Date() : null,
+            date: dateKey,
+            level,
+            preferences,
+            status: 'active',
+            // ✅ Snapshot of enrolled pack IDs used to build this plan — read
+            // back on the next call to detect subject-list changes.
+            enrolledPackIds: currentPackIds,
+        });
 
-        await admin.firestore()
-            .collection('users').doc(userId).collection('dailyStudyPlans').doc(dateKey)
-            .set({
-                plan: studyPlan,
-                createdAt: new Date(),
-                date: dateKey,
-                level,
-                preferences,
-                status: 'active',
-            });
-
-        console.log(`Study plan generated for user: ${userId} | level: ${level} | sessions: ${finalSessions.length} | packs: ${activePacks.length}`);
+        const wasRegeneration = existingPlanDoc.exists;
+        console.log(
+            `${wasRegeneration ? 'Re-generated' : 'Generated'} study plan for user: ${userId} | ` +
+            `level: ${level} | sessions: ${finalSessions.length} | packs: ${activePacks.length}`
+        );
+        return wasRegeneration ? 'regenerated_subjects_changed' : 'generated';
     } catch (error) {
         console.error(`Error generating study plan for user ${userId}:`, error);
         throw error;
