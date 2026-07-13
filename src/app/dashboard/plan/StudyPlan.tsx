@@ -58,7 +58,6 @@ const formatDifficulty = (difficulty: string | number) => {
     return toTitleCase(cleaned);
 };
 
-// Format focus area for display ("review_incorrect" → "Review Incorrect").
 const formatFocus = (focus: string) => toTitleCase(focus.replace(/_/g, ' '));
 
 // ─── Component ────────────────────────────────────────────────────────────────
