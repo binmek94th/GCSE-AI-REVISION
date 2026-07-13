@@ -1,16 +1,16 @@
 'use client';
 
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {createUserWithEmailAndPassword, sendEmailVerification, signOut} from 'firebase/auth';
-import {auth, db} from '@/lib/firebase';
-import {useState, useEffect, useRef} from 'react';
-import { useRouter } from 'next/navigation';
-import {Input} from "@/app/components/ui/input";
-import {Button} from "@/app/components/ui/button";
-import {doc, setDoc} from "@firebase/firestore";
-import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Input } from "@/app/components/ui/input";
+import { Button } from "@/app/components/ui/button";
+import { doc, setDoc } from "@firebase/firestore";
+import { CheckCircle, XCircle, Loader2, Gift } from 'lucide-react';
 
 const registerSchema = z.object({
     username: z.string().min(3, "Username must be at least 3 characters"),
@@ -49,12 +49,34 @@ const getFriendlyAuthError = (errorCode: string): string => {
     }
 };
 
-export default function RegisterPage() {
+function RegisterFormInner() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [error, setError] = useState<string | null>(null);
     const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
     const [usernameMessage, setUsernameMessage] = useState<string>('');
     const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // ── Referral code handling ──────────────────────────────────────────────
+    const referralCode = searchParams.get('code');
+    const [referralTutorName, setReferralTutorName] = useState<string | null>(null);
+    const [checkingReferral, setCheckingReferral] = useState(!!referralCode);
+
+    console.log(referralCode)
+
+    useEffect(() => {
+        if (!referralCode) {
+            setCheckingReferral(false);
+            return;
+        }
+        fetch(`/api/referrals/validate-code?code=${encodeURIComponent(referralCode)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.valid) setReferralTutorName(data.tutorName);
+            })
+            .catch(err => console.error('Referral code validation failed:', err))
+            .finally(() => setCheckingReferral(false));
+    }, [referralCode]);
 
     const {
         register,
@@ -145,6 +167,24 @@ export default function RegisterPage() {
             });
             localStorage.setItem('User', JSON.stringify(user));
 
+            // ✅ Attribute this signup to the referring tutor, if a valid
+            // code was carried through the URL. Fire this before email
+            // verification so it's captured even if the student closes
+            // the tab before verifying — non-blocking, failure here
+            // shouldn't stop the signup flow.
+            if (referralCode && referralTutorName) {
+                try {
+                    const idToken = await userCred.user.getIdToken();
+                    await fetch('/api/referrals/track-signup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+                        body: JSON.stringify({ referralCode }),
+                    });
+                } catch (refErr) {
+                    console.error('Referral tracking failed:', refErr);
+                }
+            }
+
             await sendEmailVerification(userCred.user);
             router.push('/verify-email');
         } catch (err: any) {
@@ -169,6 +209,23 @@ export default function RegisterPage() {
         <main className="flex min-h-screen items-center justify-center bg-background text-foreground">
             <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow">
                 <h1 className="text-2xl font-medium mb-4">Register</h1>
+
+                {/* Referral banner */}
+                {referralCode && !checkingReferral && referralTutorName && (
+                    <div className="mb-4 p-3 rounded-md bg-blue-50 border border-blue-200 flex items-center gap-2">
+                        <Gift className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                        <p className="text-blue-800 text-sm">
+                            You were referred by <strong>{referralTutorName}</strong> 🎉
+                        </p>
+                    </div>
+                )}
+                {referralCode && !checkingReferral && !referralTutorName && (
+                    <div className="mb-4 p-3 rounded-md bg-amber-50 border border-amber-200">
+                        <p className="text-amber-700 text-sm">
+                            This referral link isn't valid, but you can still create your account below.
+                        </p>
+                    </div>
+                )}
 
                 {error && (
                     <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200">
@@ -281,5 +338,13 @@ export default function RegisterPage() {
                 </p>
             </div>
         </main>
+    );
+}
+
+export default function RegisterPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <RegisterFormInner />
+        </Suspense>
     );
 }
