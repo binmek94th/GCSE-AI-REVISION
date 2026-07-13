@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { SubjectSelection } from '@/app/onboarding/Schema';
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { StudyPlanLoading } from "@/app/onboarding/StudyPlanLoading";
+import {auth} from "@/lib/firebase";
 
 interface Props {
     selectedSubjects: SubjectSelection;
@@ -83,9 +84,18 @@ const Quiz: React.FC<Props> = ({ selectedSubjects, level, setNextDisabled, setPl
         }));
         setSubmitLoading(true);
         try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                throw new Error('You must be signed in to submit the quiz.');
+            }
+            const idToken = await currentUser.getIdToken();
+
             const response = await fetch('/api/questions/submit', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${idToken}`,
+                },
                 body: JSON.stringify({ answers: payload, selectedSubjects, level }),
             });
             if (!response.ok) {
