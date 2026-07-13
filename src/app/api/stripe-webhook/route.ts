@@ -13,7 +13,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-const COMMISSION_RATE = 0.30;
+const COMMISSION_RATE = parseInt(process.env.COMMISSION_RATE);
 
 /** Decode your encoded client_reference_id (Payment Links) */
 function decodeClientReferenceId(encoded: string | null): any | null {
