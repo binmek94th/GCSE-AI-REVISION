@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from "@/app/components/ui/input";
@@ -61,8 +61,6 @@ function RegisterFormInner() {
     const referralCode = searchParams.get('code');
     const [referralTutorName, setReferralTutorName] = useState<string | null>(null);
     const [checkingReferral, setCheckingReferral] = useState(!!referralCode);
-
-    console.log(referralCode)
 
     useEffect(() => {
         if (!referralCode) {
@@ -167,14 +165,12 @@ function RegisterFormInner() {
             });
             localStorage.setItem('User', JSON.stringify(user));
 
+            const idToken = await userCred.user.getIdToken();
+
             // ✅ Attribute this signup to the referring tutor, if a valid
-            // code was carried through the URL. Fire this before email
-            // verification so it's captured even if the student closes
-            // the tab before verifying — non-blocking, failure here
-            // shouldn't stop the signup flow.
+            // code was carried through the URL. Non-blocking.
             if (referralCode && referralTutorName) {
                 try {
-                    const idToken = await userCred.user.getIdToken();
                     await fetch('/api/referrals/track-signup', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
@@ -185,7 +181,27 @@ function RegisterFormInner() {
                 }
             }
 
-            await sendEmailVerification(userCred.user);
+            // ✅ Send the verification email via Brevo instead of Firebase's
+            // built-in sendEmailVerification — same underlying Firebase
+            // verification link, just delivered through your own sender
+            // domain/templates instead of Firebase's default email service.
+            try {
+                const res = await fetch('/api/auth/send-verification-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    console.error('Failed to send verification email:', err);
+                    // Non-fatal for the signup flow itself — the account
+                    // was created successfully. The /verify-email page
+                    // should offer a "resend" option hitting this same
+                    // endpoint in case this initial send failed.
+                }
+            } catch (verifyErr) {
+                console.error('Verification email request failed:', verifyErr);
+            }
+
             router.push('/verify-email');
         } catch (err: any) {
             setError(getFriendlyAuthError(err.code));
@@ -281,7 +297,7 @@ function RegisterFormInner() {
                             className="w-full bg-input-background"
                         />
                         {errors.email && (
-                            <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                            <p className="text-red-500 text-sm mt-1">{errors.email?.message}</p>
                         )}
                     </div>
 
@@ -292,8 +308,8 @@ function RegisterFormInner() {
                             {...register("parent_email")}
                             className="w-full bg-input-background"
                         />
-                        {errors.email && (
-                            <p className="text-red-500 text-sm mt-1">{errors.parent_email.message}</p>
+                        {errors.parent_email && (
+                            <p className="text-red-500 text-sm mt-1">{errors.parent_email?.message}</p>
                         )}
                     </div>
 
