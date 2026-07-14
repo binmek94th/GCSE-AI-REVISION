@@ -2,6 +2,140 @@ import { NextResponse } from "next/server";
 import admin from "@/lib/firebaseAdmin";
 
 // ------------------------
+// Normalize a raw question doc into the shape MaterialQuizModal expects
+// ------------------------
+interface NormalizedQuestion {
+    id: string;
+    question: string;
+    options: Record<string, string>;
+    correctAnswer: string;
+    explanation: string;
+    subject: string;
+    materialId: string;
+    materialTitle: string;
+    difficulty: number | string;
+}
+
+function normalizeGcseQuestion(
+    qDoc: FirebaseFirestore.QueryDocumentSnapshot,
+    materialId: string,
+    materialTitle: string,
+    subject: string
+): NormalizedQuestion {
+    const d = qDoc.data();
+    return {
+        id: qDoc.id,
+        question: d.question ?? d.questionText ?? "",
+        options: d.options ?? {},
+        correctAnswer: d.correctAnswer ?? d.answer ?? "",
+        explanation: d.explanation ?? "",
+        subject,
+        materialId,
+        materialTitle,
+        difficulty: d.difficulty ?? "medium",
+    };
+}
+
+function normalizeALevelQuestion(
+    qDoc: FirebaseFirestore.QueryDocumentSnapshot,
+    materialId: string,
+    materialTitle: string,
+    subject: string
+): NormalizedQuestion {
+    const d = qDoc.data();
+    const choices: { option: string; text: string; isCorrect?: boolean }[] = Array.isArray(d.choices) ? d.choices : [];
+    const options: Record<string, string> = {};
+    let correctAnswer = "";
+    choices.forEach((c) => {
+        if (c?.option == null) return;
+        options[c.option] = c.text ?? "";
+        if (c.isCorrect) correctAnswer = c.option;
+    });
+
+    return {
+        id: qDoc.id,
+        question: d.questionText ?? d.question ?? "",
+        options,
+        correctAnswer,
+        explanation: d.explanation ?? "",
+        subject,
+        materialId,
+        materialTitle,
+        difficulty: d.difficulty ?? "medium",
+    };
+}
+
+// ------------------------
+// Fetch full question data for every material's embedded {id, text} refs,
+// batched across all materials in the current page (Firestore 'in' query
+// max 10 values per batch).
+// ------------------------
+async function attachFullQuestions(
+    materials: any[],
+    questionsCollection: string,
+    isALevel: boolean
+): Promise<any[]> {
+    // Build a lookup: questionId -> { materialId, materialTitle, subject }
+    const questionMeta: Record<string, { materialId: string; materialTitle: string; subject: string }> = {};
+    const allQuestionIds: string[] = [];
+
+    for (const m of materials) {
+        if (!Array.isArray(m.questions)) continue;
+        const materialTitle = isALevel ? (m.topic ?? m.title ?? "Untitled") : (m.title ?? "Untitled");
+        for (const ref of m.questions) {
+            if (!ref?.id) continue;
+            allQuestionIds.push(ref.id);
+            questionMeta[ref.id] = { materialId: m.id, materialTitle, subject: m.subject };
+        }
+    }
+
+    if (allQuestionIds.length === 0) {
+        // No embedded refs anywhere — leave questions as empty arrays.
+        return materials.map((m) => ({ ...m, questions: [] }));
+    }
+
+    const batchSize = 10;
+    const batches: string[][] = [];
+    for (let i = 0; i < allQuestionIds.length; i += batchSize) {
+        batches.push(allQuestionIds.slice(i, i + batchSize));
+    }
+
+    const db = admin.firestore();
+    const fullQuestionsByMaterial: Record<string, NormalizedQuestion[]> = {};
+
+    await Promise.all(
+        batches.map(async (batch) => {
+            const snapshot = await db
+                .collection(questionsCollection)
+                .where(admin.firestore.FieldPath.documentId(), "in", batch)
+                .get();
+
+            snapshot.docs.forEach((qDoc) => {
+                const meta = questionMeta[qDoc.id];
+                if (!meta) return;
+
+                const qData = qDoc.data();
+                // Fail-open: only skip if explicitly not approved. Missing
+                // moderation_status is treated as approved.
+                if (qData.moderation_status && qData.moderation_status !== "approved") return;
+
+                const normalized = isALevel
+                    ? normalizeALevelQuestion(qDoc, meta.materialId, meta.materialTitle, meta.subject)
+                    : normalizeGcseQuestion(qDoc, meta.materialId, meta.materialTitle, meta.subject);
+
+                if (!fullQuestionsByMaterial[meta.materialId]) fullQuestionsByMaterial[meta.materialId] = [];
+                fullQuestionsByMaterial[meta.materialId].push(normalized);
+            });
+        })
+    );
+
+    return materials.map((m) => ({
+        ...m,
+        questions: fullQuestionsByMaterial[m.id] ?? [],
+    }));
+}
+
+// ------------------------
 // Fetch materials with pagination (level-aware: GCSE vs A-Level collection)
 // ------------------------
 async function getMaterialsByPack(
@@ -10,7 +144,9 @@ async function getMaterialsByPack(
     limit: number,
     page: number,
     materialsCollection: string,
-    orderField: string
+    orderField: string,
+    questionsCollection: string,
+    isALevel: boolean
 ) {
     const collectionRef = admin
         .firestore()
@@ -28,10 +164,14 @@ async function getMaterialsByPack(
 
     const paginatedDocs = allDocs.slice(startIndex, endIndex);
 
-    const materials = paginatedDocs.map((doc) => ({
+    let materials = paginatedDocs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
     }));
+
+    // ✅ Resolve each material's lightweight {id, text} question refs into
+    // full question objects, from the level-appropriate collection.
+    materials = await attachFullQuestions(materials, questionsCollection, isALevel);
 
     return {
         materials,
@@ -81,22 +221,27 @@ export async function GET(req: Request) {
             );
         }
 
-        // ✅ Resolve user's level and pick the matching materials collection.
-        // GCSE and A-Level content live in separate collections with slightly
-        // different schemas — A-Level materials use `topic` instead of `title`.
+        // ✅ Resolve user's level and pick the matching materials AND
+        // questions collections. GCSE and A-Level content live in separate
+        // collections with slightly different schemas — A-Level materials
+        // use `topic` instead of `title`, and A-Level questions use
+        // `questionText` + `choices[]` instead of `question` + `options`.
         const level = userData?.level ?? userData?.preferences?.level ?? "GCSE";
         const isALevel = level === "A-Level";
         const MATERIALS_COLLECTION = isALevel ? "alevel_study_materials" : "study_materials";
         const ORDER_FIELD = isALevel ? "topic" : "title";
+        const QUESTIONS_COLLECTION = isALevel ? "a-levelExamQuestions" : "questions";
 
-        // Fetch materials
+        // Fetch materials (now with full question data attached)
         const { materials, total, hasMore } = await getMaterialsByPack(
             studyPack.data().subject,
             examBoard,
             limit,
             page,
             MATERIALS_COLLECTION,
-            ORDER_FIELD
+            ORDER_FIELD,
+            QUESTIONS_COLLECTION,
+            isALevel
         );
 
         // Fetch user progress

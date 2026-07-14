@@ -283,6 +283,18 @@ export default function StudyPlan() {
         );
     }
 
+    if (!studyPlan.plan?.sessions || studyPlan.plan.sessions.length === 0) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+                    <div className="text-gray-400 text-5xl mb-4">📚</div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">No Study Plan Found</h2>
+                    <p className="text-gray-600">No study sessions are available for today. Please check back later.</p>
+                </div>
+            </div>
+        );
+    }
+
     const hasAssessment = studyPlan.assessment?.questions?.length > 0;
 
     // ─── Subject assessment quiz ──────────────────────────────────────────────

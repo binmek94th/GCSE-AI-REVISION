@@ -124,9 +124,7 @@ function StudyPackTab() {
 
     const selectPack = (subject: Subject) => {
         setPackId(subject.id);
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("packId", subject.id);
-        router.push(`?${params.toString()}`);
+        router.push(`/dashboard?tab=studypack&packId=${subject.id}`);
     };
 
     const unSelectPack = () => {

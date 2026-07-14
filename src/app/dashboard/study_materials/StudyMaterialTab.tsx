@@ -1,12 +1,28 @@
 'use client'
-import { useState, useEffect } from 'react';
-import {FileText, Loader2, AlertCircle, BookOpen, ArrowLeft, ChevronRight, ChevronLeft, ChevronDown} from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import {FileText, Loader2, AlertCircle, BookOpen, ArrowLeft, ChevronRight, ChevronLeft, ChevronDown, CheckCircle} from 'lucide-react';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {auth} from "@/lib/firebase";
 import {MarkdownContent} from "@/app/components/Markdown";
 import {useDashboard} from "@/contexts/DashboardContext";
 import ContextualAiChat from "@/app/components/ContextualAiChat";
 import {useRouter, useSearchParams} from "next/navigation";
+import { toast } from "sonner";
+import {MaterialQuizModal} from "@/app/dashboard/plan/MaterialQuizModal";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface AssessmentQuestion {
+    id: string;
+    question: string;
+    options: Record<string, string> | string[];
+    correctAnswer: string;
+    explanation?: string;
+    subject: string;
+    materialId: string;
+    materialTitle: string;
+    difficulty: number | string;
+}
 
 interface Material {
     id: string;
@@ -15,6 +31,9 @@ interface Material {
     subject: string;
     topic?: string;
     done: boolean;
+    // ✅ Now populated by /api/study_materials with full question data
+    // resolved from the correct level-specific collection.
+    questions?: AssessmentQuestion[];
 }
 
 interface Props {
@@ -42,6 +61,10 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
     const { incrementStreak } = useDashboard();
     const searchParams = useSearchParams();
     const router = useRouter();
+
+    // ── Quiz-before-done state (same pattern as StudyPlan.tsx) ─────────────────
+    const [quizModalOpen, setQuizModalOpen] = useState(false);
+    const pendingDoneMaterialIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         const materialId = searchParams.get("materialId");
@@ -139,19 +162,43 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
         if (hasMore) setPage(prev => prev + 1);
     };
 
-    const handleDone = async (materialId: string) => {
+    // ── Mark as done — now opens quiz first, same as StudyPlan.tsx ─────────────
+
+    const handleMarkAsDoneClick = () => {
+        if (!selectedMaterial) return;
+        pendingDoneMaterialIdRef.current = selectedMaterial.id;
+        setQuizModalOpen(true);
+    };
+
+    /**
+     * Called by MaterialQuizModal when the student finishes (or skips) the
+     * quiz. Performs the actual mark-as-done logic and advances to the
+     * next incomplete material, same pattern as StudyPlan.tsx.
+     */
+    const handleQuizComplete = async (score: number, total: number) => {
+        setQuizModalOpen(false);
+
+        const materialId = pendingDoneMaterialIdRef.current;
+        if (!materialId) return;
+        pendingDoneMaterialIdRef.current = null;
+
         if (!auth.currentUser) return;
         const idToken = await auth.currentUser.getIdToken();
+
         const currentIndex = materials.findIndex((m) => m.id === materialId);
+
+        // Optimistic update
         setMaterials(prevState =>
             prevState.map(m =>
                 m.id === materialId ? { ...m, done: true } : m
             )
         );
 
+        // Advance to next material in the current page, if any
         if (currentIndex !== -1 && currentIndex + 1 < materials.length) {
-            setSelectedMaterial(materials[currentIndex + 1]);
-            selectMaterial(materials[currentIndex + 1]);
+            const next = materials[currentIndex + 1];
+            setSelectedMaterial(next);
+            selectMaterial(next);
         }
 
         try {
@@ -163,10 +210,23 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                 },
                 body: JSON.stringify({ packId, materialId, done: true }),
             });
-        } catch (error) {
-            console.error("Error marking material done:", error);
+        } catch (err) {
+            console.error("Error marking material done:", err);
         }
+
         incrementStreak();
+
+        if (total > 0) {
+            const pct = Math.round((score / total) * 100);
+            toast.success(`Marked as done! You scored ${score}/${total} (${pct}%) 🎯`);
+        } else {
+            toast.success("Marked as done!");
+        }
+    };
+
+    const handleQuizCancel = () => {
+        setQuizModalOpen(false);
+        pendingDoneMaterialIdRef.current = null;
     };
 
     const unSelectMaterial = () => {
@@ -253,34 +313,46 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                                             {/* Materials under topic */}
                                             {!isCollapsed && (
                                                 <div className="bg-white divide-y divide-gray-50">
-                                                    {topicMaterials.map((material) => (
-                                                        <button
-                                                            key={material.id}
-                                                            onClick={() => selectMaterial(material)}
-                                                            className={`w-full text-left px-4 py-3 transition-all duration-150 flex items-center gap-3 ${
-                                                                selectedMaterial?.id === material.id
-                                                                    ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white"
-                                                                    : "hover:bg-indigo-50 text-gray-700"
-                                                            }`}
-                                                        >
-                                                            <div className="flex-shrink-0">
-                                                                {material.done ? (
-                                                                    <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
-                                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                                        </svg>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className={`w-4 h-4 rounded-full border-2 ${
-                                                                        selectedMaterial?.id === material.id ? 'border-white' : 'border-gray-300'
-                                                                    }`} />
-                                                                )}
-                                                            </div>
-                                                            <span className="text-sm font-medium line-clamp-2 leading-snug">
-                                                                {material.title}
-                                                            </span>
-                                                        </button>
-                                                    ))}
+                                                    {topicMaterials.map((material) => {
+                                                        const questionCount = material.questions?.length ?? 0;
+                                                        return (
+                                                            <button
+                                                                key={material.id}
+                                                                onClick={() => selectMaterial(material)}
+                                                                className={`w-full text-left px-4 py-3 transition-all duration-150 flex items-center gap-3 ${
+                                                                    selectedMaterial?.id === material.id
+                                                                        ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white"
+                                                                        : "hover:bg-indigo-50 text-gray-700"
+                                                                }`}
+                                                            >
+                                                                <div className="flex-shrink-0">
+                                                                    {material.done ? (
+                                                                        <div className="w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                            </svg>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className={`w-4 h-4 rounded-full border-2 ${
+                                                                            selectedMaterial?.id === material.id ? 'border-white' : 'border-gray-300'
+                                                                        }`} />
+                                                                    )}
+                                                                </div>
+                                                                <span className="flex-1 min-w-0">
+                                                                    <span className="text-sm font-medium line-clamp-2 leading-snug block">
+                                                                        {material.title}
+                                                                    </span>
+                                                                    {questionCount > 0 && !material.done && (
+                                                                        <span className={`text-[10px] font-semibold mt-0.5 inline-block ${
+                                                                            selectedMaterial?.id === material.id ? 'text-white/80' : 'text-blue-600'
+                                                                        }`}>
+                                                                            🧠 {questionCount} quiz Q{questionCount > 1 ? 's' : ''}
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
@@ -319,7 +391,7 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                             </div>
                             <div className="flex justify-end mt-4">
                                 <button
-                                    onClick={() => handleDone(selectedMaterial.id)}
+                                    onClick={handleMarkAsDoneClick}
                                     disabled={selectedMaterial.done}
                                     className={`px-4 py-2 text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-2 ${
                                         selectedMaterial.done
@@ -327,9 +399,7 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                                             : 'bg-green-600 hover:bg-green-700'
                                     }`}
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
+                                    <CheckCircle className="w-4 h-4" />
                                     {selectedMaterial.done ? 'Completed' : 'Mark as Done'}
                                 </button>
                             </div>
@@ -356,6 +426,17 @@ export default function StudyMaterialTab({ packId, unSelectPack }: Props) {
                     contentSelector=".study-content"
                 />
             )}
+
+            {/* ── Material quiz modal (shown before confirming mark-as-done) ── */}
+            <MaterialQuizModal
+                packId={packId}
+                open={quizModalOpen}
+                materialId={selectedMaterial?.id ?? ''}
+                materialTitle={selectedMaterial?.title ?? ''}
+                questions={selectedMaterial?.questions ?? []}
+                onConfirmDone={handleQuizComplete}
+                onCancel={handleQuizCancel}
+            />
         </div>
     );
 }
