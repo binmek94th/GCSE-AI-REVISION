@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Button } from '@/app/components/ui/button';
 import {
     Upload, FileText, Camera, X, Loader2, Sparkles, CheckCircle2,
-    AlertCircle, RotateCcw, ChevronDown, ChevronUp,
+    AlertCircle, RotateCcw, ChevronDown, ChevronUp, Coins, ShoppingCart,
 } from 'lucide-react';
 
 const MAX_FILE_SIZE_MB = 15;
@@ -26,6 +26,13 @@ interface HistoryItem extends SolvedResult {
     completed: boolean;
     createdAt: string | null;
     fileUrl: string | null;
+}
+
+interface Quota {
+    freeUsed: number;
+    freeLimit: number;
+    purchasedCredits: number;
+    remaining: number;
 }
 
 export default function AskAIPage() {
@@ -49,6 +56,9 @@ export default function AskAIPage() {
     const [loadingHistory, setLoadingHistory] = useState(true);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
+    const [quota, setQuota] = useState<Quota | null>(null);
+    const [buyingCredits, setBuyingCredits] = useState(false);
+
     useEffect(() => {
         const u = auth.currentUser;
         if (!u) return;
@@ -68,6 +78,7 @@ export default function AskAIPage() {
             if (res.ok) {
                 const data = await res.json();
                 setHistory(data.questions || []);
+                setQuota(data.quota ?? null);
             }
         } catch (err) {
             console.error('Failed to fetch history:', err);
@@ -146,6 +157,31 @@ export default function AskAIPage() {
         };
     }, []);
 
+    // ── Buy more credits ─────────────────────────────────────────────────────
+    const buyMoreCredits = async () => {
+        const u = auth.currentUser;
+        if (!u) return;
+        setBuyingCredits(true);
+        try {
+            const idToken = await u.getIdToken();
+            const res = await fetch('/api/stripe/ask-ai-credits/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+                body: JSON.stringify({ packQuantity: 1 }),
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                setError('Could not start checkout. Please try again.');
+            }
+        } catch {
+            setError('Could not start checkout. Please try again.');
+        } finally {
+            setBuyingCredits(false);
+        }
+    };
+
     // ── Submit for solving ───────────────────────────────────────────────────
     const submitQuestion = async () => {
         if (!uid || !file) return;
@@ -172,13 +208,15 @@ export default function AskAIPage() {
                 body: JSON.stringify({ storagePath, fileUrl, contentType: file.type }),
             });
 
+            const data = await res.json();
+
             if (!res.ok) {
-                const e = await res.json();
-                throw new Error(e.error || 'Failed to solve question');
+                if (data.quota) setQuota(data.quota);
+                throw new Error(data.error || 'Failed to solve question');
             }
 
-            const data: SolvedResult = await res.json();
             setResult(data);
+            if (data.quota) setQuota(data.quota);
             fetchHistory();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Something went wrong.');
@@ -215,6 +253,8 @@ export default function AskAIPage() {
         hard: 'bg-red-100 text-red-700',
     };
 
+    const outOfCredits = quota !== null && quota.remaining <= 0;
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* ════ Upload card ════ */}
@@ -230,6 +270,43 @@ export default function AskAIPage() {
                         Upload a photo or PDF of any question you're stuck on. The AI will solve it, and the topic
                         will automatically show up in your next study plan.
                     </p>
+
+                    {/* Quota banner */}
+                    {quota && (
+                        <div className={`flex items-center justify-between gap-3 p-3 rounded-lg border text-sm ${
+                            outOfCredits ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-100'
+                        }`}>
+                            <div className="flex items-center gap-2 text-gray-700">
+                                <Coins className={`w-4 h-4 flex-shrink-0 ${outOfCredits ? 'text-amber-600' : 'text-blue-600'}`} />
+                                <span>
+                                    {outOfCredits ? (
+                                        <span className="font-medium text-amber-800">You've used all your uploads this month</span>
+                                    ) : (
+                                        <>
+                                            <span className="font-medium text-gray-900">{quota.remaining}</span> upload
+                                            {quota.remaining === 1 ? '' : 's'} left
+                                            {quota.purchasedCredits > 0 && (
+                                                <span className="text-gray-500"> ({quota.purchasedCredits} purchased)</span>
+                                            )}
+                                        </>
+                                    )}
+                                </span>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="cursor-pointer flex-shrink-0"
+                                onClick={buyMoreCredits}
+                                disabled={buyingCredits}
+                            >
+                                {buyingCredits ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                    <><ShoppingCart className="w-3.5 h-3.5 mr-1.5" />Buy 10 more — £4.99</>
+                                )}
+                            </Button>
+                        </div>
+                    )}
 
                     {/* Camera view */}
                     {isCameraOpen ? (
@@ -248,15 +325,17 @@ export default function AskAIPage() {
                         <>
                             {/* Drop zone */}
                             <div
-                                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                onDragOver={(e) => { e.preventDefault(); if (!outOfCredits) setIsDragging(true); }}
                                 onDragLeave={() => setIsDragging(false)}
                                 onDrop={(e) => {
                                     e.preventDefault(); setIsDragging(false);
+                                    if (outOfCredits) return;
                                     e.dataTransfer.files[0] && handleFile(e.dataTransfer.files[0]);
                                 }}
-                                onClick={() => !file && fileInputRef.current?.click()}
+                                onClick={() => !file && !outOfCredits && fileInputRef.current?.click()}
                                 className={`rounded-lg border-2 border-dashed transition-colors ${
-                                    isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
+                                    outOfCredits ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60' :
+                                        isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
                                 } ${file ? 'p-3 cursor-default' : 'p-6 cursor-pointer hover:border-gray-400'}`}
                             >
                                 <input
@@ -265,6 +344,7 @@ export default function AskAIPage() {
                                     accept=".pdf,.png,.jpg,.jpeg"
                                     capture="environment"
                                     className="hidden"
+                                    disabled={outOfCredits}
                                     onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                                 />
 
@@ -292,14 +372,16 @@ export default function AskAIPage() {
                                     <div className="text-center">
                                         <Upload className="w-7 h-7 text-gray-400 mx-auto mb-2" />
                                         <div className="text-sm font-semibold text-gray-900">
-                                            Drop a photo or PDF here or <span className="text-blue-600">browse</span>
+                                            {outOfCredits ? 'Buy more uploads to continue' : (
+                                                <>Drop a photo or PDF here or <span className="text-blue-600">browse</span></>
+                                            )}
                                         </div>
                                         <div className="text-xs text-gray-600 mt-1">Photo or PDF · max {MAX_FILE_SIZE_MB}MB</div>
                                     </div>
                                 )}
                             </div>
 
-                            {!file && (
+                            {!file && !outOfCredits && (
                                 <Button variant="outline" className="w-full cursor-pointer" onClick={openCamera}>
                                     <Camera className="w-4 h-4 mr-2" /> Use Camera
                                 </Button>
@@ -318,7 +400,7 @@ export default function AskAIPage() {
                         <Button
                             className="w-full bg-blue-600 hover:bg-blue-700 cursor-pointer"
                             onClick={submitQuestion}
-                            disabled={solving}
+                            disabled={solving || outOfCredits}
                         >
                             {solving ? (
                                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Solving...</>

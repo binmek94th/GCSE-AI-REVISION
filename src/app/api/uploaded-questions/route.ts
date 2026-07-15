@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import admin from '@/lib/firebaseAdmin';
+import { getAskAiQuotaStatus, QuotaExceededError, reserveAskAiUpload, refundAskAiUpload } from '@/lib/askAiQuota';
 
 export const runtime = 'nodejs';
 
@@ -81,114 +82,150 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Only images and PDFs are supported' }, { status: 400 });
     }
 
-    // Resolve the student's level so the AI calibrates to GCSE vs A-Level
-    // terminology and difficulty.
-    const userDoc = await admin.firestore().collection('users').doc(uid).get();
-    const userData = userDoc.data();
-    const level: string = userData?.level ?? userData?.preferences?.level ?? 'GCSE';
-
-    // Download the uploaded file from Storage (server-side, Admin SDK only).
-    let buffer: Buffer;
+    // ✅ Reserve quota BEFORE any Storage download or Anthropic call, so a
+    // request that's going to be rejected never costs us API/Storage spend.
+    // Free monthly allowance is consumed first, then purchased credits.
+    let reservation;
     try {
-        const bucket = admin.storage().bucket();
-        const [contents] = await bucket.file(storagePath).download();
-        buffer = contents;
+        reservation = await reserveAskAiUpload(uid);
     } catch (err) {
-        console.error(`Failed to download uploaded question from "${storagePath}":`, err);
-        return NextResponse.json({ error: 'Could not read the uploaded file. Please try again.' }, { status: 400 });
+        if (err instanceof QuotaExceededError) {
+            const quota = await getAskAiQuotaStatus(uid);
+            return NextResponse.json(
+                { error: 'You have used all your Ask AI uploads for this month.', quota, quotaExceeded: true },
+                { status: 402 }
+            );
+        }
+        console.error('Failed to reserve Ask AI quota:', err);
+        return NextResponse.json({ error: 'Could not process request. Please try again.' }, { status: 500 });
     }
 
-    if (buffer.byteLength > MAX_FILE_BYTES) {
-        return NextResponse.json(
-            { error: `File is too large (${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB). Max size is 15MB.` },
-            { status: 400 }
-        );
-    }
-
-    const base64Data = buffer.toString('base64');
-
-    const contentBlock = isImage
-        ? { type: 'image' as const, source: { type: 'base64' as const, media_type: contentType as any, data: base64Data } }
-        : { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: base64Data } };
-
-    let solved: SolvedQuestion;
+    // From here on, any failure must refund the reservation we just took.
     try {
-        const response = await client.messages.create({
-            model: MODEL,
-            max_tokens: MAX_TOKENS,
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        contentBlock,
-                        { type: 'text', text: buildSolvePrompt(level) },
-                    ],
-                },
-            ],
+        // Resolve the student's level so the AI calibrates to GCSE vs A-Level
+        // terminology and difficulty.
+        const userDoc = await admin.firestore().collection('users').doc(uid).get();
+        const userData = userDoc.data();
+        const level: string = userData?.level ?? userData?.preferences?.level ?? 'GCSE';
+
+        // Download the uploaded file from Storage (server-side, Admin SDK only).
+        let buffer: Buffer;
+        try {
+            const bucket = admin.storage().bucket();
+            const [contents] = await bucket.file(storagePath).download();
+            buffer = contents;
+        } catch (err) {
+            console.error(`Failed to download uploaded question from "${storagePath}":`, err);
+            await refundAskAiUpload(uid, reservation);
+            return NextResponse.json({ error: 'Could not read the uploaded file. Please try again.' }, { status: 400 });
+        }
+
+        if (buffer.byteLength > MAX_FILE_BYTES) {
+            await refundAskAiUpload(uid, reservation);
+            return NextResponse.json(
+                { error: `File is too large (${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB). Max size is 15MB.` },
+                { status: 400 }
+            );
+        }
+
+        const base64Data = buffer.toString('base64');
+
+        const contentBlock = isImage
+            ? { type: 'image' as const, source: { type: 'base64' as const, media_type: contentType as any, data: base64Data } }
+            : { type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: base64Data } };
+
+        let solved: SolvedQuestion;
+        try {
+            const response = await client.messages.create({
+                model: MODEL,
+                max_tokens: MAX_TOKENS,
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            contentBlock,
+                            { type: 'text', text: buildSolvePrompt(level) },
+                        ],
+                    },
+                ],
+            });
+
+            const rawText = response.content
+                .filter((b) => b.type === 'text')
+                .map((b) => (b as Anthropic.TextBlock).text)
+                .join('');
+
+            solved = JSON.parse(stripMarkdownFences(rawText));
+        } catch (err) {
+            console.error('Failed to solve uploaded question:', err);
+            await refundAskAiUpload(uid, reservation);
+            return NextResponse.json(
+                { error: 'Could not solve this question. Please try a clearer photo or a different file.' },
+                { status: 500 }
+            );
+        }
+
+        // Save to users/{uid}/uploaded_question — the collection the daily
+        // study-plan generator reads from to fold this topic into future plans.
+        const docRef = admin
+            .firestore()
+            .collection('users')
+            .doc(uid)
+            .collection('uploaded_question')
+            .doc();
+
+        await docRef.set({
+            subject: solved.subject || 'Unknown',
+            topic: solved.topic || 'General',
+            questionText: solved.questionText || '',
+            difficulty: solved.difficulty || 'medium',
+            solution: solved.solution || '',
+            shortAnswer: solved.shortAnswer || '',
+            sourceType: isImage ? 'image' : 'pdf',
+            storagePath,
+            fileUrl: fileUrl ?? null,
+            level,
+            // Student can mark this as understood/practiced once ready — until
+            // then, it keeps recurring in daily plan generation. See
+            // generateStudyPlanForUser's uploaded_question integration.
+            completed: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
-        const rawText = response.content
-            .filter((b) => b.type === 'text')
-            .map((b) => (b as Anthropic.TextBlock).text)
-            .join('');
+        const quota = await getAskAiQuotaStatus(uid);
 
-        solved = JSON.parse(stripMarkdownFences(rawText));
+        return NextResponse.json({
+            id: docRef.id,
+            ...solved,
+            quota,
+        });
     } catch (err) {
-        console.error('Failed to solve uploaded question:', err);
-        return NextResponse.json(
-            { error: 'Could not solve this question. Please try a clearer photo or a different file.' },
-            { status: 500 }
-        );
+        // Catch-all safety net — refund if something above threw without
+        // being caught by one of the specific handlers.
+        console.error('Unexpected error in Ask AI solve flow:', err);
+        await refundAskAiUpload(uid, reservation);
+        return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 });
     }
-
-    // Save to users/{uid}/uploaded_question — the collection the daily
-    // study-plan generator reads from to fold this topic into future plans.
-    const docRef = admin
-        .firestore()
-        .collection('users')
-        .doc(uid)
-        .collection('uploaded_question')
-        .doc();
-
-    await docRef.set({
-        subject: solved.subject || 'Unknown',
-        topic: solved.topic || 'General',
-        questionText: solved.questionText || '',
-        difficulty: solved.difficulty || 'medium',
-        solution: solved.solution || '',
-        shortAnswer: solved.shortAnswer || '',
-        sourceType: isImage ? 'image' : 'pdf',
-        storagePath,
-        fileUrl: fileUrl ?? null,
-        level,
-        // Student can mark this as understood/practiced once ready — until
-        // then, it keeps recurring in daily plan generation. See
-        // generateStudyPlanForUser's uploaded_question integration.
-        completed: false,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    return NextResponse.json({
-        id: docRef.id,
-        ...solved,
-    });
 }
 
-// ── GET: list the student's uploaded-question history ─────────────────────────
+// ── GET: list the student's uploaded-question history + quota status ──────
 export async function GET(req: NextRequest) {
     const uid = await getUidFromRequest(req);
     if (!uid) {
         return NextResponse.json({ error: 'Unauthorised' }, { status: 401 });
     }
 
-    const snapshot = await admin
-        .firestore()
-        .collection('users')
-        .doc(uid)
-        .collection('uploaded_question')
-        .orderBy('createdAt', 'desc')
-        .limit(50)
-        .get();
+    const [snapshot, quota] = await Promise.all([
+        admin
+            .firestore()
+            .collection('users')
+            .doc(uid)
+            .collection('uploaded_question')
+            .orderBy('createdAt', 'desc')
+            .limit(50)
+            .get(),
+        getAskAiQuotaStatus(uid),
+    ]);
 
     const questions = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -196,10 +233,10 @@ export async function GET(req: NextRequest) {
         createdAt: doc.data().createdAt?.toDate?.()?.toISOString() ?? null,
     }));
 
-    return NextResponse.json({ questions });
+    return NextResponse.json({ questions, quota });
 }
 
-// ── PATCH: mark a question as understood/practiced ─────────────────────────────
+// ── PATCH: mark a question as understood/practoced ─────────────────────────────
 // Once marked completed, it stops being pulled into future daily study plans.
 export async function PATCH(req: NextRequest) {
     const uid = await getUidFromRequest(req);

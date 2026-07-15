@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import admin from "@/lib/firebaseAdmin";
-import { generateStudyPlanForUser } from "@/lib/services/studyPlanGenerator";
 
 // This is CRITICAL - tells Next.js not to parse the body
 export const runtime = 'nodejs';
@@ -317,6 +316,19 @@ export async function POST(req: Request) {
                     console.log("🟦 Decoded client_reference_id:", ref);
                 }
 
+                if (session.metadata?.type === 'ask_ai_credits') {
+                    const uid = session.metadata.uid;
+                    const creditsPerPack = Number(session.metadata.creditsPerPack ?? 0);
+                    const packQuantity = Number(session.metadata.packQuantity ?? 0);
+                    const totalCredits = creditsPerPack * packQuantity;
+
+                    if (uid && totalCredits > 0) {
+                        await admin.firestore().collection('users').doc(uid).update({
+                            askAiCredits: admin.firestore.FieldValue.increment(totalCredits),
+                        });
+                    }
+                }
+
                 if (session.mode === "subscription") {
                     if (ref?.userId && session.customer) {
                         await stripe.customers.update(session.customer as string, {
@@ -332,16 +344,6 @@ export async function POST(req: Request) {
                         await handleSubscriptionUpdate(subscription);
                     }
 
-                    // ✅ Safety net: process the referral commission for the
-                    // FIRST invoice right here, using data we already know
-                    // is reliably present on checkout.session.completed —
-                    // rather than depending entirely on the separate
-                    // invoice.payment_succeeded event (verify in Stripe
-                    // Dashboard → Developers → Webhooks → this endpoint's
-                    // "Events to send" that it's actually enabled).
-                    // Subsequent renewal invoices still rely on
-                    // invoice.payment_succeeded/invoice.paid firing
-                    // correctly — this only guarantees the first one.
                     if (session.invoice) {
                         try {
                             const invoice = await stripe.invoices.retrieve(session.invoice as string);
