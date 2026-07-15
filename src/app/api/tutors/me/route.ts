@@ -54,6 +54,23 @@ export async function GET(req: NextRequest) {
         .filter(c => c.status === 'pending' || c.status === 'approved')
         .reduce((sum, c) => sum + c.commissionAmount, 0);
 
+    // ✅ Masked payout summary — same shape the save endpoint returns and
+    // the admin detail page reads. Full sort code / account number are
+    // never sent here; those only ever leave the server via the dedicated
+    // admin reveal endpoint, which also writes an audit log entry.
+    const payoutMethod = tutor.payoutMethod
+        ? {
+            accountName: tutor.payoutMethod.accountName ?? null,
+            sortCodeLast: tutor.payoutMethod.sortCode
+                ? `${tutor.payoutMethod.sortCode.slice(0, 2)}-${tutor.payoutMethod.sortCode.slice(2, 4)}-${tutor.payoutMethod.sortCode.slice(4, 6)}`
+                : null,
+            accountNumberLast4: tutor.payoutMethod.accountNumber
+                ? tutor.payoutMethod.accountNumber.slice(-4)
+                : null,
+            updatedAt: tutor.payoutMethod.updated_at?.toDate?.()?.toISOString() ?? null,
+        }
+        : null;
+
     return NextResponse.json({
         tutor: {
             name: tutor.name,
@@ -66,6 +83,7 @@ export async function GET(req: NextRequest) {
             totalCommissionEarned: tutor.totalCommissionEarned ?? 0,
             totalCommissionPaid: tutor.totalCommissionPaid ?? 0,
             pendingCommission,
+            payoutMethod,
         },
         referrals,
         commissionEvents,
