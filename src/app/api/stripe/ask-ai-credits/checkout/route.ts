@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
             creditsPerPack: String(CREDIT_PACK_SIZE),
             packQuantity: String(packQuantity),
         },
-        success_url: `${origin}dashboard?tab=ask-ai?creditPurchase=success`,
+        success_url: `${origin}/dashboard?tab=ask-ai?creditPurchase=success`,
         cancel_url: `${origin}/dashboard?tab=ask-ai?creditPurchase=cancelled`,
     });
 
