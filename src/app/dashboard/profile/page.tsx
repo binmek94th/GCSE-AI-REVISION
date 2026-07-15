@@ -59,6 +59,7 @@ const EXAM_BOARDS_BY_LEVEL: Record<string, { value: string; label: string }[]> =
         { value: "WJEC", label: "WJEC" },
         { value: "CCEA", label: "CCEA" },
         { value: "Oxford AQA", label: "Oxford AQA" },
+        { value: "Cambridge (CIE)", label: "Cambridge (CIE)" },
     ],
 };
 

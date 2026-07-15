@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Loader2, Users } from 'lucide-react';
@@ -16,29 +16,73 @@ export default function TutorSignupPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const registerAsTutorAndContinue = async (idToken: string, alreadyVerified: boolean) => {
+        const res = await fetch('/api/tutors/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+            body: JSON.stringify({ name }),
+        });
+
+        if (!res.ok) {
+            const e2 = await res.json();
+            throw new Error(e2.error || 'Failed to register');
+        }
+
+        if (alreadyVerified) {
+            router.push('/tutors/dashboard');
+            return;
+        }
+
+        try {
+            await fetch('/api/auth/send-verification-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+            });
+        } catch (verifyErr) {
+            console.error('Failed to send verification code:', verifyErr);
+        }
+
+        router.push('/tutors/verify-email');
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
         try {
-            const cred = await createUserWithEmailAndPassword(auth, email, password);
-            const idToken = await cred.user.getIdToken();
+            let idToken: string;
+            let emailVerified: boolean;
 
-            const res = await fetch('/api/tutors/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-                body: JSON.stringify({ name }),
-            });
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, email, password);
+                idToken = await cred.user.getIdToken();
+                emailVerified = cred.user.emailVerified;
+            } catch (createErr: unknown) {
+                const code = (createErr as { code?: string })?.code;
 
-            if (!res.ok) {
-                const e2 = await res.json();
-                throw new Error(e2.error || 'Failed to register');
+                // ✅ This email already has an account (e.g. an existing
+                // student). Rather than surfacing that fact — which would
+                // leak account existence to whoever's typing — try signing
+                // in with the same credentials they just submitted. If it
+                // succeeds, it's genuinely their account and we just attach
+                // a tutor role to it. If it fails, fall through to the
+                // generic error below without ever confirming the email
+                // is taken.
+                if (code === 'auth/email-already-in-use') {
+                    const signInCred = await signInWithEmailAndPassword(auth, email, password);
+                    idToken = await signInCred.user.getIdToken();
+                    emailVerified = signInCred.user.emailVerified;
+                } else {
+                    throw createErr;
+                }
             }
 
-            router.push('/tutors/dashboard');
+            await registerAsTutorAndContinue(idToken, emailVerified);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Something went wrong');
+            // Deliberately generic — never distinguishes "wrong password"
+            // from "no such account" from "email taken by someone else".
+            setError('Something went wrong. Please check your details and try again.');
         } finally {
             setLoading(false);
         }

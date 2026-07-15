@@ -33,8 +33,9 @@ export async function sendBrevoEmail(args: SendArgs): Promise<SendResult> {
 
     const payload: Record<string, unknown> = {
         sender: { email: senderEmail, name: senderName },
-        to: args.to.map((r) => ({ email: r.email, name: r.name })),
-        subject: args.subject,
+        to: args.to.map((r) =>
+            r.name ? { email: r.email, name: r.name } : { email: r.email }
+        ),        subject: args.subject,
         htmlContent: args.htmlContent,
     };
     if (args.tags?.length) payload.tags = args.tags;

@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    // Correct code — mark verified and clean up.
     await admin.auth().updateUser(decoded.uid, { emailVerified: true });
     await codeRef.delete();
 

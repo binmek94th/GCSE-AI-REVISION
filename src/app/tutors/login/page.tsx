@@ -20,7 +20,15 @@ export default function TutorLoginPage() {
         setLoading(true);
         setError(null);
         try {
-            await signInWithEmailAndPassword(auth, email, password);
+            const userCred = await signInWithEmailAndPassword(auth, email, password);
+            
+            await userCred.user.reload();
+
+            if (!auth.currentUser?.emailVerified) {
+                router.push('/tutors/verify-email');
+                return;
+            }
+
             router.push('/tutors/dashboard');
         } catch (err) {
             setError('Invalid email or password');

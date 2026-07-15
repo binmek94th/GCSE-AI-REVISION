@@ -7,7 +7,7 @@ import 'react-image-crop/dist/ReactCrop.css';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/app/components/ui/select";
-import { EXAM_DATA } from "@/app/onboarding/exam_data";
+import { A_Level_EXAM_DATA } from "@/app/onboarding/a-levelExamData";
 import Spinner from "@/app/components/ui/Spinner";
 import { toast } from "sonner";
 
@@ -316,8 +316,8 @@ export default function ALevelStudyMaterialsModeration() {
         }
     };
 
-    const subjects = Array.from(new Set(EXAM_DATA.map(e => e.subject))).sort();
-    const examBoards = Array.from(new Set(EXAM_DATA.map(e => e.exam_board))).sort();
+    const subjects = Array.from(new Set(A_Level_EXAM_DATA.map(e => e.subject))).sort();
+    const examBoards = Array.from(new Set(A_Level_EXAM_DATA.map(e => e.exam_board))).sort();
     const imageUrls = selectedMaterial ? extractImageUrls(editForm.content) : [];
 
     return (
