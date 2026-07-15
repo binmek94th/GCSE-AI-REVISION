@@ -1,12 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
-import { Loader2, Copy, Check, Plus, ChevronDown, ChevronUp, Users, DollarSign } from 'lucide-react';
+import { Loader2, Copy, Plus, ChevronRight, Users, DollarSign, ShieldAlert, Landmark } from 'lucide-react';
 import { toast } from 'sonner';
+
+interface PayoutMethodSummary {
+    accountName: string;
+    sortCodeLast: string;
+    accountNumberLast4: string;
+    updatedAt: string | null;
+}
 
 interface Tutor {
     id: string;
@@ -20,15 +28,7 @@ interface Tutor {
     totalSubscribed: number;
     totalCommissionEarned: number;
     totalCommissionPaid: number;
-}
-
-interface Referral {
-    id: string;
-    referredEmail: string | null;
-    status: string;
-    signedUpAt: string | null;
-    subscribedAt: string | null;
-    firstYearEndsAt: string | null;
+    payoutMethod: PayoutMethodSummary | null;
 }
 
 interface CommissionEvent {
@@ -46,9 +46,6 @@ const statusStyle: Record<string, string> = {
     active: 'bg-green-100 text-green-700',
     inactive: 'bg-gray-100 text-gray-700',
     invited: 'bg-amber-100 text-amber-700',
-    signed_up: 'bg-blue-100 text-blue-700',
-    subscribed: 'bg-green-100 text-green-700',
-    churned: 'bg-red-100 text-red-700',
     pending: 'bg-amber-100 text-amber-700',
     approved: 'bg-blue-100 text-blue-700',
     paid: 'bg-green-100 text-green-700',
@@ -56,12 +53,12 @@ const statusStyle: Record<string, string> = {
 
 export default function AdminTutorsPage() {
     const [idToken, setIdToken] = useState<string | null>(null);
+    const [checkingAccess, setCheckingAccess] = useState(true);
+    const [accessDenied, setAccessDenied] = useState(false);
     const [activeTab, setActiveTab] = useState<'tutors' | 'payouts'>('tutors');
 
     const [tutors, setTutors] = useState<Tutor[]>([]);
     const [loadingTutors, setLoadingTutors] = useState(true);
-    const [expandedTutorId, setExpandedTutorId] = useState<string | null>(null);
-    const [tutorReferrals, setTutorReferrals] = useState<Record<string, Referral[]>>({});
 
     const [showInviteForm, setShowInviteForm] = useState(false);
     const [inviteName, setInviteName] = useState('');
@@ -77,7 +74,11 @@ export default function AdminTutorsPage() {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (!user) return;
+            if (!user) {
+                setCheckingAccess(false);
+                setAccessDenied(true);
+                return;
+            }
             const token = await user.getIdToken();
             setIdToken(token);
         });
@@ -89,19 +90,28 @@ export default function AdminTutorsPage() {
     }, [idToken]);
 
     useEffect(() => {
-        if (idToken && activeTab === 'payouts') fetchCommissionEvents();
-    }, [idToken, activeTab, payoutFilter]);
+        if (idToken && !accessDenied && activeTab === 'payouts') fetchCommissionEvents();
+    }, [idToken, accessDenied, activeTab, payoutFilter]);
 
     const fetchTutors = async () => {
         setLoadingTutors(true);
         try {
             const res = await fetch('/api/admin/tutors', { headers: { Authorization: `Bearer ${idToken}` } });
+
+            if (res.status === 401 || res.status === 403) {
+                setAccessDenied(true);
+                setCheckingAccess(false);
+                return;
+            }
+
             if (!res.ok) throw new Error('Failed to fetch tutors');
             const data = await res.json();
             setTutors(data.tutors);
+            setCheckingAccess(false);
         } catch (err) {
             console.error(err);
             toast.error('Failed to load tutors');
+            setCheckingAccess(false);
         } finally {
             setLoadingTutors(false);
         }
@@ -114,6 +124,12 @@ export default function AdminTutorsPage() {
                 ? `/api/admin/commission-events?status=${payoutFilter}`
                 : '/api/admin/commission-events';
             const res = await fetch(url, { headers: { Authorization: `Bearer ${idToken}` } });
+
+            if (res.status === 401 || res.status === 403) {
+                setAccessDenied(true);
+                return;
+            }
+
             if (!res.ok) throw new Error('Failed to fetch commission events');
             const data = await res.json();
             setCommissionEvents(data.events);
@@ -123,28 +139,6 @@ export default function AdminTutorsPage() {
             toast.error('Failed to load payouts');
         } finally {
             setLoadingPayouts(false);
-        }
-    };
-
-    const toggleExpandTutor = async (tutorId: string) => {
-        if (expandedTutorId === tutorId) {
-            setExpandedTutorId(null);
-            return;
-        }
-        setExpandedTutorId(tutorId);
-
-        if (!tutorReferrals[tutorId]) {
-            try {
-                const res = await fetch(`/api/admin/tutors/${tutorId}/referrals`, {
-                    headers: { Authorization: `Bearer ${idToken}` },
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setTutorReferrals(prev => ({ ...prev, [tutorId]: data.referrals }));
-                }
-            } catch (err) {
-                console.error(err);
-            }
         }
     };
 
@@ -173,8 +167,9 @@ export default function AdminTutorsPage() {
         }
     };
 
+    // Status change moved to a select that stops row-click navigation from
+    // firing — see stopPropagation below.
     const handleStatusChange = async (tutorId: string, newStatus: string) => {
-        // Optimistic update
         setTutors(prev => prev.map(t => t.id === tutorId ? { ...t, status: newStatus as Tutor['status'] } : t));
 
         try {
@@ -186,7 +181,7 @@ export default function AdminTutorsPage() {
             if (!res.ok) throw new Error('Failed to update status');
         } catch (err) {
             toast.error('Failed to update tutor status');
-            fetchTutors(); // revert on failure
+            fetchTutors();
         }
     };
 
@@ -236,6 +231,32 @@ export default function AdminTutorsPage() {
     const selectedTotal = commissionEvents
         .filter(e => selectedEventIds.has(e.id))
         .reduce((sum, e) => sum + e.commissionAmount, 0);
+
+    if (checkingAccess) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
+    if (accessDenied) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <Card className="max-w-sm w-full">
+                    <CardContent className="pt-8 pb-8 text-center">
+                        <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                            <ShieldAlert className="w-7 h-7 text-red-600" />
+                        </div>
+                        <h1 className="text-lg font-bold text-gray-900 mb-1">Access denied</h1>
+                        <p className="text-sm text-gray-600">
+                            You don't have permission to view this page. This area is restricted to admins.
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -312,22 +333,28 @@ export default function AdminTutorsPage() {
                                 ) : (
                                     <div className="space-y-2">
                                         {tutors.map(t => (
-                                            <div key={t.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                                            <Link
+                                                key={t.id}
+                                                href={`/admin/tutors/${t.id}`}
+                                                className="block border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50/40 transition-colors"
+                                            >
                                                 <div className="p-3 flex flex-wrap items-center gap-3">
-                                                    <button
-                                                        onClick={() => toggleExpandTutor(t.id)}
-                                                        className="flex items-center gap-2 flex-1 min-w-[200px] cursor-pointer text-left"
-                                                    >
-                                                        {expandedTutorId === t.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                                                    <div className="flex items-center gap-2 flex-1 min-w-[200px]">
                                                         <div>
                                                             <p className="text-sm font-semibold text-gray-900">{t.name}</p>
                                                             <p className="text-xs text-gray-500">{t.email}</p>
                                                         </div>
-                                                    </button>
+                                                    </div>
 
                                                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusStyle[t.status]}`}>
                                                         {t.status}
                                                     </span>
+
+                                                    {!t.payoutMethod && (
+                                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-600 flex items-center gap-1">
+                                                            <Landmark className="w-3 h-3" /> No payout method
+                                                        </span>
+                                                    )}
 
                                                     <div className="flex gap-4 text-xs text-gray-600">
                                                         <span>{t.totalReferrals} referred</span>
@@ -336,54 +363,27 @@ export default function AdminTutorsPage() {
                                                         <span className="text-amber-700 font-semibold">£{(t.totalCommissionEarned - t.totalCommissionPaid).toFixed(2)} owed</span>
                                                     </div>
 
-                                                    <button onClick={() => copyLink(t.referralLink)} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+                                                    <button
+                                                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyLink(t.referralLink); }}
+                                                        className="text-gray-400 hover:text-gray-700 cursor-pointer"
+                                                    >
                                                         <Copy className="w-4 h-4" />
                                                     </button>
 
                                                     <select
                                                         value={t.status}
-                                                        onChange={e => handleStatusChange(t.id, e.target.value)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onChange={e => { e.stopPropagation(); handleStatusChange(t.id, e.target.value); }}
                                                         className="text-xs border border-gray-300 rounded-md px-2 py-1 cursor-pointer"
                                                     >
                                                         <option value="active">Active</option>
                                                         <option value="inactive">Inactive</option>
                                                         <option value="invited">Invited</option>
                                                     </select>
-                                                </div>
 
-                                                {expandedTutorId === t.id && (
-                                                    <div className="p-3 border-t border-gray-200 bg-gray-50">
-                                                        {!tutorReferrals[t.id] ? (
-                                                            <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-gray-400" /></div>
-                                                        ) : tutorReferrals[t.id].length === 0 ? (
-                                                            <p className="text-xs text-gray-500 py-2">No referrals yet.</p>
-                                                        ) : (
-                                                            <table className="w-full text-xs">
-                                                                <thead>
-                                                                <tr className="text-left text-gray-500">
-                                                                    <th className="pb-1 font-medium">Student</th>
-                                                                    <th className="pb-1 font-medium">Status</th>
-                                                                    <th className="pb-1 font-medium">Signed Up</th>
-                                                                    <th className="pb-1 font-medium">Rev-Share Ends</th>
-                                                                </tr>
-                                                                </thead>
-                                                                <tbody>
-                                                                {tutorReferrals[t.id].map(r => (
-                                                                    <tr key={r.id} className="border-t border-gray-200">
-                                                                        <td className="py-1.5 text-gray-900">{r.referredEmail ?? '—'}</td>
-                                                                        <td className="py-1.5">
-                                                                            <span className={`px-1.5 py-0.5 rounded-full font-semibold ${statusStyle[r.status]}`}>{r.status}</span>
-                                                                        </td>
-                                                                        <td className="py-1.5 text-gray-600">{r.signedUpAt ? new Date(r.signedUpAt).toLocaleDateString() : '—'}</td>
-                                                                        <td className="py-1.5 text-gray-600">{r.firstYearEndsAt ? new Date(r.firstYearEndsAt).toLocaleDateString() : '—'}</td>
-                                                                    </tr>
-                                                                ))}
-                                                                </tbody>
-                                                            </table>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
+                                                    <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                                                </div>
+                                            </Link>
                                         ))}
                                     </div>
                                 )}
@@ -449,7 +449,11 @@ export default function AdminTutorsPage() {
                                                             className="cursor-pointer disabled:cursor-not-allowed"
                                                         />
                                                     </td>
-                                                    <td className="py-2 text-gray-900">{e.tutorName}</td>
+                                                    <td className="py-2 text-gray-900">
+                                                        <Link href={`/admin/tutors/${e.tutorId}`} className="hover:underline">
+                                                            {e.tutorName}
+                                                        </Link>
+                                                    </td>
                                                     <td className="py-2 text-gray-600">{e.createdAt ? new Date(e.createdAt).toLocaleDateString() : '—'}</td>
                                                     <td className="py-2 text-gray-600">£{e.subscriptionAmount.toFixed(2)}</td>
                                                     <td className="py-2 font-semibold text-gray-900">£{e.commissionAmount.toFixed(2)}</td>
