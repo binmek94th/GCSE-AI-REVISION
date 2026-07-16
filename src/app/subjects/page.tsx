@@ -1,14 +1,15 @@
 'use client';
-import React, { useState, useMemo } from 'react';
-import { GraduationCap, Search, BookOpen, X } from 'lucide-react';
-import { EXAM_DATA } from "@/app/onboarding/exam_data";
-import { A_Level_EXAM_DATA } from "@/app/onboarding/a-levelExamData";
+import React, { useState, useMemo, useEffect } from 'react';
+import { GraduationCap, Search, BookOpen, X, Loader2 } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 type ExamItem = {
     exam_board: string;
     subject: string;
-    level?: string;
+    level: string;
     tier?: string;
+    price?: number;
     note?: string;
 };
 
@@ -20,9 +21,48 @@ export default function SubjectExamDisplay() {
     const [selectedBoard, setSelectedBoard] = useState<string>("all");
     const [query, setQuery] = useState("");
 
+    const [allPacks, setAllPacks] = useState<ExamItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fetch study_packs from Firestore once on mount
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchStudyPacks = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const snap = await getDocs(collection(db, 'study_packs'));
+                const packs: ExamItem[] = snap.docs.map(d => {
+                    const data = d.data() as Record<string, unknown>;
+                    return {
+                        exam_board: (data.exam_board as string) ?? '',
+                        subject: (data.subject as string) ?? '',
+                        // Fail-open: default to GCSE if level is missing on a pack doc
+                        level: (data.level as string) ?? 'GCSE',
+                        tier: data.tier as string | undefined,
+                        price: typeof data.price === 'number' ? (data.price as number) : undefined,
+                        note: data.note as string | undefined,
+                    };
+                }).filter(p => p.exam_board && p.subject); // drop malformed docs
+
+                if (!cancelled) setAllPacks(packs);
+            } catch (err) {
+                console.error('Failed to load study_packs:', err);
+                if (!cancelled) setError('Could not load subjects right now. Please try again.');
+            } finally {
+                if (!cancelled) setIsLoading(false);
+            }
+        };
+
+        fetchStudyPacks();
+        return () => { cancelled = true; };
+    }, []);
+
     const levelData: ExamItem[] = useMemo(
-        () => (selectedLevel === "A-Level" ? A_Level_EXAM_DATA : EXAM_DATA),
-        [selectedLevel]
+        () => allPacks.filter(e => e.level === selectedLevel),
+        [allPacks, selectedLevel]
     );
 
     // Board list with counts for the active level
@@ -85,9 +125,15 @@ export default function SubjectExamDisplay() {
                             {selectedLevel} Exam Subjects
                         </h1>
                         <p className="text-slate-500 mt-1">
-                            {sortedSubjects.length} subject{sortedSubjects.length === 1 ? "" : "s"}
-                            <span className="mx-1.5 text-slate-300">·</span>
-                            {filteredData.length} qualification{filteredData.length === 1 ? "" : "s"}
+                            {isLoading ? (
+                                "Loading subjects…"
+                            ) : (
+                                <>
+                                    {sortedSubjects.length} subject{sortedSubjects.length === 1 ? "" : "s"}
+                                    <span className="mx-1.5 text-slate-300">·</span>
+                                    {filteredData.length} qualification{filteredData.length === 1 ? "" : "s"}
+                                </>
+                            )}
                         </p>
                     </div>
                 </header>
@@ -158,62 +204,79 @@ export default function SubjectExamDisplay() {
                     </div>
                 </div>
 
-                {/* Subjects */}
-                {sortedSubjects.length === 0 ? (
+                {/* Loading state */}
+                {isLoading && (
                     <div className="text-center py-20 rounded-2xl border border-dashed border-slate-300 bg-white">
-                        <BookOpen className="h-8 w-8 text-slate-300 mx-auto mb-3" />
-                        <p className="text-slate-600 font-medium">No subjects match your filters</p>
-                        <p className="text-slate-400 text-sm mt-1">Try another board or clear the search.</p>
+                        <Loader2 className="h-8 w-8 text-slate-300 mx-auto mb-3 animate-spin" />
+                        <p className="text-slate-600 font-medium">Loading subjects…</p>
                     </div>
-                ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {sortedSubjects.map(subject => {
-                            const exams = groupedData.get(subject)!;
-                            return (
-                                <div
-                                    key={subject}
-                                    className="group bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-sky-200 transition-all"
-                                >
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h2 className="text-base font-semibold text-slate-900">{subject}</h2>
-                                        <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-sky-50 text-sky-700 text-xs font-semibold ring-1 ring-sky-100">
-                                            {exams.length}
-                                        </span>
-                                    </div>
+                )}
 
-                                    <ul className="flex flex-col gap-2">
-                                        {exams.map((exam, i) => (
-                                            <li
-                                                key={i}
-                                                className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2"
-                                            >
-                                                <span className="text-sm text-slate-700 truncate">
-                                                    {exam.exam_board}
-                                                </span>
-                                                {exam.tier && (
-                                                    <span
-                                                        className={`shrink-0 px-2 py-0.5 text-[11px] font-medium rounded-full ring-1 ${tierStyle(exam.tier)}`}
-                                                    >
-                                                        {exam.tier}
-                                                    </span>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ul>
+                {/* Error state */}
+                {!isLoading && error && (
+                    <div className="text-center py-20 rounded-2xl border border-dashed border-red-200 bg-red-50">
+                        <p className="text-red-600 font-medium">{error}</p>
+                    </div>
+                )}
 
-                                    {exams.some(e => e.note) && (
-                                        <div className="mt-3 space-y-1">
-                                            {exams.filter(e => e.note).map((e, i) => (
-                                                <p key={i} className="text-xs text-slate-500 italic leading-snug">
-                                                    {e.exam_board}: {e.note}
-                                                </p>
-                                            ))}
+                {/* Subjects */}
+                {!isLoading && !error && (
+                    sortedSubjects.length === 0 ? (
+                        <div className="text-center py-20 rounded-2xl border border-dashed border-slate-300 bg-white">
+                            <BookOpen className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                            <p className="text-slate-600 font-medium">No subjects match your filters</p>
+                            <p className="text-slate-400 text-sm mt-1">Try another board or clear the search.</p>
+                        </div>
+                    ) : (
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {sortedSubjects.map(subject => {
+                                const exams = groupedData.get(subject)!;
+                                return (
+                                    <div
+                                        key={subject}
+                                        className="group bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-sky-200 transition-all"
+                                    >
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h2 className="text-base font-semibold text-slate-900">{subject}</h2>
+                                            <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-sky-50 text-sky-700 text-xs font-semibold ring-1 ring-sky-100">
+                                                {exams.length}
+                                            </span>
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
+
+                                        <ul className="flex flex-col gap-2">
+                                            {exams.map((exam, i) => (
+                                                <li
+                                                    key={i}
+                                                    className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2"
+                                                >
+                                                    <span className="text-sm text-slate-700 truncate">
+                                                        {exam.exam_board}
+                                                    </span>
+                                                    {exam.tier && (
+                                                        <span
+                                                            className={`shrink-0 px-2 py-0.5 text-[11px] font-medium rounded-full ring-1 ${tierStyle(exam.tier)}`}
+                                                        >
+                                                            {exam.tier}
+                                                        </span>
+                                                    )}
+                                                </li>
+                                            ))}
+                                        </ul>
+
+                                        {exams.some(e => e.note) && (
+                                            <div className="mt-3 space-y-1">
+                                                {exams.filter(e => e.note).map((e, i) => (
+                                                    <p key={i} className="text-xs text-slate-500 italic leading-snug">
+                                                        {e.exam_board}: {e.note}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )
                 )}
             </div>
         </div>
