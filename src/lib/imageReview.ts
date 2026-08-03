@@ -3,9 +3,10 @@ import { randomUUID } from "crypto";
 
 export const EDITED_PREFIX = "study_materials/";
 export const BACKUP_PREFIX = "backups/study_materials/";
-export const LIST_LIMIT = 150;
+export const DEFAULT_PAGE_SIZE = 24;
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+const CONCURRENCY = 12;
 
 export interface ImagePair {
     relativePath: string; // path relative to the prefix, shared by both sides
@@ -14,6 +15,12 @@ export interface ImagePair {
     backupPath: string; // full storage path e.g. backups/study_materials/foo/bar.jpg
     editedUrl: string;
     backupUrl: string;
+}
+
+interface MatchedFile {
+    rel: string;
+    editedFile: any;
+    backupFile: any;
 }
 
 function isImageFile(name: string): boolean {
@@ -50,14 +57,13 @@ export async function getOrCreateDownloadUrl(
 }
 
 /**
- * Lists all image files under EDITED_PREFIX and BACKUP_PREFIX, matches them
- * by identical relative subfolder path + filename, and returns only pairs
- * that exist on both sides (fail-open: unmatched files are simply omitted,
- * never hidden with an error).
+ * Lists and matches files under EDITED_PREFIX / BACKUP_PREFIX by identical
+ * relative subfolder path + filename. This only calls bucket.getFiles()
+ * (cheap, no per-file network calls) — it does NOT resolve download URLs,
+ * so it's safe to call for the full tree even when it's large.
  */
-export async function listImagePairs(subfolderFilter?: string): Promise<ImagePair[]> {
+async function listMatchedFiles(subfolderFilter?: string): Promise<MatchedFile[]> {
     const bucket = admin.storage().bucket();
-    const bucketName = bucket.name;
 
     const editedPrefix = subfolderFilter
         ? `${EDITED_PREFIX}${subfolderFilter}`
@@ -69,16 +75,14 @@ export async function listImagePairs(subfolderFilter?: string): Promise<ImagePai
     const [editedFiles] = await bucket.getFiles({ prefix: editedPrefix });
     const [backupFiles] = await bucket.getFiles({ prefix: backupPrefix });
 
-    const backupByRelPath = new Map<string, (typeof backupFiles)[number]>();
+    const backupByRelPath = new Map<string, any>();
     for (const f of backupFiles) {
         if (!isImageFile(f.name)) continue;
         const rel = f.name.slice(BACKUP_PREFIX.length);
         if (rel) backupByRelPath.set(rel, f);
     }
 
-    // Build the list of matched (edited, backup) file objects first — this
-    // part is free, no network calls.
-    const matched: { rel: string; editedFile: (typeof editedFiles)[number]; backupFile: (typeof backupFiles)[number] }[] = [];
+    const matched: MatchedFile[] = [];
     for (const editedFile of editedFiles) {
         if (!isImageFile(editedFile.name)) continue;
         const rel = editedFile.name.slice(EDITED_PREFIX.length);
@@ -88,44 +92,80 @@ export async function listImagePairs(subfolderFilter?: string): Promise<ImagePai
         matched.push({ rel, editedFile, backupFile });
     }
 
-    // Cap how many pairs we resolve URLs for on a single page load. Without a
-    // subfolder filter, a large study_materials tree can otherwise mean
-    // thousands of sequential getMetadata/setMetadata round-trips, which is
-    // what was causing the page to hang indefinitely.
-    const MAX_PAIRS = LIST_LIMIT;
-    const limited = matched.slice(0, MAX_PAIRS);
+    matched.sort((a, b) => a.rel.localeCompare(b.rel));
+    return matched;
+}
 
-    // Resolve download URLs concurrently, but capped, so we don't fire
-    // hundreds of simultaneous requests at Storage either.
-    const CONCURRENCY = 12;
-    const pairs: ImagePair[] = [];
+async function resolvePairs(items: MatchedFile[]): Promise<ImagePair[]> {
+    const bucket = admin.storage().bucket();
+    const bucketName = bucket.name;
+
+    const pairs: ImagePair[] = new Array(items.length);
     let cursor = 0;
 
     async function worker() {
-        while (cursor < limited.length) {
+        while (cursor < items.length) {
             const idx = cursor++;
-            const { rel, editedFile, backupFile } = limited[idx];
+            const { rel, editedFile, backupFile } = items[idx];
             try {
                 const [editedUrl, backupUrl] = await Promise.all([
-                    getOrCreateDownloadUrl(bucketName, editedFile as any),
-                    getOrCreateDownloadUrl(bucketName, backupFile as any),
+                    getOrCreateDownloadUrl(bucketName, editedFile),
+                    getOrCreateDownloadUrl(bucketName, backupFile),
                 ]);
-                pairs.push({
+                pairs[idx] = {
                     relativePath: rel,
                     fileName: rel.split("/").pop() || rel,
                     editedPath: editedFile.name,
                     backupPath: backupFile.name,
                     editedUrl,
                     backupUrl,
-                });
+                };
             } catch {
-                // Skip files we fail to read metadata/URLs for rather than failing
-                // the whole listing.
+                // Leave a hole for files we fail to read metadata/URLs for, filtered
+                // out below, rather than failing the whole page.
+                pairs[idx] = undefined as any;
             }
         }
     }
 
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, limited.length) }, worker));
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker));
 
-    return pairs.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+    return pairs.filter(Boolean);
+}
+
+export interface ImagePairPage {
+    pairs: ImagePair[];
+    page: number;
+    pageSize: number;
+    totalMatched: number;
+    totalPages: number;
+}
+
+/**
+ * Paginated version: matches the full tree cheaply, then only resolves
+ * download URLs (the expensive part — one Storage round-trip per file) for
+ * the requested page.
+ */
+export async function listImagePairsPage(
+    subfolderFilter: string | undefined,
+    page: number,
+    pageSize: number = DEFAULT_PAGE_SIZE
+): Promise<ImagePairPage> {
+    const safePage = Math.max(1, page);
+    const matched = await listMatchedFiles(subfolderFilter);
+    const totalMatched = matched.length;
+    const totalPages = Math.max(1, Math.ceil(totalMatched / pageSize));
+    const clampedPage = Math.min(safePage, totalPages);
+
+    const start = (clampedPage - 1) * pageSize;
+    const pageItems = matched.slice(start, start + pageSize);
+    const pairs = await resolvePairs(pageItems);
+
+    return {
+        pairs,
+        page: clampedPage,
+        pageSize,
+        totalMatched,
+        totalPages,
+    };
 }

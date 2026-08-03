@@ -3,10 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { getAuth } from "firebase/auth";
+import { firebase } from "@/lib/firebase"; // adjust to your existing client init path
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { toast } from "sonner";
-import {firebase} from "@/lib/firebase";
+import CropModal from "./CropModal";
 
 interface ImagePair {
     relativePath: string;
@@ -17,7 +18,15 @@ interface ImagePair {
     backupUrl: string;
 }
 
-type RevertState = "idle" | "reverting" | "reverted" | "error";
+type ActionState = "idle" | "working" | "done" | "error";
+
+async function blobToBase64(blob: Blob): Promise<string> {
+    const buf = await blob.arrayBuffer();
+    let binary = "";
+    const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+}
 
 export default function ImageReviewGrid({
                                             initialPairs,
@@ -31,7 +40,9 @@ export default function ImageReviewGrid({
     const searchParams = useSearchParams();
     const [search, setSearch] = useState("");
     const [subfolderInput, setSubfolderInput] = useState(initialSubfolder);
-    const [revertState, setRevertState] = useState<Record<string, RevertState>>({});
+    const [revertState, setRevertState] = useState<Record<string, ActionState>>({});
+    const [cropState, setCropState] = useState<Record<string, ActionState>>({});
+    const [cropTarget, setCropTarget] = useState<ImagePair | null>(null);
     const [cacheBust, setCacheBust] = useState<Record<string, number>>({});
     const [isPending, startTransition] = useTransition();
 
@@ -48,33 +59,32 @@ export default function ImageReviewGrid({
         } else {
             params.delete("subfolder");
         }
+        params.set("page", "1"); // reset pagination whenever the filter changes
         startTransition(() => {
             router.push(`${pathname}?${params.toString()}`);
         });
     }
 
-    async function handleRevert(pair: ImagePair) {
-        setRevertState((s) => ({ ...s, [pair.relativePath]: "reverting" }));
-        try {
-            const user = getAuth(firebase).currentUser;
-            if (!user) throw new Error("Not signed in");
-            const idToken = await user.getIdToken();
+    async function getIdToken(): Promise<string> {
+        const user = getAuth(firebase).currentUser;
+        if (!user) throw new Error("Not signed in");
+        return user.getIdToken();
+    }
 
+    async function handleRevert(pair: ImagePair) {
+        setRevertState((s) => ({ ...s, [pair.relativePath]: "working" }));
+        try {
+            const idToken = await getIdToken();
             const res = await fetch("/api/admin/image-review/revert", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${idToken}`,
-                },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
                 body: JSON.stringify({ relativePath: pair.relativePath }),
             });
-
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
                 throw new Error(body?.error || `Request failed (${res.status})`);
             }
-
-            setRevertState((s) => ({ ...s, [pair.relativePath]: "reverted" }));
+            setRevertState((s) => ({ ...s, [pair.relativePath]: "done" }));
             setCacheBust((c) => ({ ...c, [pair.relativePath]: Date.now() }));
             toast.success(`Reverted ${pair.fileName}`);
         } catch (err: any) {
@@ -83,11 +93,39 @@ export default function ImageReviewGrid({
         }
     }
 
+    async function handleCropSave(pair: ImagePair, blob: Blob, mimeType: string) {
+        setCropState((s) => ({ ...s, [pair.relativePath]: "working" }));
+        try {
+            const idToken = await getIdToken();
+            const imageBase64 = await blobToBase64(blob);
+            const res = await fetch("/api/admin/image-review/crop", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+                body: JSON.stringify({
+                    relativePath: pair.relativePath,
+                    imageBase64,
+                    contentType: mimeType,
+                }),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error || `Request failed (${res.status})`);
+            }
+            setCropState((s) => ({ ...s, [pair.relativePath]: "done" }));
+            setCacheBust((c) => ({ ...c, [pair.relativePath]: Date.now() }));
+            setCropTarget(null);
+            toast.success(`Saved crop for ${pair.fileName}`);
+        } catch (err: any) {
+            setCropState((s) => ({ ...s, [pair.relativePath]: "error" }));
+            toast.error(err?.message || "Crop save failed");
+        }
+    }
+
     return (
         <div>
             <div className="flex flex-wrap gap-3 mb-6 items-end">
                 <div>
-                    <label className="block text-xs font-medium mb-1">Search filename</label>
+                    <label className="block text-xs font-medium mb-1">Search filename (this page)</label>
                     <input
                         className="border rounded px-3 py-1.5 text-sm w-64"
                         placeholder="e.g. cell-diagram.png"
@@ -118,7 +156,8 @@ export default function ImageReviewGrid({
 
             <div className="grid grid-cols-1 gap-6">
                 {filteredPairs.map((pair) => {
-                    const state = revertState[pair.relativePath] ?? "idle";
+                    const rState = revertState[pair.relativePath] ?? "idle";
+                    const cState = cropState[pair.relativePath] ?? "idle";
                     const bust = cacheBust[pair.relativePath];
                     const editedSrc = bust ? `${pair.editedUrl}&_=${bust}` : pair.editedUrl;
 
@@ -126,15 +165,17 @@ export default function ImageReviewGrid({
                         <div key={pair.relativePath} className="border rounded-lg p-4">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="text-sm font-medium truncate">{pair.relativePath}</div>
-                                {state === "reverted" && <Badge variant="secondary">Reverted</Badge>}
-                                {state === "error" && <Badge variant="destructive">Revert failed</Badge>}
+                                <div className="flex gap-2">
+                                    {rState === "done" && <Badge variant="secondary">Reverted</Badge>}
+                                    {rState === "error" && <Badge variant="destructive">Revert failed</Badge>}
+                                    {cState === "done" && <Badge variant="secondary">Cropped</Badge>}
+                                    {cState === "error" && <Badge variant="destructive">Crop failed</Badge>}
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <div className="text-xs text-muted-foreground mb-1">
-                                        Original (backup)
-                                    </div>
+                                    <div className="text-xs text-muted-foreground mb-1">Original (backup)</div>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={pair.backupUrl}
@@ -143,9 +184,7 @@ export default function ImageReviewGrid({
                                     />
                                 </div>
                                 <div>
-                                    <div className="text-xs text-muted-foreground mb-1">
-                                        Current (edited)
-                                    </div>
+                                    <div className="text-xs text-muted-foreground mb-1">Current (edited)</div>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={editedSrc}
@@ -155,20 +194,42 @@ export default function ImageReviewGrid({
                                 </div>
                             </div>
 
-                            <div className="mt-3 flex justify-end">
+                            <div className="mt-3 flex justify-end gap-2">
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    disabled={state === "reverting"}
+                                    disabled={cState === "working"}
+                                    onClick={() => setCropTarget(pair)}
+                                >
+                                    Crop
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={rState === "working"}
                                     onClick={() => handleRevert(pair)}
                                 >
-                                    {state === "reverting" ? "Reverting..." : "Revert to original"}
+                                    {rState === "working" ? "Reverting..." : "Revert to original"}
                                 </Button>
                             </div>
                         </div>
                     );
                 })}
             </div>
+
+            {cropTarget && (
+                <CropModal
+                    imageUrl={
+                        cacheBust[cropTarget.relativePath]
+                            ? `${cropTarget.editedUrl}&_=${cacheBust[cropTarget.relativePath]}`
+                            : cropTarget.editedUrl
+                    }
+                    fileName={cropTarget.fileName}
+                    saving={(cropState[cropTarget.relativePath] ?? "idle") === "working"}
+                    onCancel={() => setCropTarget(null)}
+                    onSave={(blob, mimeType) => handleCropSave(cropTarget, blob, mimeType)}
+                />
+            )}
         </div>
     );
 }
