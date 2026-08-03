@@ -8,6 +8,7 @@ import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { toast } from "sonner";
 import CropModal from "./CropModal";
+import WatermarkModal from "./WatermarkModal";
 
 interface ImagePair {
     relativePath: string;
@@ -18,6 +19,11 @@ interface ImagePair {
     backupUrl: string;
 }
 
+interface WatermarkPreview {
+    imageBase64: string;
+    contentType: string;
+}
+
 type ActionState = "idle" | "working" | "done" | "error";
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -26,6 +32,10 @@ async function blobToBase64(blob: Blob): Promise<string> {
     const bytes = new Uint8Array(buf);
     for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
     return btoa(binary);
+}
+
+function proxied(url: string): string {
+    return `/api/proxy-image?url=${encodeURIComponent(url)}`;
 }
 
 export default function ImageReviewGrid({
@@ -45,6 +55,14 @@ export default function ImageReviewGrid({
     const [cropTarget, setCropTarget] = useState<ImagePair | null>(null);
     const [cacheBust, setCacheBust] = useState<Record<string, number>>({});
     const [isPending, startTransition] = useTransition();
+
+    // Watermark removal review state
+    const [watermarkTarget, setWatermarkTarget] = useState<ImagePair | null>(null);
+    const [watermarkPreview, setWatermarkPreview] = useState<WatermarkPreview | null>(null);
+    const [watermarkLoading, setWatermarkLoading] = useState(false);
+    const [watermarkSaving, setWatermarkSaving] = useState(false);
+    const [watermarkError, setWatermarkError] = useState<string | null>(null);
+    const [watermarkState, setWatermarkState] = useState<Record<string, ActionState>>({});
 
     const filteredPairs = useMemo(() => {
         if (!search.trim()) return initialPairs;
@@ -121,6 +139,67 @@ export default function ImageReviewGrid({
         }
     }
 
+    async function requestWatermarkPreview(pair: ImagePair) {
+        setWatermarkLoading(true);
+        setWatermarkError(null);
+        try {
+            const idToken = await getIdToken();
+            const res = await fetch("/api/admin/image-review/remove-watermark", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+                body: JSON.stringify({ relativePath: pair.relativePath }),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error || `Request failed (${res.status})`);
+            }
+            const data = await res.json();
+            setWatermarkPreview({ imageBase64: data.imageBase64, contentType: data.contentType });
+        } catch (err: any) {
+            setWatermarkError(err?.message || "Watermark removal failed");
+        } finally {
+            setWatermarkLoading(false);
+        }
+    }
+
+    function openWatermarkModal(pair: ImagePair) {
+        setWatermarkTarget(pair);
+        setWatermarkPreview(null);
+        setWatermarkError(null);
+        requestWatermarkPreview(pair);
+    }
+
+    async function handleWatermarkKeep() {
+        if (!watermarkTarget || !watermarkPreview) return;
+        setWatermarkSaving(true);
+        try {
+            const idToken = await getIdToken();
+            const res = await fetch("/api/admin/image-review/crop", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+                body: JSON.stringify({
+                    relativePath: watermarkTarget.relativePath,
+                    imageBase64: watermarkPreview.imageBase64,
+                    contentType: watermarkPreview.contentType,
+                    editType: "watermark_removal",
+                }),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error || `Request failed (${res.status})`);
+            }
+            setWatermarkState((s) => ({ ...s, [watermarkTarget.relativePath]: "done" }));
+            setCacheBust((c) => ({ ...c, [watermarkTarget.relativePath]: Date.now() }));
+            toast.success(`Watermark removed for ${watermarkTarget.fileName}`);
+            setWatermarkTarget(null);
+            setWatermarkPreview(null);
+        } catch (err: any) {
+            setWatermarkError(err?.message || "Save failed");
+        } finally {
+            setWatermarkSaving(false);
+        }
+    }
+
     return (
         <div>
             <div className="flex flex-wrap gap-3 mb-6 items-end">
@@ -158,6 +237,7 @@ export default function ImageReviewGrid({
                 {filteredPairs.map((pair) => {
                     const rState = revertState[pair.relativePath] ?? "idle";
                     const cState = cropState[pair.relativePath] ?? "idle";
+                    const wState = watermarkState[pair.relativePath] ?? "idle";
                     const bust = cacheBust[pair.relativePath];
                     const editedSrc = bust ? `${pair.editedUrl}&_=${bust}` : pair.editedUrl;
 
@@ -170,6 +250,7 @@ export default function ImageReviewGrid({
                                     {rState === "error" && <Badge variant="destructive">Revert failed</Badge>}
                                     {cState === "done" && <Badge variant="secondary">Cropped</Badge>}
                                     {cState === "error" && <Badge variant="destructive">Crop failed</Badge>}
+                                    {wState === "done" && <Badge variant="secondary">Watermark removed</Badge>}
                                 </div>
                             </div>
 
@@ -206,6 +287,13 @@ export default function ImageReviewGrid({
                                 <Button
                                     size="sm"
                                     variant="outline"
+                                    onClick={() => openWatermarkModal(pair)}
+                                >
+                                    Remove Watermark
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
                                     disabled={rState === "working"}
                                     onClick={() => handleRevert(pair)}
                                 >
@@ -228,6 +316,28 @@ export default function ImageReviewGrid({
                     saving={(cropState[cropTarget.relativePath] ?? "idle") === "working"}
                     onCancel={() => setCropTarget(null)}
                     onSave={(blob, mimeType) => handleCropSave(cropTarget, blob, mimeType)}
+                />
+            )}
+
+            {watermarkTarget && (
+                <WatermarkModal
+                    originalUrl={proxied(
+                        cacheBust[watermarkTarget.relativePath]
+                            ? `${watermarkTarget.editedUrl}&_=${cacheBust[watermarkTarget.relativePath]}`
+                            : watermarkTarget.editedUrl
+                    )}
+                    fileName={watermarkTarget.fileName}
+                    preview={watermarkPreview}
+                    loading={watermarkLoading}
+                    saving={watermarkSaving}
+                    error={watermarkError}
+                    onRegenerate={() => requestWatermarkPreview(watermarkTarget)}
+                    onKeep={handleWatermarkKeep}
+                    onCancel={() => {
+                        setWatermarkTarget(null);
+                        setWatermarkPreview(null);
+                        setWatermarkError(null);
+                    }}
                 />
             )}
         </div>

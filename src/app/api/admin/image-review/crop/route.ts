@@ -15,12 +15,16 @@ export async function POST(req: NextRequest) {
     let relativePath: string | undefined;
     let imageBase64: string | undefined;
     let contentType: string | undefined;
+    let editType: string = "crop";
 
     try {
         const body = await req.json();
         relativePath = body?.relativePath;
         imageBase64 = body?.imageBase64;
         contentType = body?.contentType || "image/jpeg";
+        if (body?.editType && typeof body.editType === "string") {
+            editType = body.editType;
+        }
     } catch {
         console.error("[image-review/crop] Failed to parse request body");
         return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
@@ -114,7 +118,7 @@ export async function POST(req: NextRequest) {
 
         try {
             const logRef = await adminDb.collection("image_edits").add({
-                type: "crop",
+                type: editType,
                 fileName,
                 relativePath,
                 editedPath,
