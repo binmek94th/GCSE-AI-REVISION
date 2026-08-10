@@ -9,6 +9,7 @@ import { Badge } from "@/app/components/ui/badge";
 import { toast } from "sonner";
 import CropModal from "./CropModal";
 import WatermarkModal from "./WatermarkModal";
+import type { ImageSource } from "@/lib/imageReview";
 
 interface ImagePair {
     relativePath: string;
@@ -41,9 +42,11 @@ function proxied(url: string): string {
 export default function ImageReviewGrid({
                                             initialPairs,
                                             initialSubfolder,
+                                            source,
                                         }: {
     initialPairs: ImagePair[];
     initialSubfolder: string;
+    source: ImageSource;
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -79,8 +82,16 @@ export default function ImageReviewGrid({
         return initialPairs.filter((p) => p.relativePath.toLowerCase().includes(q));
     }, [initialPairs, search]);
 
+    // Reset local UI state (focus, search) whenever the source changes, so
+    // stale state from the previous source's pairs doesn't linger.
+    useEffect(() => {
+        setFocusedIndex(0);
+        setSearch("");
+    }, [source]);
+
     function applySubfolderFilter() {
         const params = new URLSearchParams(searchParams.toString());
+        params.set("source", source);
         if (subfolderInput.trim()) {
             params.set("subfolder", subfolderInput.trim());
         } else {
@@ -98,6 +109,16 @@ export default function ImageReviewGrid({
         return user.getIdToken();
     }
 
+    // NOTE: relativePath is only unique *within* a source's edited/backup
+    // prefix pair. Now that there are multiple sources (GCSE, A-Level), the
+    // action routes below need the full storage paths (or the source key) to
+    // know which prefix pair a given relativePath belongs to — sending
+    // relativePath alone is ambiguous. editedPath/backupPath are sent
+    // alongside it so the routes can operate on exact storage paths directly.
+    // Your /api/admin/image-review/{revert,crop,remove-watermark} routes need
+    // to be updated to read editedPath/backupPath (or source) from the body
+    // instead of reconstructing paths from a hardcoded prefix constant.
+
     async function handleRevert(pair: ImagePair) {
         setRevertState((s) => ({ ...s, [pair.relativePath]: "working" }));
         try {
@@ -105,7 +126,12 @@ export default function ImageReviewGrid({
             const res = await fetch("/api/admin/image-review/revert", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-                body: JSON.stringify({ relativePath: pair.relativePath }),
+                body: JSON.stringify({
+                    source,
+                    relativePath: pair.relativePath,
+                    editedPath: pair.editedPath,
+                    backupPath: pair.backupPath,
+                }),
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
@@ -129,7 +155,10 @@ export default function ImageReviewGrid({
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
                 body: JSON.stringify({
+                    source,
                     relativePath: pair.relativePath,
+                    editedPath: pair.editedPath,
+                    backupPath: pair.backupPath,
                     imageBase64,
                     contentType: mimeType,
                 }),
@@ -157,7 +186,10 @@ export default function ImageReviewGrid({
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
                 body: JSON.stringify({
+                    source,
                     relativePath: pair.relativePath,
+                    editedPath: pair.editedPath,
+                    backupPath: pair.backupPath,
                     elementDescription: watermarkDescription,
                 }),
             });
@@ -190,7 +222,10 @@ export default function ImageReviewGrid({
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
                 body: JSON.stringify({
+                    source,
                     relativePath: watermarkTarget.relativePath,
+                    editedPath: watermarkTarget.editedPath,
+                    backupPath: watermarkTarget.backupPath,
                     imageBase64: watermarkPreview.imageBase64,
                     contentType: watermarkPreview.contentType,
                     editType: "watermark_removal",
@@ -221,6 +256,7 @@ export default function ImageReviewGrid({
 
     function goToPage(delta: number) {
         const params = new URLSearchParams(searchParams.toString());
+        params.set("source", source);
         const currentPage = parseInt(params.get("page") || "1", 10) || 1;
         const nextPage = Math.max(1, currentPage + delta);
         params.set("page", String(nextPage));

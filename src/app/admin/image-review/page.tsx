@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listImagePairsPage, DEFAULT_PAGE_SIZE } from "@/lib/imageReview";
+import { listImagePairsPage, isImageSource, IMAGE_SOURCES, DEFAULT_PAGE_SIZE, type ImageSource } from "@/lib/imageReview";
 import ImageReviewGrid from "./ImageReviewGrid";
 
 // This route sits under app/admin/*, which is expected to already be
@@ -8,8 +8,9 @@ import ImageReviewGrid from "./ImageReviewGrid";
 // here — pairs are resolved server-side via the Admin SDK.
 export const dynamic = "force-dynamic"; // storage listing should always be fresh
 
-function buildHref(subfolder: string | undefined, page: number) {
+function buildHref(source: ImageSource, subfolder: string | undefined, page: number) {
     const params = new URLSearchParams();
+    params.set("source", source);
     if (subfolder) params.set("subfolder", subfolder);
     params.set("page", String(page));
     return `/admin/image-review?${params.toString()}`;
@@ -18,34 +19,59 @@ function buildHref(subfolder: string | undefined, page: number) {
 export default async function ImageReviewPage({
                                                   searchParams,
                                               }: {
-    searchParams: Promise<{ subfolder?: string; page?: string }>;
+    searchParams: Promise<{ source?: string; subfolder?: string; page?: string }>;
 }) {
-    const { subfolder, page: pageParam } = await searchParams;
+    const { source: sourceParam, subfolder, page: pageParam } = await searchParams;
+    const source: ImageSource = isImageSource(sourceParam) ? sourceParam : "gcse";
     const requestedPage = pageParam ? parseInt(pageParam, 10) || 1 : 1;
 
     const { pairs, page, totalPages, totalMatched } = await listImagePairsPage(
+        source,
         subfolder,
         requestedPage,
         DEFAULT_PAGE_SIZE
     );
 
+    const { editedPrefix, backupPrefix } = IMAGE_SOURCES[source];
+
     return (
         <div className="p-6 max-w-7xl mx-auto">
             <h1 className="text-2xl font-semibold mb-1">Image Review</h1>
+
+            <div className="flex gap-2 mb-4">
+                {(Object.keys(IMAGE_SOURCES) as ImageSource[]).map((key) => (
+                    <Link
+                        key={key}
+                        href={buildHref(key, undefined, 1)}
+                        className={`text-sm px-3 py-1.5 rounded border ${
+                            key === source
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "hover:bg-muted"
+                        }`}
+                    >
+                        {IMAGE_SOURCES[key].label}
+                    </Link>
+                ))}
+            </div>
+
             <p className="text-sm text-muted-foreground mb-4">
-                Comparing <code>study_materials/</code> against{" "}
-                <code>backups/study_materials/</code>. Only files present in both
+                Comparing <code>{editedPrefix}</code> against{" "}
+                <code>{backupPrefix}</code>. Only files present in both
                 locations are shown. {totalMatched} pair{totalMatched === 1 ? "" : "s"}
                 {subfolder ? ` in "${subfolder}"` : ""} total &middot; page {page} of{" "}
                 {totalPages}.
             </p>
 
-            <ImageReviewGrid initialPairs={pairs} initialSubfolder={subfolder ?? ""} />
+            <ImageReviewGrid
+                initialPairs={pairs}
+                initialSubfolder={subfolder ?? ""}
+                source={source}
+            />
 
             <div className="flex items-center justify-between mt-8">
                 {page > 1 ? (
                     <Link
-                        href={buildHref(subfolder, page - 1)}
+                        href={buildHref(source, subfolder, page - 1)}
                         className="text-sm px-3 py-1.5 border rounded hover:bg-muted"
                     >
                         ← Previous
@@ -58,7 +84,7 @@ export default async function ImageReviewPage({
         </span>
                 {page < totalPages ? (
                     <Link
-                        href={buildHref(subfolder, page + 1)}
+                        href={buildHref(source, subfolder, page + 1)}
                         className="text-sm px-3 py-1.5 border rounded hover:bg-muted"
                     >
                         Next →

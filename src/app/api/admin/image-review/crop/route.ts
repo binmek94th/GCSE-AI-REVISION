@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import admin, { adminDb } from "@/lib/firebaseAdmin";
 import { requireAdmin } from "@/lib/adminAuth";
-import { EDITED_PREFIX } from "@/lib/imageReview";
+import { IMAGE_SOURCES, isImageSource } from "@/lib/imageReview";
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15MB safety cap
 
@@ -12,14 +12,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    let sourceParam: string | undefined;
     let relativePath: string | undefined;
+    let editedPath: string | undefined;
     let imageBase64: string | undefined;
     let contentType: string | undefined;
     let editType: string = "crop";
 
     try {
         const body = await req.json();
+        sourceParam = body?.source;
         relativePath = body?.relativePath;
+        editedPath = body?.editedPath;
         imageBase64 = body?.imageBase64;
         contentType = body?.contentType || "image/jpeg";
         if (body?.editType && typeof body.editType === "string") {
@@ -31,11 +35,17 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("[image-review/crop] Request received", {
+        sourceParam,
         relativePath,
+        editedPath,
         contentType,
         base64Length: imageBase64?.length ?? 0,
     });
 
+    if (!isImageSource(sourceParam)) {
+        console.error("[image-review/crop] Missing/invalid source", { sourceParam });
+        return NextResponse.json({ error: "Invalid source" }, { status: 400 });
+    }
     if (!relativePath || typeof relativePath !== "string") {
         console.error("[image-review/crop] Missing relativePath");
         return NextResponse.json({ error: "relativePath is required" }, { status: 400 });
@@ -44,12 +54,29 @@ export async function POST(req: NextRequest) {
         console.error("[image-review/crop] Rejected suspicious relativePath", { relativePath });
         return NextResponse.json({ error: "Invalid relativePath" }, { status: 400 });
     }
+    if (!editedPath || typeof editedPath !== "string") {
+        console.error("[image-review/crop] Missing editedPath", { relativePath });
+        return NextResponse.json({ error: "editedPath is required" }, { status: 400 });
+    }
+
+    // Defense in depth: even though editedPath comes straight from the
+    // client now (rather than being reconstructed server-side), confirm it
+    // actually sits under the expected prefix for the given source before
+    // writing to it.
+    const { editedPrefix } = IMAGE_SOURCES[sourceParam];
+    if (editedPath.includes("..") || !editedPath.startsWith(editedPrefix)) {
+        console.error("[image-review/crop] editedPath outside expected prefix", {
+            editedPath,
+            editedPrefix,
+            sourceParam,
+        });
+        return NextResponse.json({ error: "Invalid editedPath" }, { status: 400 });
+    }
+
     if (!imageBase64 || typeof imageBase64 !== "string") {
         console.error("[image-review/crop] Missing imageBase64", { relativePath });
         return NextResponse.json({ error: "imageBase64 is required" }, { status: 400 });
     }
-
-    const editedPath = `${EDITED_PREFIX}${relativePath}`;
 
     try {
         const buffer = Buffer.from(imageBase64, "base64");
@@ -119,6 +146,7 @@ export async function POST(req: NextRequest) {
         try {
             const logRef = await adminDb.collection("image_edits").add({
                 type: editType,
+                source: sourceParam,
                 fileName,
                 relativePath,
                 editedPath,

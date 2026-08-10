@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import admin from "@/lib/firebaseAdmin";
 import { requireAdmin } from "@/lib/adminAuth";
-import { EDITED_PREFIX } from "@/lib/imageReview";
+import { IMAGE_SOURCES, isImageSource } from "@/lib/imageReview";
 import { removeWatermark } from "@/lib/geminiWatermark";
 
 function guessMimeType(fileName: string): string {
@@ -19,24 +19,44 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    let sourceParam: string | undefined;
     let relativePath: string | undefined;
+    let editedPath: string | undefined;
     let elementDescription: string | undefined;
     try {
         const body = await req.json();
+        sourceParam = body?.source;
         relativePath = body?.relativePath;
+        editedPath = body?.editedPath;
         elementDescription = body?.elementDescription;
     } catch {
         return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
+    if (!isImageSource(sourceParam)) {
+        return NextResponse.json({ error: "Invalid source" }, { status: 400 });
+    }
     if (!relativePath || typeof relativePath !== "string") {
         return NextResponse.json({ error: "relativePath is required" }, { status: 400 });
     }
     if (relativePath.includes("..") || relativePath.startsWith("/")) {
         return NextResponse.json({ error: "Invalid relativePath" }, { status: 400 });
     }
+    if (!editedPath || typeof editedPath !== "string") {
+        return NextResponse.json({ error: "editedPath is required" }, { status: 400 });
+    }
 
-    const editedPath = `${EDITED_PREFIX}${relativePath}`;
+    // Defense in depth: confirm editedPath actually sits under the expected
+    // prefix for the given source before reading from it.
+    const { editedPrefix } = IMAGE_SOURCES[sourceParam];
+    if (editedPath.includes("..") || !editedPath.startsWith(editedPrefix)) {
+        console.error("[image-review/remove-watermark] editedPath outside expected prefix", {
+            editedPath,
+            editedPrefix,
+            sourceParam,
+        });
+        return NextResponse.json({ error: "Invalid editedPath" }, { status: 400 });
+    }
 
     try {
         const bucket = admin.storage().bucket();

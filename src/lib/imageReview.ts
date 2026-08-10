@@ -1,8 +1,32 @@
 import admin from "@/lib/firebaseAdmin";
 import { randomUUID } from "crypto";
 
-export const EDITED_PREFIX = "study_materials/";
-export const BACKUP_PREFIX = "backups/study_materials/";
+// Each "source" is an independent (edited prefix, backup prefix) pair under
+// Firebase Storage. Add new entries here to review additional buckets/folders
+// without touching the pagination or resolution logic below.
+export const IMAGE_SOURCES = {
+    gcse: {
+        label: "GCSE",
+        editedPrefix: "study_materials/",
+        backupPrefix: "backups/study_materials/",
+    },
+    alevel: {
+        label: "A-Level",
+        editedPrefix: "alevel_study_materials/",
+        backupPrefix: "backups/alevel_study_materials/",
+    },
+} as const;
+
+export type ImageSource = keyof typeof IMAGE_SOURCES;
+
+export function isImageSource(value: string | undefined): value is ImageSource {
+    return !!value && value in IMAGE_SOURCES;
+}
+
+// Kept for any other existing callers of the legacy, non-paginated function
+// (defaults to the original GCSE prefixes so existing behavior is unchanged).
+export const EDITED_PREFIX = IMAGE_SOURCES.gcse.editedPrefix;
+export const BACKUP_PREFIX = IMAGE_SOURCES.gcse.backupPrefix;
 
 // LIST_LIMIT only bounds the legacy, non-paginated listImagePairs() below.
 // listImagePairsPage() never truncates the matched set — it only resolves
@@ -70,26 +94,29 @@ export async function getOrCreateDownloadUrl(
 }
 
 /**
- * Lists all image files under EDITED_PREFIX and BACKUP_PREFIX and matches
- * them by identical relative subfolder path + filename. Does NOT resolve
- * download URLs — that's the expensive part (a getMetadata, and sometimes a
- * setMetadata, round-trip per file) and callers should only pay it for the
- * slice of pairs they're actually about to show. Fail-open: unmatched files
- * are simply omitted, never hidden behind an error. Sorted up front so
- * pagination is stable across page loads.
+ * Lists all image files under the given source's edited/backup prefixes and
+ * matches them by identical relative subfolder path + filename. Does NOT
+ * resolve download URLs — that's the expensive part (a getMetadata, and
+ * sometimes a setMetadata, round-trip per file) and callers should only pay
+ * it for the slice of pairs they're actually about to show. Fail-open:
+ * unmatched files are simply omitted, never hidden behind an error. Sorted
+ * up front so pagination is stable across page loads.
  */
 async function getMatchedFileEntries(
+    source: ImageSource,
     subfolderFilter?: string
 ): Promise<{ bucketName: string; matched: MatchedEntry[] }> {
+    const { editedPrefix: basEditedPrefix, backupPrefix: baseBackupPrefix } = IMAGE_SOURCES[source];
+
     const bucket = admin.storage().bucket();
     const bucketName = bucket.name;
 
     const editedPrefix = subfolderFilter
-        ? `${EDITED_PREFIX}${subfolderFilter}`
-        : EDITED_PREFIX;
+        ? `${basEditedPrefix}${subfolderFilter}`
+        : basEditedPrefix;
     const backupPrefix = subfolderFilter
-        ? `${BACKUP_PREFIX}${subfolderFilter}`
-        : BACKUP_PREFIX;
+        ? `${baseBackupPrefix}${subfolderFilter}`
+        : baseBackupPrefix;
 
     const [editedFiles] = await bucket.getFiles({ prefix: editedPrefix });
     const [backupFiles] = await bucket.getFiles({ prefix: backupPrefix });
@@ -97,14 +124,14 @@ async function getMatchedFileEntries(
     const backupByRelPath = new Map<string, (typeof backupFiles)[number]>();
     for (const f of backupFiles) {
         if (!isImageFile(f.name)) continue;
-        const rel = f.name.slice(BACKUP_PREFIX.length);
+        const rel = f.name.slice(baseBackupPrefix.length);
         if (rel) backupByRelPath.set(rel, f);
     }
 
     const matched: MatchedEntry[] = [];
     for (const editedFile of editedFiles) {
         if (!isImageFile(editedFile.name)) continue;
-        const rel = editedFile.name.slice(EDITED_PREFIX.length);
+        const rel = editedFile.name.slice(basEditedPrefix.length);
         if (!rel) continue;
         const backupFile = backupByRelPath.get(rel);
         if (!backupFile) continue; // no matching backup, skip (fail-open, no error)
@@ -142,9 +169,12 @@ async function resolvePairs(bucketName: string, entries: MatchedEntry[]): Promis
                     editedUrl,
                     backupUrl,
                 });
-            } catch(err: any) {
-                console.error(`[imageReview] failed to resolve pair "${rel}":`, err);
-
+            } catch (err) {
+                // Skip files we fail to read metadata/URLs for rather than
+                // failing the whole page.
+                if (process.env.NODE_ENV !== "production") {
+                    console.error(`[imageReview] failed to resolve pair "${rel}":`, err);
+                }
             }
         }
     }
@@ -154,28 +184,30 @@ async function resolvePairs(bucketName: string, entries: MatchedEntry[]): Promis
 }
 
 /**
- * Legacy, non-paginated entry point. Resolves URLs for up to LIST_LIMIT
- * pairs. Kept for any other callers — prefer listImagePairsPage for the
- * admin UI, since this one silently drops anything past LIST_LIMIT.
+ * Legacy, non-paginated entry point (GCSE source only, for backwards
+ * compatibility with any other existing callers). Resolves URLs for up to
+ * LIST_LIMIT pairs. Prefer listImagePairsPage for the admin UI.
  */
 export async function listImagePairs(subfolderFilter?: string): Promise<ImagePair[]> {
-    const { bucketName, matched } = await getMatchedFileEntries(subfolderFilter);
+    const { bucketName, matched } = await getMatchedFileEntries("gcse", subfolderFilter);
     const limited = matched.slice(0, LIST_LIMIT);
     return resolvePairs(bucketName, limited);
 }
 
 /**
  * Paginated entry point used by the admin image-review page. Builds the
- * FULL matched set to compute accurate totals, then only resolves download
- * URLs for the requested page's slice — so page 1 and page 54 cost the
- * same, and no page comes back empty just because it's past some global cap.
+ * FULL matched set for the given source to compute accurate totals, then
+ * only resolves download URLs for the requested page's slice — so page 1
+ * and page 54 cost the same, and no page comes back empty just because it's
+ * past some global cap.
  */
 export async function listImagePairsPage(
+    source: ImageSource,
     subfolderFilter: string | undefined,
     requestedPage: number,
     pageSize: number = DEFAULT_PAGE_SIZE
 ): Promise<PaginatedImagePairs> {
-    const { bucketName, matched } = await getMatchedFileEntries(subfolderFilter);
+    const { bucketName, matched } = await getMatchedFileEntries(source, subfolderFilter);
 
     const totalMatched = matched.length;
     const totalPages = Math.max(1, Math.ceil(totalMatched / pageSize));
