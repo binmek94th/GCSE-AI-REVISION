@@ -5,9 +5,8 @@ import { BACKUP_PREFIX, EDITED_PREFIX } from "@/lib/imageReview";
 
 export async function POST(req: NextRequest) {
     const adminUser = await requireAdmin(req);
-    if (!adminUser) {
+    if (!adminUser)
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     let relativePath: string | undefined;
     try {
@@ -17,15 +16,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
-    if (!relativePath || typeof relativePath !== "string") {
+    if (!relativePath || typeof relativePath !== "string")
         return NextResponse.json({ error: "relativePath is required" }, { status: 400 });
-    }
 
     // Guard against path traversal / accidentally targeting files outside
     // the expected prefixes.
-    if (relativePath.includes("..") || relativePath.startsWith("/")) {
+    if (relativePath.includes("..") || relativePath.startsWith("/"))
         return NextResponse.json({ error: "Invalid relativePath" }, { status: 400 });
-    }
 
     const editedPath = `${EDITED_PREFIX}${relativePath}`;
     const backupPath = `${BACKUP_PREFIX}${relativePath}`;
@@ -36,9 +33,8 @@ export async function POST(req: NextRequest) {
         const editedFile = bucket.file(editedPath);
 
         const [backupExists] = await backupFile.exists();
-        if (!backupExists) {
+        if (!backupExists)
             return NextResponse.json({ error: "Backup file not found" }, { status: 404 });
-        }
 
         // Preserve the edited file's existing download token so any links
         // already shared/cached against it keep working after the overwrite.

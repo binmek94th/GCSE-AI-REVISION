@@ -1,5 +1,5 @@
 import admin from "@/lib/firebaseAdmin";
-import { randomUUID } from "crypto";
+import {randomUUID} from "crypto";
 
 export const EDITED_PREFIX = "study_materials/";
 export const BACKUP_PREFIX = "backups/study_materials/";
@@ -92,8 +92,7 @@ export async function listImagePairs(subfolderFilter?: string): Promise<ImagePai
     // subfolder filter, a large study_materials tree can otherwise mean
     // thousands of sequential getMetadata/setMetadata round-trips, which is
     // what was causing the page to hang indefinitely.
-    const MAX_PAIRS = LIST_LIMIT;
-    const limited = matched.slice(0, MAX_PAIRS);
+    const limited = matched.slice(0, LIST_LIMIT);
 
     // Resolve download URLs concurrently, but capped, so we don't fire
     // hundreds of simultaneous requests at Storage either.
@@ -126,6 +125,6 @@ export async function listImagePairs(subfolderFilter?: string): Promise<ImagePai
     }
 
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, limited.length) }, worker));
-
+    console.log(pairs.sort((a, b) => a.relativePath.localeCompare(b.relativePath)))
     return pairs.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
 }

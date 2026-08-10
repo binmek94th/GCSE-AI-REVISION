@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop, convertToPixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/app/components/ui/button";
@@ -83,6 +83,14 @@ export default function CropModal({
 }) {
     const imgRef = useRef<HTMLImageElement | null>(null);
     const [crop, setCrop] = useState<Crop>();
+    const [error, setError] = useState<string | null>(null);
+
+    // Route through the existing same-origin image proxy rather than loading
+    // Firebase Storage's URL directly. Loading a cross-origin image with
+    // crossOrigin="anonymous" silently taints the canvas if the CORS headers
+    // aren't exactly right, and canvas.toBlob() then throws with no visible
+    // error — which is what was happening here.
+    const proxiedSrc = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
 
     function handleImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
         const { width, height } = e.currentTarget;
@@ -91,10 +99,37 @@ export default function CropModal({
 
     async function handleSave() {
         if (!imgRef.current || !crop || !crop.width || !crop.height) return;
-        const mimeType = guessMimeType(fileName);
-        const blob = await getCroppedBlob(imgRef.current, crop, mimeType);
-        onSave(blob, mimeType);
+        setError(null);
+        try {
+            const mimeType = guessMimeType(fileName);
+            const blob = await getCroppedBlob(imgRef.current, crop, mimeType);
+            onSave(blob, mimeType);
+        } catch (err: any) {
+            console.error("Crop failed", err);
+            setError(
+                err?.name === "SecurityError"
+                    ? "Couldn't read the image for cropping (cross-origin restriction). Try reloading the page."
+                    : err?.message || "Crop failed"
+            );
+        }
     }
+
+    // Esc cancels, Enter saves (when not typing — there's no text input in
+    // this modal, but this guards against future additions).
+    useEffect(() => {
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                e.preventDefault();
+                onCancel();
+            } else if (e.key === "Enter") {
+                e.preventDefault();
+                handleSave();
+            }
+        }
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [crop, saving]);
 
     return (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
@@ -107,13 +142,14 @@ export default function CropModal({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                         ref={imgRef}
-                        src={imageUrl}
+                        src={proxiedSrc}
                         alt={fileName}
-                        crossOrigin="anonymous"
                         onLoad={handleImageLoad}
                         className="max-h-[65vh] w-auto"
                     />
                 </ReactCrop>
+
+                {error && <p className="text-sm text-destructive mt-2">{error}</p>}
 
                 <div className="flex justify-end gap-2 mt-4">
                     <Button variant="ghost" onClick={onCancel} disabled={saving}>

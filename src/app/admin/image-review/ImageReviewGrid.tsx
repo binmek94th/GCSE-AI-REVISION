@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { getAuth } from "firebase/auth";
 import { firebase } from "@/lib/firebase"; // adjust to your existing client init path
@@ -63,6 +63,15 @@ export default function ImageReviewGrid({
     const [watermarkSaving, setWatermarkSaving] = useState(false);
     const [watermarkError, setWatermarkError] = useState<string | null>(null);
     const [watermarkState, setWatermarkState] = useState<Record<string, ActionState>>({});
+    const [watermarkDescription, setWatermarkDescription] = useState(
+        "a large, low-opacity circular graphic with a lightning-bolt shape inside it, centered on the image"
+    );
+
+    // Keyboard-navigation state: which card is focused (J/K or arrows to move,
+    // R/C/W to act on it).
+    const [focusedIndex, setFocusedIndex] = useState(0);
+    const cardRefs = useRef<Record<number, HTMLDivElement | null>>({});
+    const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
     const filteredPairs = useMemo(() => {
         if (!search.trim()) return initialPairs;
@@ -147,7 +156,10 @@ export default function ImageReviewGrid({
             const res = await fetch("/api/admin/image-review/remove-watermark", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-                body: JSON.stringify({ relativePath: pair.relativePath }),
+                body: JSON.stringify({
+                    relativePath: pair.relativePath,
+                    elementDescription: watermarkDescription,
+                }),
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
@@ -200,8 +212,103 @@ export default function ImageReviewGrid({
         }
     }
 
+    // Clamp focus if the filtered list shrinks (e.g. search narrows results).
+    useEffect(() => {
+        if (focusedIndex >= filteredPairs.length) {
+            setFocusedIndex(Math.max(0, filteredPairs.length - 1));
+        }
+    }, [filteredPairs.length, focusedIndex]);
+
+    function goToPage(delta: number) {
+        const params = new URLSearchParams(searchParams.toString());
+        const currentPage = parseInt(params.get("page") || "1", 10) || 1;
+        const nextPage = Math.max(1, currentPage + delta);
+        params.set("page", String(nextPage));
+        startTransition(() => {
+            router.push(`${pathname}?${params.toString()}`);
+        });
+    }
+
+    // Global keyboard shortcuts. Disabled while a modal is open (modals own
+    // their own shortcuts) and while typing in any input/textarea.
+    useEffect(() => {
+        function isTypingTarget(target: EventTarget | null): boolean {
+            const el = target as HTMLElement | null;
+            if (!el) return false;
+            const tag = el.tagName;
+            return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
+        }
+
+        function onKeyDown(e: KeyboardEvent) {
+            if (isTypingTarget(e.target)) return;
+            if (cropTarget || watermarkTarget) return; // modals handle their own keys
+
+            const pair = filteredPairs[focusedIndex];
+
+            switch (e.key.toLowerCase()) {
+                case "j":
+                case "arrowdown":
+                    e.preventDefault();
+                    setFocusedIndex((i) => Math.min(filteredPairs.length - 1, i + 1));
+                    break;
+                case "k":
+                case "arrowup":
+                    e.preventDefault();
+                    setFocusedIndex((i) => Math.max(0, i - 1));
+                    break;
+                case "arrowleft":
+                    e.preventDefault();
+                    goToPage(-1);
+                    break;
+                case "arrowright":
+                    e.preventDefault();
+                    goToPage(1);
+                    break;
+                case "r":
+                    if (pair) handleRevert(pair);
+                    break;
+                case "c":
+                    if (pair) setCropTarget(pair);
+                    break;
+                case "w":
+                    if (pair) openWatermarkModal(pair);
+                    break;
+                case "?":
+                    setShowShortcutHelp((v) => !v);
+                    break;
+                case "escape":
+                    setShowShortcutHelp(false);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filteredPairs, focusedIndex, cropTarget, watermarkTarget]);
+
+    // Keep the focused card scrolled into view as focus moves via keyboard.
+    useEffect(() => {
+        cardRefs.current[focusedIndex]?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, [focusedIndex]);
+
     return (
         <div>
+            <div className="flex items-center justify-between mb-3">
+                <p className="text-xs text-muted-foreground">
+                    Shortcuts: <kbd className="px-1 border rounded">J</kbd>/
+                    <kbd className="px-1 border rounded">K</kbd> move ·{" "}
+                    <kbd className="px-1 border rounded">R</kbd> revert ·{" "}
+                    <kbd className="px-1 border rounded">C</kbd> crop ·{" "}
+                    <kbd className="px-1 border rounded">W</kbd> remove watermark ·{" "}
+                    <kbd className="px-1 border rounded">←</kbd>/
+                    <kbd className="px-1 border rounded">→</kbd> page ·{" "}
+                    <kbd className="px-1 border rounded">?</kbd> help
+                </p>
+            </div>
+
             <div className="flex flex-wrap gap-3 mb-6 items-end">
                 <div>
                     <label className="block text-xs font-medium mb-1">Search filename (this page)</label>
@@ -234,7 +341,7 @@ export default function ImageReviewGrid({
             )}
 
             <div className="grid grid-cols-1 gap-6">
-                {filteredPairs.map((pair) => {
+                {filteredPairs.map((pair, index) => {
                     const rState = revertState[pair.relativePath] ?? "idle";
                     const cState = cropState[pair.relativePath] ?? "idle";
                     const wState = watermarkState[pair.relativePath] ?? "idle";
@@ -242,7 +349,16 @@ export default function ImageReviewGrid({
                     const editedSrc = bust ? `${pair.editedUrl}&_=${bust}` : pair.editedUrl;
 
                     return (
-                        <div key={pair.relativePath} className="border rounded-lg p-4">
+                        <div
+                            key={pair.relativePath}
+                            ref={(el) => {
+                                cardRefs.current[index] = el;
+                            }}
+                            onClick={() => setFocusedIndex(index)}
+                            className={`border rounded-lg p-4 transition-shadow ${
+                                index === focusedIndex ? "ring-2 ring-primary" : ""
+                            }`}
+                        >
                             <div className="flex items-center justify-between mb-3">
                                 <div className="text-sm font-medium truncate">{pair.relativePath}</div>
                                 <div className="flex gap-2">
@@ -331,6 +447,8 @@ export default function ImageReviewGrid({
                     loading={watermarkLoading}
                     saving={watermarkSaving}
                     error={watermarkError}
+                    description={watermarkDescription}
+                    onDescriptionChange={setWatermarkDescription}
                     onRegenerate={() => requestWatermarkPreview(watermarkTarget)}
                     onKeep={handleWatermarkKeep}
                     onCancel={() => {
@@ -339,6 +457,34 @@ export default function ImageReviewGrid({
                         setWatermarkError(null);
                     }}
                 />
+            )}
+            {showShortcutHelp && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+                    onClick={() => setShowShortcutHelp(false)}
+                >
+                    <div
+                        className="bg-background rounded-lg p-6 max-w-md w-full"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 className="text-lg font-semibold mb-4">Keyboard shortcuts</h2>
+                        <ul className="space-y-2 text-sm">
+                            <li><kbd className="px-1.5 border rounded">J</kbd> / <kbd className="px-1.5 border rounded">↓</kbd> — next image</li>
+                            <li><kbd className="px-1.5 border rounded">K</kbd> / <kbd className="px-1.5 border rounded">↑</kbd> — previous image</li>
+                            <li><kbd className="px-1.5 border rounded">R</kbd> — revert focused image to original</li>
+                            <li><kbd className="px-1.5 border rounded">C</kbd> — open crop tool on focused image</li>
+                            <li><kbd className="px-1.5 border rounded">W</kbd> — remove watermark on focused image</li>
+                            <li><kbd className="px-1.5 border rounded">←</kbd> / <kbd className="px-1.5 border rounded">→</kbd> — previous / next page</li>
+                            <li><kbd className="px-1.5 border rounded">Esc</kbd> — close a modal</li>
+                            <li><kbd className="px-1.5 border rounded">Enter</kbd> — confirm within a modal (Save crop / Keep)</li>
+                            <li><kbd className="px-1.5 border rounded">G</kbd> — regenerate (in the watermark modal)</li>
+                            <li><kbd className="px-1.5 border rounded">?</kbd> — toggle this help</li>
+                        </ul>
+                        <Button size="sm" variant="secondary" className="mt-4" onClick={() => setShowShortcutHelp(false)}>
+                            Close
+                        </Button>
+                    </div>
+                </div>
             )}
         </div>
     );

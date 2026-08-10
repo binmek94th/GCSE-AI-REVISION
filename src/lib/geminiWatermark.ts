@@ -14,16 +14,22 @@ export interface GeneratedImage {
  */
 export async function removeWatermark(
     imageBuffer: Buffer,
-    mimeType: string
+    mimeType: string,
+    elementDescription?: string
 ): Promise<GeneratedImage> {
     const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error("GOOGLE_API_KEY (or GEMINI_API_KEY) is not set");
     }
 
+    const description =
+        elementDescription?.trim() ||
+        "a large, low-opacity circular graphic with a lightning-bolt shape inside it, centered on the image";
+
     const prompt =
-        "Remove any watermark, logo overlay, or semi-transparent stamped text from this image. " +
-        "Keep everything else about the image — content, composition, colors, quality — exactly the same. " +
+        `This image has ${description}. ` +
+        "Reconstruct that region so it matches the surrounding background and content seamlessly, " +
+        "as if it were never there. Keep everything else in the image — composition, colors, quality — exactly the same. " +
         "Do not add any new text or graphics.";
 
     const res = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {

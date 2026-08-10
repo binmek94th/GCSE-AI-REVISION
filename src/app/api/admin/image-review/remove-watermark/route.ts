@@ -20,9 +20,11 @@ export async function POST(req: NextRequest) {
     }
 
     let relativePath: string | undefined;
+    let elementDescription: string | undefined;
     try {
         const body = await req.json();
         relativePath = body?.relativePath;
+        elementDescription = body?.elementDescription;
     } catch {
         return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
@@ -57,7 +59,7 @@ export async function POST(req: NextRequest) {
             sourceMimeType,
         });
 
-        const result = await removeWatermark(sourceBuffer, sourceMimeType);
+        const result = await removeWatermark(sourceBuffer, sourceMimeType, elementDescription);
 
         console.log("[image-review/remove-watermark] ✅ Gemini returned edited image", {
             editedPath,
