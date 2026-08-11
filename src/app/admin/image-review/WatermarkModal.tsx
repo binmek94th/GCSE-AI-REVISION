@@ -8,6 +8,30 @@ interface Preview {
     contentType: string;
 }
 
+interface DescriptionPreset {
+    id: string;
+    label: string;
+    description: string;
+}
+
+// Common recurring watermark variants seen on study material images. "Keep
+// visual, not intent-based" applies here too — describe what's there, not
+// what to do about it, to avoid tripping Gemini's content filters.
+const PRESETS: DescriptionPreset[] = [
+    {
+        id: "symbol",
+        label: "Symbol / logo",
+        description:
+            "a large, low-opacity circular graphic with a lightning-bolt shape inside it, centered on the image",
+    },
+    {
+        id: "text-save-my-exam",
+        label: "Text: \u201cSave My Exam\u201d",
+        description:
+            "the words \u201cSave My Exam\u201d displayed as a semi-transparent, diagonally angled text watermark repeated across the image",
+    },
+];
+
 export default function WatermarkModal({
                                            originalUrl,
                                            fileName,
@@ -36,6 +60,12 @@ export default function WatermarkModal({
     const previewSrc = preview
         ? `data:${preview.contentType};base64,${preview.imageBase64}`
         : null;
+
+    const activePresetId = PRESETS.find((p) => p.description === description)?.id;
+
+    function applyPreset(preset: DescriptionPreset) {
+        onDescriptionChange(preset.description);
+    }
 
     useEffect(() => {
         function isTypingTarget(target: EventTarget | null): boolean {
@@ -73,6 +103,26 @@ export default function WatermarkModal({
                 </div>
 
                 <div className="mb-3">
+                    <label className="block text-xs font-medium mb-1">Quick presets</label>
+                    <div className="flex flex-wrap gap-2">
+                        {PRESETS.map((preset) => (
+                            <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => applyPreset(preset)}
+                                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                                    activePresetId === preset.id
+                                        ? "bg-blue-600 text-white border-blue-600"
+                                        : "hover:bg-muted"
+                                }`}
+                            >
+                                {preset.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mb-3">
                     <label className="block text-xs font-medium mb-1">
                         Describe what to remove (position, shape, appearance)
                     </label>
@@ -84,7 +134,9 @@ export default function WatermarkModal({
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                         Being specific about what&#39;s visually there (not why) gets much
-                        better and more reliable results.
+                        better and more reliable results. Pick a preset above as a starting
+                        point, then tweak wording (position, size, opacity) if this image
+                        differs.
                     </p>
                 </div>
 

@@ -7,6 +7,7 @@ import { firebase } from "@/lib/firebase"; // adjust to your existing client ini
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 import CropModal from "./CropModal";
 import WatermarkModal from "./WatermarkModal";
 import type { ImageSource } from "@/lib/imageReview";
@@ -59,6 +60,13 @@ export default function ImageReviewGrid({
     const [cacheBust, setCacheBust] = useState<Record<string, number>>({});
     const [isPending, startTransition] = useTransition();
 
+    // Delete flow: a confirmation step gates the actual API call, since this
+    // removes both the edited AND backup copies — unlike revert, there's no
+    // way to undo it afterward.
+    const [deleteTarget, setDeleteTarget] = useState<ImagePair | null>(null);
+    const [deleteWorking, setDeleteWorking] = useState(false);
+    const [removedPaths, setRemovedPaths] = useState<Set<string>>(new Set());
+
     // Watermark removal review state
     const [watermarkTarget, setWatermarkTarget] = useState<ImagePair | null>(null);
     const [watermarkPreview, setWatermarkPreview] = useState<WatermarkPreview | null>(null);
@@ -77,16 +85,18 @@ export default function ImageReviewGrid({
     const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
     const filteredPairs = useMemo(() => {
-        if (!search.trim()) return initialPairs;
+        const notDeleted = initialPairs.filter((p) => !removedPaths.has(p.relativePath));
+        if (!search.trim()) return notDeleted;
         const q = search.toLowerCase();
-        return initialPairs.filter((p) => p.relativePath.toLowerCase().includes(q));
-    }, [initialPairs, search]);
+        return notDeleted.filter((p) => p.relativePath.toLowerCase().includes(q));
+    }, [initialPairs, search, removedPaths]);
 
-    // Reset local UI state (focus, search) whenever the source changes, so
-    // stale state from the previous source's pairs doesn't linger.
+    // Reset local UI state (focus, search, deletions) whenever the source
+    // changes, so stale state from the previous source's pairs doesn't linger.
     useEffect(() => {
         setFocusedIndex(0);
         setSearch("");
+        setRemovedPaths(new Set());
     }, [source]);
 
     function applySubfolderFilter() {
@@ -247,6 +257,35 @@ export default function ImageReviewGrid({
         }
     }
 
+    async function handleDeleteConfirm() {
+        if (!deleteTarget) return;
+        setDeleteWorking(true);
+        try {
+            const idToken = await getIdToken();
+            const res = await fetch("/api/admin/image-review/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+                body: JSON.stringify({
+                    source,
+                    relativePath: deleteTarget.relativePath,
+                    editedPath: deleteTarget.editedPath,
+                    backupPath: deleteTarget.backupPath,
+                }),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body?.error || `Request failed (${res.status})`);
+            }
+            setRemovedPaths((prev) => new Set(prev).add(deleteTarget.relativePath));
+            toast.success(`Deleted ${deleteTarget.fileName}`);
+            setDeleteTarget(null);
+        } catch (err: any) {
+            toast.error(err?.message || "Delete failed");
+        } finally {
+            setDeleteWorking(false);
+        }
+    }
+
     // Clamp focus if the filtered list shrinks (e.g. search narrows results).
     useEffect(() => {
         if (focusedIndex >= filteredPairs.length) {
@@ -279,6 +318,18 @@ export default function ImageReviewGrid({
             if (isTypingTarget(e.target)) return;
             if (cropTarget || watermarkTarget) return; // modals handle their own keys
 
+            if (deleteTarget) {
+                // The delete confirmation dialog owns Escape/Enter while open.
+                if (e.key === "Escape") {
+                    e.preventDefault();
+                    if (!deleteWorking) setDeleteTarget(null);
+                } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (!deleteWorking) handleDeleteConfirm();
+                }
+                return;
+            }
+
             const pair = filteredPairs[focusedIndex];
 
             switch (e.key.toLowerCase()) {
@@ -309,6 +360,9 @@ export default function ImageReviewGrid({
                 case "w":
                     if (pair) openWatermarkModal(pair);
                     break;
+                case "d":
+                    if (pair) setDeleteTarget(pair);
+                    break;
                 case "?":
                     setShowShortcutHelp((v) => !v);
                     break;
@@ -323,7 +377,7 @@ export default function ImageReviewGrid({
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filteredPairs, focusedIndex, cropTarget, watermarkTarget]);
+    }, [filteredPairs, focusedIndex, cropTarget, watermarkTarget, deleteTarget, deleteWorking]);
 
     // Keep the focused card scrolled into view as focus moves via keyboard.
     useEffect(() => {
@@ -339,6 +393,7 @@ export default function ImageReviewGrid({
                     <kbd className="px-1 border rounded">R</kbd> revert ·{" "}
                     <kbd className="px-1 border rounded">C</kbd> crop ·{" "}
                     <kbd className="px-1 border rounded">W</kbd> remove watermark ·{" "}
+                    <kbd className="px-1 border rounded">D</kbd> delete ·{" "}
                     <kbd className="px-1 border rounded">←</kbd>/
                     <kbd className="px-1 border rounded">→</kbd> page ·{" "}
                     <kbd className="px-1 border rounded">?</kbd> help
@@ -451,6 +506,15 @@ export default function ImageReviewGrid({
                                 >
                                     {rState === "working" ? "Reverting..." : "Revert to original"}
                                 </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => setDeleteTarget(pair)}
+                                >
+                                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                    Delete
+                                </Button>
                             </div>
                         </div>
                     );
@@ -494,6 +558,38 @@ export default function ImageReviewGrid({
                     }}
                 />
             )}
+            {deleteTarget && (
+                <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+                    <div className="bg-background rounded-lg p-6 max-w-md w-full">
+                        <h2 className="text-lg font-semibold mb-2">Delete permanently?</h2>
+                        <p className="text-sm text-muted-foreground mb-1">
+                            This removes both the edited and backup copies of{" "}
+                            <span className="font-medium text-foreground">{deleteTarget.fileName}</span> from
+                            Storage.
+                        </p>
+                        <p className="text-sm text-destructive mb-5">
+                            This cannot be undone — unlike revert, there will be no backup left to restore from.
+                        </p>
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setDeleteTarget(null)}
+                                disabled={deleteWorking}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleDeleteConfirm}
+                                disabled={deleteWorking}
+                            >
+                                {deleteWorking ? "Deleting..." : "Delete permanently"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showShortcutHelp && (
                 <div
                     className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
@@ -510,9 +606,10 @@ export default function ImageReviewGrid({
                             <li><kbd className="px-1.5 border rounded">R</kbd> — revert focused image to original</li>
                             <li><kbd className="px-1.5 border rounded">C</kbd> — open crop tool on focused image</li>
                             <li><kbd className="px-1.5 border rounded">W</kbd> — remove watermark on focused image</li>
+                            <li><kbd className="px-1.5 border rounded">D</kbd> — delete focused image (asks to confirm)</li>
                             <li><kbd className="px-1.5 border rounded">←</kbd> / <kbd className="px-1.5 border rounded">→</kbd> — previous / next page</li>
                             <li><kbd className="px-1.5 border rounded">Esc</kbd> — close a modal</li>
-                            <li><kbd className="px-1.5 border rounded">Enter</kbd> — confirm within a modal (Save crop / Keep)</li>
+                            <li><kbd className="px-1.5 border rounded">Enter</kbd> — confirm within a modal (Save crop / Keep / Delete)</li>
                             <li><kbd className="px-1.5 border rounded">G</kbd> — regenerate (in the watermark modal)</li>
                             <li><kbd className="px-1.5 border rounded">?</kbd> — toggle this help</li>
                         </ul>
