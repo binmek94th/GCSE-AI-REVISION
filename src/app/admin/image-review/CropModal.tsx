@@ -94,18 +94,16 @@ export default function CropModal({
     const [crop, setCrop] = useState<Crop>();
     const [error, setError] = useState<string | null>(null);
 
-    // blob:/data: URLs are already local to this page (created via
-    // URL.createObjectURL or as a data URI for an optimistic preview) — they
-    // don't need, and can't be fetched by, the same-origin image proxy.
-    // Anything else is assumed to be a remote Firebase Storage URL, which
-    // does need the proxy: loading it cross-origin with
-    // crossOrigin="anonymous" silently taints the canvas if the CORS headers
-    // aren't exactly right, and canvas.toBlob() then throws with no visible
-    // error — which is what was happening before the proxy was added.
-    const isLocalUrl = imageUrl.startsWith("blob:") || imageUrl.startsWith("data:");
-    const proxiedSrc = isLocalUrl
-        ? imageUrl
-        : `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+    // imageUrl is already fully resolved by the caller (ImageReviewGrid):
+    // proxied through the same-origin /api/proxy-image for remote Firebase
+    // Storage images (to avoid canvas-tainting — loading a cross-origin
+    // image with crossOrigin="anonymous" silently taints the canvas if the
+    // CORS headers aren't exactly right, and canvas.toBlob() then throws
+    // with no visible error), or a local blob:/data: URL for an optimistic
+    // preview. Either way, no further wrapping needed here — and using the
+    // exact same proxied URL the grid already displays means this image is
+    // typically already in the browser cache by the time this modal opens.
+    const proxiedSrc = imageUrl;
 
     function handleImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
         setCrop(defaultCrop());

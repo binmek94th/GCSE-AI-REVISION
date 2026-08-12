@@ -516,13 +516,18 @@ export default function ImageReviewGrid({
     }, [focusedIndex]);
 
     // Resolves the URL to display for a pair's "Current (edited)" panel: a
-    // local optimistic override if one exists, otherwise the remote URL
-    // (cache-busted if we've saved since page load).
+    // local optimistic override if one exists (already same-origin, used
+    // as-is), otherwise the remote image routed through the same-origin
+    // proxy. Routing the grid's own display through the same proxied URL
+    // that CropModal/WatermarkModal use means the browser already has these
+    // exact bytes cached by the time you open Crop or Remove Watermark on an
+    // image you can already see — no second fetch, no visible reload.
     function resolveEditedSrc(pair: ImagePair): string {
         const override = editedOverride[pair.relativePath];
-        if (override) return override;
+        if (override) return override; // blob:/data: — already local, no proxy needed
         const bust = cacheBust[pair.relativePath];
-        return bust ? `${pair.editedUrl}&_=${bust}` : pair.editedUrl;
+        const remote = bust ? `${pair.editedUrl}&_=${bust}` : pair.editedUrl;
+        return proxied(remote);
     }
 
     return (
@@ -681,11 +686,7 @@ export default function ImageReviewGrid({
 
             {watermarkTarget && (
                 <WatermarkModal
-                    originalUrl={
-                        editedOverride[watermarkTarget.relativePath]
-                            ? editedOverride[watermarkTarget.relativePath] // already local (blob:/data:), no proxy needed
-                            : proxied(resolveEditedSrc(watermarkTarget))
-                    }
+                    originalUrl={resolveEditedSrc(watermarkTarget)}
                     fileName={watermarkTarget.fileName}
                     preview={watermarkPreview}
                     loading={watermarkLoading}
