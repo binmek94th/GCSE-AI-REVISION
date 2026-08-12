@@ -1,16 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import ReactCrop, { type Crop, centerCrop, makeAspectCrop, convertToPixelCrop } from "react-image-crop";
+import ReactCrop, { type Crop, convertToPixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/app/components/ui/button";
 
-function defaultCrop(width: number, height: number): Crop {
-    return centerCrop(
-        makeAspectCrop({ unit: "%", width: 90 }, width / height, width, height),
-        width,
-        height
-    );
+// How much to trim off the bottom by default, as a percentage of image
+// height. The box starts full-width and top-anchored — only the bottom edge
+// is pulled in — since the common case is cutting off a footer/watermark
+// strip, not a symmetric center-crop. Still fully draggable/resizable from
+// there on any side.
+const DEFAULT_BOTTOM_TRIM_PERCENT = 10;
+
+function defaultCrop(): Crop {
+    return {
+        unit: "%",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100 - DEFAULT_BOTTOM_TRIM_PERCENT,
+    };
 }
 
 async function getCroppedBlob(
@@ -85,16 +94,21 @@ export default function CropModal({
     const [crop, setCrop] = useState<Crop>();
     const [error, setError] = useState<string | null>(null);
 
-    // Route through the existing same-origin image proxy rather than loading
-    // Firebase Storage's URL directly. Loading a cross-origin image with
+    // blob:/data: URLs are already local to this page (created via
+    // URL.createObjectURL or as a data URI for an optimistic preview) — they
+    // don't need, and can't be fetched by, the same-origin image proxy.
+    // Anything else is assumed to be a remote Firebase Storage URL, which
+    // does need the proxy: loading it cross-origin with
     // crossOrigin="anonymous" silently taints the canvas if the CORS headers
     // aren't exactly right, and canvas.toBlob() then throws with no visible
-    // error — which is what was happening here.
-    const proxiedSrc = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+    // error — which is what was happening before the proxy was added.
+    const isLocalUrl = imageUrl.startsWith("blob:") || imageUrl.startsWith("data:");
+    const proxiedSrc = isLocalUrl
+        ? imageUrl
+        : `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
 
     function handleImageLoad(e: React.SyntheticEvent<HTMLImageElement>) {
-        const { width, height } = e.currentTarget;
-        setCrop(defaultCrop(width, height));
+        setCrop(defaultCrop());
     }
 
     async function handleSave() {

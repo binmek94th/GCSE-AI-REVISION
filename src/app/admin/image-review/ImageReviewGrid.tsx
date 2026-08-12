@@ -60,18 +60,79 @@ export default function ImageReviewGrid({
     const [cacheBust, setCacheBust] = useState<Record<string, number>>({});
     const [isPending, startTransition] = useTransition();
 
+    // Optimistic-update plumbing: when a pair's edited image changes locally
+    // (crop, revert, watermark keep) we show the new image immediately —
+    // before the server confirms — by pointing that pair's display source at
+    // a local override (an object URL for a just-cropped/watermarked blob,
+    // or the backup's own URL for a revert). If the background save fails,
+    // the override is cleared and the card falls back to the last known-good
+    // remote image. objectUrlsRef tracks which override values are blob:
+    // URLs we created, so we can revoke them and avoid leaking memory.
+    const [editedOverride, setEditedOverride] = useState<Record<string, string>>({});
+    const objectUrlsRef = useRef<Set<string>>(new Set());
+
+    function setOverride(rel: string, src: string, isObjectUrl: boolean) {
+        setEditedOverride((o) => {
+            const prev = o[rel];
+            if (prev && objectUrlsRef.current.has(prev)) {
+                URL.revokeObjectURL(prev);
+                objectUrlsRef.current.delete(prev);
+            }
+            if (isObjectUrl) objectUrlsRef.current.add(src);
+            return { ...o, [rel]: src };
+        });
+    }
+
+    function clearOverride(rel: string) {
+        setEditedOverride((o) => {
+            const prev = o[rel];
+            if (prev && objectUrlsRef.current.has(prev)) {
+                URL.revokeObjectURL(prev);
+                objectUrlsRef.current.delete(prev);
+            }
+            if (!(rel in o)) return o;
+            const next = { ...o };
+            delete next[rel];
+            return next;
+        });
+    }
+
+    // Tracks which pairs have a save in flight, purely to stop a second
+    // action firing against the same file before the first one lands — the
+    // UI itself doesn't wait on this, it's just a safety rail against races.
+    const [pendingPaths, setPendingPaths] = useState<Set<string>>(new Set());
+    function markPending(rel: string) {
+        setPendingPaths((p) => new Set(p).add(rel));
+    }
+    function clearPending(rel: string) {
+        setPendingPaths((p) => {
+            if (!p.has(rel)) return p;
+            const next = new Set(p);
+            next.delete(rel);
+            return next;
+        });
+    }
+
+    // Revoke any outstanding object URLs on unmount.
+    useEffect(() => {
+        return () => {
+            objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+            objectUrlsRef.current.clear();
+        };
+    }, []);
+
     // Delete flow: a confirmation step gates the actual API call, since this
     // removes both the edited AND backup copies — unlike revert, there's no
-    // way to undo it afterward.
+    // way to undo it afterward. The removal from the grid itself, though, is
+    // still optimistic — it happens the moment you confirm, not after the
+    // server responds.
     const [deleteTarget, setDeleteTarget] = useState<ImagePair | null>(null);
-    const [deleteWorking, setDeleteWorking] = useState(false);
     const [removedPaths, setRemovedPaths] = useState<Set<string>>(new Set());
 
     // Watermark removal review state
     const [watermarkTarget, setWatermarkTarget] = useState<ImagePair | null>(null);
     const [watermarkPreview, setWatermarkPreview] = useState<WatermarkPreview | null>(null);
     const [watermarkLoading, setWatermarkLoading] = useState(false);
-    const [watermarkSaving, setWatermarkSaving] = useState(false);
     const [watermarkError, setWatermarkError] = useState<string | null>(null);
     const [watermarkState, setWatermarkState] = useState<Record<string, ActionState>>({});
     const [watermarkDescription, setWatermarkDescription] = useState(
@@ -91,13 +152,29 @@ export default function ImageReviewGrid({
         return notDeleted.filter((p) => p.relativePath.toLowerCase().includes(q));
     }, [initialPairs, search, removedPaths]);
 
-    // Reset local UI state (focus, search, deletions) whenever the source
-    // changes, so stale state from the previous source's pairs doesn't linger.
+    // A new page of pairs loaded (or source switched) — reset all per-pair UI
+    // state tied to the previous set, revoking any blob URLs we created for
+    // optimistic previews first so we don't leak memory.
     useEffect(() => {
+        setEditedOverride((prevOverrides) => {
+            Object.values(prevOverrides).forEach((url) => {
+                if (objectUrlsRef.current.has(url)) {
+                    URL.revokeObjectURL(url);
+                    objectUrlsRef.current.delete(url);
+                }
+            });
+            return {};
+        });
         setFocusedIndex(0);
         setSearch("");
         setRemovedPaths(new Set());
-    }, [source]);
+        setRevertState({});
+        setCropState({});
+        setWatermarkState({});
+        setCacheBust({});
+        setPendingPaths(new Set());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialPairs]);
 
     function applySubfolderFilter() {
         const params = new URLSearchParams(searchParams.toString());
@@ -125,12 +202,25 @@ export default function ImageReviewGrid({
     // know which prefix pair a given relativePath belongs to — sending
     // relativePath alone is ambiguous. editedPath/backupPath are sent
     // alongside it so the routes can operate on exact storage paths directly.
-    // Your /api/admin/image-review/{revert,crop,remove-watermark} routes need
-    // to be updated to read editedPath/backupPath (or source) from the body
-    // instead of reconstructing paths from a hardcoded prefix constant.
+
+    // Every handler below follows the same shape: apply the visible change
+    // immediately (badge + image), fire the request in the background, and
+    // only touch the UI again if it actually fails — in which case we roll
+    // back the optimistic change and surface an error toast.
 
     async function handleRevert(pair: ImagePair) {
-        setRevertState((s) => ({ ...s, [pair.relativePath]: "working" }));
+        const rel = pair.relativePath;
+        if (pendingPaths.has(rel)) return;
+
+        // Optimistic: after a revert, the edited file's bytes become
+        // identical to the backup's — so showing backupUrl in its place is
+        // not a temporary stand-in, it's simply correct, and never goes
+        // stale since the backup itself doesn't change. No rollback-on-
+        // success needed, only on failure.
+        setOverride(rel, pair.backupUrl, false);
+        setRevertState((s) => ({ ...s, [rel]: "done" }));
+        markPending(rel);
+
         try {
             const idToken = await getIdToken();
             const res = await fetch("/api/admin/image-review/revert", {
@@ -138,7 +228,7 @@ export default function ImageReviewGrid({
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
                 body: JSON.stringify({
                     source,
-                    relativePath: pair.relativePath,
+                    relativePath: rel,
                     editedPath: pair.editedPath,
                     backupPath: pair.backupPath,
                 }),
@@ -147,17 +237,29 @@ export default function ImageReviewGrid({
                 const body = await res.json().catch(() => ({}));
                 throw new Error(body?.error || `Request failed (${res.status})`);
             }
-            setRevertState((s) => ({ ...s, [pair.relativePath]: "done" }));
-            setCacheBust((c) => ({ ...c, [pair.relativePath]: Date.now() }));
             toast.success(`Reverted ${pair.fileName}`);
         } catch (err: any) {
-            setRevertState((s) => ({ ...s, [pair.relativePath]: "error" }));
+            clearOverride(rel);
+            setRevertState((s) => ({ ...s, [rel]: "error" }));
             toast.error(err?.message || "Revert failed");
+        } finally {
+            clearPending(rel);
         }
     }
 
     async function handleCropSave(pair: ImagePair, blob: Blob, mimeType: string) {
-        setCropState((s) => ({ ...s, [pair.relativePath]: "working" }));
+        const rel = pair.relativePath;
+        if (pendingPaths.has(rel)) return;
+
+        // Optimistic: we already have the cropped bytes locally, so display
+        // them immediately via an object URL and close the modal right away
+        // rather than waiting on the upload.
+        const objectUrl = URL.createObjectURL(blob);
+        setOverride(rel, objectUrl, true);
+        setCropState((s) => ({ ...s, [rel]: "done" }));
+        setCropTarget(null);
+        markPending(rel);
+
         try {
             const idToken = await getIdToken();
             const imageBase64 = await blobToBase64(blob);
@@ -166,7 +268,7 @@ export default function ImageReviewGrid({
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
                 body: JSON.stringify({
                     source,
-                    relativePath: pair.relativePath,
+                    relativePath: rel,
                     editedPath: pair.editedPath,
                     backupPath: pair.backupPath,
                     imageBase64,
@@ -177,17 +279,20 @@ export default function ImageReviewGrid({
                 const body = await res.json().catch(() => ({}));
                 throw new Error(body?.error || `Request failed (${res.status})`);
             }
-            setCropState((s) => ({ ...s, [pair.relativePath]: "done" }));
-            setCacheBust((c) => ({ ...c, [pair.relativePath]: Date.now() }));
-            setCropTarget(null);
+            setCacheBust((c) => ({ ...c, [rel]: Date.now() }));
             toast.success(`Saved crop for ${pair.fileName}`);
         } catch (err: any) {
-            setCropState((s) => ({ ...s, [pair.relativePath]: "error" }));
+            clearOverride(rel);
+            setCropState((s) => ({ ...s, [rel]: "error" }));
             toast.error(err?.message || "Crop save failed");
+        } finally {
+            clearPending(rel);
         }
     }
 
     async function requestWatermarkPreview(pair: ImagePair) {
+        // Not optimistic — this is the Gemini call itself, there's no local
+        // result to show ahead of time.
         setWatermarkLoading(true);
         setWatermarkError(null);
         try {
@@ -225,7 +330,20 @@ export default function ImageReviewGrid({
 
     async function handleWatermarkKeep() {
         if (!watermarkTarget || !watermarkPreview) return;
-        setWatermarkSaving(true);
+        const rel = watermarkTarget.relativePath;
+        if (pendingPaths.has(rel)) return;
+
+        const pair = watermarkTarget;
+        const dataUrl = `data:${watermarkPreview.contentType};base64,${watermarkPreview.imageBase64}`;
+
+        // Optimistic: we already have the previewed result, so show it and
+        // close the modal immediately rather than waiting on the save.
+        setOverride(rel, dataUrl, false);
+        setWatermarkState((s) => ({ ...s, [rel]: "done" }));
+        setWatermarkTarget(null);
+        setWatermarkPreview(null);
+        markPending(rel);
+
         try {
             const idToken = await getIdToken();
             const res = await fetch("/api/admin/image-review/crop", {
@@ -233,9 +351,9 @@ export default function ImageReviewGrid({
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
                 body: JSON.stringify({
                     source,
-                    relativePath: watermarkTarget.relativePath,
-                    editedPath: watermarkTarget.editedPath,
-                    backupPath: watermarkTarget.backupPath,
+                    relativePath: rel,
+                    editedPath: pair.editedPath,
+                    backupPath: pair.backupPath,
                     imageBase64: watermarkPreview.imageBase64,
                     contentType: watermarkPreview.contentType,
                     editType: "watermark_removal",
@@ -245,21 +363,30 @@ export default function ImageReviewGrid({
                 const body = await res.json().catch(() => ({}));
                 throw new Error(body?.error || `Request failed (${res.status})`);
             }
-            setWatermarkState((s) => ({ ...s, [watermarkTarget.relativePath]: "done" }));
-            setCacheBust((c) => ({ ...c, [watermarkTarget.relativePath]: Date.now() }));
-            toast.success(`Watermark removed for ${watermarkTarget.fileName}`);
-            setWatermarkTarget(null);
-            setWatermarkPreview(null);
+            setCacheBust((c) => ({ ...c, [rel]: Date.now() }));
+            toast.success(`Watermark removed for ${pair.fileName}`);
         } catch (err: any) {
-            setWatermarkError(err?.message || "Save failed");
+            clearOverride(rel);
+            setWatermarkState((s) => ({ ...s, [rel]: "error" }));
+            toast.error(err?.message || "Save failed");
         } finally {
-            setWatermarkSaving(false);
+            clearPending(rel);
         }
     }
 
     async function handleDeleteConfirm() {
         if (!deleteTarget) return;
-        setDeleteWorking(true);
+        const rel = deleteTarget.relativePath;
+        if (pendingPaths.has(rel)) return;
+
+        const pair = deleteTarget;
+
+        // Optimistic: drop it from the visible grid immediately and close
+        // the confirm dialog right away.
+        setRemovedPaths((prev) => new Set(prev).add(rel));
+        setDeleteTarget(null);
+        markPending(rel);
+
         try {
             const idToken = await getIdToken();
             const res = await fetch("/api/admin/image-review/delete", {
@@ -267,22 +394,26 @@ export default function ImageReviewGrid({
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
                 body: JSON.stringify({
                     source,
-                    relativePath: deleteTarget.relativePath,
-                    editedPath: deleteTarget.editedPath,
-                    backupPath: deleteTarget.backupPath,
+                    relativePath: rel,
+                    editedPath: pair.editedPath,
+                    backupPath: pair.backupPath,
                 }),
             });
             if (!res.ok) {
                 const body = await res.json().catch(() => ({}));
                 throw new Error(body?.error || `Request failed (${res.status})`);
             }
-            setRemovedPaths((prev) => new Set(prev).add(deleteTarget.relativePath));
-            toast.success(`Deleted ${deleteTarget.fileName}`);
-            setDeleteTarget(null);
+            toast.success(`Deleted ${pair.fileName}`);
         } catch (err: any) {
+            // Roll back — bring the card back into the grid.
+            setRemovedPaths((prev) => {
+                const next = new Set(prev);
+                next.delete(rel);
+                return next;
+            });
             toast.error(err?.message || "Delete failed");
         } finally {
-            setDeleteWorking(false);
+            clearPending(rel);
         }
     }
 
@@ -322,10 +453,10 @@ export default function ImageReviewGrid({
                 // The delete confirmation dialog owns Escape/Enter while open.
                 if (e.key === "Escape") {
                     e.preventDefault();
-                    if (!deleteWorking) setDeleteTarget(null);
+                    setDeleteTarget(null);
                 } else if (e.key === "Enter") {
                     e.preventDefault();
-                    if (!deleteWorking) handleDeleteConfirm();
+                    handleDeleteConfirm();
                 }
                 return;
             }
@@ -377,12 +508,22 @@ export default function ImageReviewGrid({
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filteredPairs, focusedIndex, cropTarget, watermarkTarget, deleteTarget, deleteWorking]);
+    }, [filteredPairs, focusedIndex, cropTarget, watermarkTarget, deleteTarget, pendingPaths]);
 
     // Keep the focused card scrolled into view as focus moves via keyboard.
     useEffect(() => {
         cardRefs.current[focusedIndex]?.scrollIntoView({ block: "center", behavior: "smooth" });
     }, [focusedIndex]);
+
+    // Resolves the URL to display for a pair's "Current (edited)" panel: a
+    // local optimistic override if one exists, otherwise the remote URL
+    // (cache-busted if we've saved since page load).
+    function resolveEditedSrc(pair: ImagePair): string {
+        const override = editedOverride[pair.relativePath];
+        if (override) return override;
+        const bust = cacheBust[pair.relativePath];
+        return bust ? `${pair.editedUrl}&_=${bust}` : pair.editedUrl;
+    }
 
     return (
         <div>
@@ -436,8 +577,12 @@ export default function ImageReviewGrid({
                     const rState = revertState[pair.relativePath] ?? "idle";
                     const cState = cropState[pair.relativePath] ?? "idle";
                     const wState = watermarkState[pair.relativePath] ?? "idle";
-                    const bust = cacheBust[pair.relativePath];
-                    const editedSrc = bust ? `${pair.editedUrl}&_=${bust}` : pair.editedUrl;
+                    const editedSrc = resolveEditedSrc(pair);
+                    // While any save is in flight for this pair, buttons are
+                    // disabled — not because the UI is waiting on it (the
+                    // badge/image already updated), but to avoid a second
+                    // overlapping write racing the first on the same file.
+                    const isSyncing = pendingPaths.has(pair.relativePath);
 
                     return (
                         <div
@@ -458,6 +603,7 @@ export default function ImageReviewGrid({
                                     {cState === "done" && <Badge variant="secondary">Cropped</Badge>}
                                     {cState === "error" && <Badge variant="destructive">Crop failed</Badge>}
                                     {wState === "done" && <Badge variant="secondary">Watermark removed</Badge>}
+                                    {wState === "error" && <Badge variant="destructive">Watermark save failed</Badge>}
                                 </div>
                             </div>
 
@@ -486,7 +632,7 @@ export default function ImageReviewGrid({
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    disabled={cState === "working"}
+                                    disabled={isSyncing}
                                     onClick={() => setCropTarget(pair)}
                                 >
                                     Crop
@@ -494,6 +640,7 @@ export default function ImageReviewGrid({
                                 <Button
                                     size="sm"
                                     variant="outline"
+                                    disabled={isSyncing}
                                     onClick={() => openWatermarkModal(pair)}
                                 >
                                     Remove Watermark
@@ -501,14 +648,15 @@ export default function ImageReviewGrid({
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    disabled={rState === "working"}
+                                    disabled={isSyncing}
                                     onClick={() => handleRevert(pair)}
                                 >
-                                    {rState === "working" ? "Reverting..." : "Revert to original"}
+                                    Revert to original
                                 </Button>
                                 <Button
                                     size="sm"
                                     variant="outline"
+                                    disabled={isSyncing}
                                     className="text-destructive hover:text-destructive"
                                     onClick={() => setDeleteTarget(pair)}
                                 >
@@ -523,13 +671,9 @@ export default function ImageReviewGrid({
 
             {cropTarget && (
                 <CropModal
-                    imageUrl={
-                        cacheBust[cropTarget.relativePath]
-                            ? `${cropTarget.editedUrl}&_=${cacheBust[cropTarget.relativePath]}`
-                            : cropTarget.editedUrl
-                    }
+                    imageUrl={resolveEditedSrc(cropTarget)}
                     fileName={cropTarget.fileName}
-                    saving={(cropState[cropTarget.relativePath] ?? "idle") === "working"}
+                    saving={false}
                     onCancel={() => setCropTarget(null)}
                     onSave={(blob, mimeType) => handleCropSave(cropTarget, blob, mimeType)}
                 />
@@ -537,15 +681,15 @@ export default function ImageReviewGrid({
 
             {watermarkTarget && (
                 <WatermarkModal
-                    originalUrl={proxied(
-                        cacheBust[watermarkTarget.relativePath]
-                            ? `${watermarkTarget.editedUrl}&_=${cacheBust[watermarkTarget.relativePath]}`
-                            : watermarkTarget.editedUrl
-                    )}
+                    originalUrl={
+                        editedOverride[watermarkTarget.relativePath]
+                            ? editedOverride[watermarkTarget.relativePath] // already local (blob:/data:), no proxy needed
+                            : proxied(resolveEditedSrc(watermarkTarget))
+                    }
                     fileName={watermarkTarget.fileName}
                     preview={watermarkPreview}
                     loading={watermarkLoading}
-                    saving={watermarkSaving}
+                    saving={false}
                     error={watermarkError}
                     description={watermarkDescription}
                     onDescriptionChange={setWatermarkDescription}
@@ -571,19 +715,11 @@ export default function ImageReviewGrid({
                             This cannot be undone — unlike revert, there will be no backup left to restore from.
                         </p>
                         <div className="flex justify-end gap-2">
-                            <Button
-                                variant="ghost"
-                                onClick={() => setDeleteTarget(null)}
-                                disabled={deleteWorking}
-                            >
+                            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
                                 Cancel
                             </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleDeleteConfirm}
-                                disabled={deleteWorking}
-                            >
-                                {deleteWorking ? "Deleting..." : "Delete permanently"}
+                            <Button variant="destructive" onClick={handleDeleteConfirm}>
+                                Delete permanently
                             </Button>
                         </div>
                     </div>
