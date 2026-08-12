@@ -7,7 +7,7 @@ import { firebase } from "@/lib/firebase"; // adjust to your existing client ini
 import { Button } from "@/app/components/ui/button";
 import { Badge } from "@/app/components/ui/badge";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import CropModal from "./CropModal";
 import WatermarkModal from "./WatermarkModal";
 import type { ImageSource } from "@/lib/imageReview";
@@ -44,10 +44,14 @@ export default function ImageReviewGrid({
                                             initialPairs,
                                             initialSubfolder,
                                             source,
+                                            page,
+                                            totalPages,
                                         }: {
     initialPairs: ImagePair[];
     initialSubfolder: string;
     source: ImageSource;
+    page: number;
+    totalPages: number;
 }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -476,11 +480,11 @@ export default function ImageReviewGrid({
                     break;
                 case "arrowleft":
                     e.preventDefault();
-                    goToPage(-1);
+                    if (!isPending) goToPage(-1);
                     break;
                 case "arrowright":
                     e.preventDefault();
-                    goToPage(1);
+                    if (!isPending) goToPage(1);
                     break;
                 case "r":
                     if (pair) handleRevert(pair);
@@ -508,7 +512,7 @@ export default function ImageReviewGrid({
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filteredPairs, focusedIndex, cropTarget, watermarkTarget, deleteTarget, pendingPaths]);
+    }, [filteredPairs, focusedIndex, cropTarget, watermarkTarget, deleteTarget, pendingPaths, isPending]);
 
     // Keep the focused card scrolled into view as focus moves via keyboard.
     useEffect(() => {
@@ -577,101 +581,152 @@ export default function ImageReviewGrid({
                 <p className="text-sm text-muted-foreground">No matching pairs found.</p>
             )}
 
-            <div className="grid grid-cols-1 gap-6">
-                {filteredPairs.map((pair, index) => {
-                    const rState = revertState[pair.relativePath] ?? "idle";
-                    const cState = cropState[pair.relativePath] ?? "idle";
-                    const wState = watermarkState[pair.relativePath] ?? "idle";
-                    const editedSrc = resolveEditedSrc(pair);
-                    // While any save is in flight for this pair, buttons are
-                    // disabled — not because the UI is waiting on it (the
-                    // badge/image already updated), but to avoid a second
-                    // overlapping write racing the first on the same file.
-                    const isSyncing = pendingPaths.has(pair.relativePath);
-
-                    return (
-                        <div
-                            key={pair.relativePath}
-                            ref={(el) => {
-                                cardRefs.current[index] = el;
-                            }}
-                            onClick={() => setFocusedIndex(index)}
-                            className={`border rounded-lg p-4 transition-shadow ${
-                                index === focusedIndex ? "ring-2 ring-primary" : ""
-                            }`}
-                        >
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="text-sm font-medium truncate">{pair.relativePath}</div>
-                                <div className="flex gap-2">
-                                    {rState === "done" && <Badge variant="secondary">Reverted</Badge>}
-                                    {rState === "error" && <Badge variant="destructive">Revert failed</Badge>}
-                                    {cState === "done" && <Badge variant="secondary">Cropped</Badge>}
-                                    {cState === "error" && <Badge variant="destructive">Crop failed</Badge>}
-                                    {wState === "done" && <Badge variant="secondary">Watermark removed</Badge>}
-                                    {wState === "error" && <Badge variant="destructive">Watermark save failed</Badge>}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <div className="text-xs text-muted-foreground mb-1">Original (backup)</div>
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={pair.backupUrl}
-                                        alt={`${pair.fileName} original`}
-                                        className="w-full h-64 object-contain bg-muted rounded"
-                                    />
-                                </div>
-                                <div>
-                                    <div className="text-xs text-muted-foreground mb-1">Current (edited)</div>
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={editedSrc}
-                                        alt={`${pair.fileName} current`}
-                                        className="w-full h-64 object-contain bg-muted rounded"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="mt-3 flex justify-end gap-2">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={isSyncing}
-                                    onClick={() => setCropTarget(pair)}
-                                >
-                                    Crop
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={isSyncing}
-                                    onClick={() => openWatermarkModal(pair)}
-                                >
-                                    Remove Watermark
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={isSyncing}
-                                    onClick={() => handleRevert(pair)}
-                                >
-                                    Revert to original
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={isSyncing}
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => setDeleteTarget(pair)}
-                                >
-                                    <Trash2 className="h-3.5 w-3.5 mr-1" />
-                                    Delete
-                                </Button>
-                            </div>
+            {/*
+              relative + the overlay below give instant feedback for
+              client-side page turns (arrow keys, Prev/Next buttons, subfolder
+              Apply) — all of which go through goToPage/applySubfolderFilter's
+              startTransition, reflected here via isPending. The grid content
+              stays mounted underneath (just dimmed) rather than being
+              replaced, so scroll position and focus aren't lost between
+              pages.
+            */}
+            <div className="relative">
+                {isPending && (
+                    <div className="absolute inset-0 z-40 bg-background/60 backdrop-blur-[1px] flex items-start justify-center pt-24 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background border rounded-full px-4 py-2 shadow-sm">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading…
                         </div>
-                    );
-                })}
+                    </div>
+                )}
+
+                <div className={`grid grid-cols-1 gap-6 transition-opacity ${isPending ? "opacity-60" : ""}`}>
+                    {filteredPairs.map((pair, index) => {
+                        const rState = revertState[pair.relativePath] ?? "idle";
+                        const cState = cropState[pair.relativePath] ?? "idle";
+                        const wState = watermarkState[pair.relativePath] ?? "idle";
+                        const editedSrc = resolveEditedSrc(pair);
+                        // While any save is in flight for this pair, buttons are
+                        // disabled — not because the UI is waiting on it (the
+                        // badge/image already updated), but to avoid a second
+                        // overlapping write racing the first on the same file.
+                        const isSyncing = pendingPaths.has(pair.relativePath);
+
+                        return (
+                            <div
+                                key={pair.relativePath}
+                                ref={(el) => {
+                                    cardRefs.current[index] = el;
+                                }}
+                                onClick={() => setFocusedIndex(index)}
+                                className={`border rounded-lg p-4 transition-shadow ${
+                                    index === focusedIndex ? "ring-2 ring-primary" : ""
+                                }`}
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="text-sm font-medium truncate">{pair.relativePath}</div>
+                                    <div className="flex gap-2">
+                                        {rState === "done" && <Badge variant="secondary">Reverted</Badge>}
+                                        {rState === "error" && <Badge variant="destructive">Revert failed</Badge>}
+                                        {cState === "done" && <Badge variant="secondary">Cropped</Badge>}
+                                        {cState === "error" && <Badge variant="destructive">Crop failed</Badge>}
+                                        {wState === "done" && <Badge variant="secondary">Watermark removed</Badge>}
+                                        {wState === "error" && <Badge variant="destructive">Watermark save failed</Badge>}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <div className="text-xs text-muted-foreground mb-1">Original (backup)</div>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={pair.backupUrl}
+                                            alt={`${pair.fileName} original`}
+                                            className="w-full h-64 object-contain bg-muted rounded"
+                                        />
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-muted-foreground mb-1">Current (edited)</div>
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={editedSrc}
+                                            alt={`${pair.fileName} current`}
+                                            className="w-full h-64 object-contain bg-muted rounded"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mt-3 flex justify-end gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isSyncing}
+                                        onClick={() => setCropTarget(pair)}
+                                    >
+                                        Crop
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isSyncing}
+                                        onClick={() => openWatermarkModal(pair)}
+                                    >
+                                        Remove Watermark
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isSyncing}
+                                        onClick={() => handleRevert(pair)}
+                                    >
+                                        Revert to original
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={isSyncing}
+                                        className="text-destructive hover:text-destructive"
+                                        onClick={() => setDeleteTarget(pair)}
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                        Delete
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between mt-8">
+                {page > 1 ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isPending}
+                        onClick={() => goToPage(-1)}
+                    >
+                        ← Previous
+                    </Button>
+                ) : (
+                    <span />
+                )}
+                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                    {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    Page {page} of {totalPages}
+                </span>
+                {page < totalPages ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isPending}
+                        onClick={() => goToPage(1)}
+                    >
+                        Next →
+                    </Button>
+                ) : (
+                    <span />
+                )}
             </div>
 
             {cropTarget && (

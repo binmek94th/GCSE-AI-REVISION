@@ -62,37 +62,20 @@ export default async function ImageReviewPage({
                 {totalPages}.
             </p>
 
+            {/*
+              Pagination controls live inside ImageReviewGrid now rather than
+              as plain <Link>s here. That lets Previous/Next share the same
+              client-side transition (and loading indicator) as the keyboard
+              arrow shortcuts and the subfolder filter, instead of being a
+              separate full-page navigation with no visible feedback.
+            */}
             <ImageReviewGrid
                 initialPairs={pairs}
                 initialSubfolder={subfolder ?? ""}
                 source={source}
+                page={page}
+                totalPages={totalPages}
             />
-
-            <div className="flex items-center justify-between mt-8">
-                {page > 1 ? (
-                    <Link
-                        href={buildHref(source, subfolder, page - 1)}
-                        className="text-sm px-3 py-1.5 border rounded hover:bg-muted"
-                    >
-                        ← Previous
-                    </Link>
-                ) : (
-                    <span />
-                )}
-                <span className="text-sm text-muted-foreground">
-          Page {page} of {totalPages}
-        </span>
-                {page < totalPages ? (
-                    <Link
-                        href={buildHref(source, subfolder, page + 1)}
-                        className="text-sm px-3 py-1.5 border rounded hover:bg-muted"
-                    >
-                        Next →
-                    </Link>
-                ) : (
-                    <span />
-                )}
-            </div>
         </div>
     );
 }
