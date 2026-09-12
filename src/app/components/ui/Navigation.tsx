@@ -51,7 +51,7 @@ export function Navigation({ currentPage }: NavigationProps) {
 
     const pathname = usePathname();
 
-    const showNavigation = ["/oauth-callback/login", "/oauth-callback/register", '/onboarding', "/subjects", "/subscribe", "/support", "/"].includes(pathname);
+    const showNavigation = ["/auth/login", "/auth/register", "/oauth-callback/login", "/oauth-callback/register", '/onboarding', "/subjects", "/subscribe", "/support", "/"].includes(pathname);
 
     if (!showNavigation) return null;
 
@@ -86,7 +86,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleNavigate('/oauth-callback/login')}
+                                onClick={() => handleNavigate('/auth/login')}
                                 className="text-text-muted hover:text-primary hover:cursor-pointer"
                             >
                                 <User className="w-4 h-4 mr-2" />
@@ -94,7 +94,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                             </Button>
                             <Button
                                 size="sm"
-                                onClick={() => handleNavigate('/oauth-callback/register')}
+                                onClick={() => handleNavigate('/auth/register')}
                                 className="bg-primary hover:bg-primary-dark ml-2 px-6 rounded-xl hover:cursor-pointer"
                             >
                                 Get Started
