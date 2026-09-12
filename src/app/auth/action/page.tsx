@@ -82,7 +82,7 @@ function AuthActionInner() {
             setTimeout(() => router.push('/dashboard'), 1500);
 
         } catch (err: any) {
-            if (err.code === 'auth/too-many-requests') {
+            if (err.code === 'oauth-callback/too-many-requests') {
                 setStatus(
                     'Password reset successfully, but your account is temporarily locked by Firebase. ' +
                     'Please wait a few minutes then log in.'

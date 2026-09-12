@@ -40,8 +40,8 @@ const MONTHLY_UPLOAD_LIMIT = 5;
 const MAX_FILE_SIZE_MB = 10;
 
 const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
-    gcse_foundation: 'GCSE Foundation',
-    gcse_higher: 'GCSE Higher',
+    gcse_foundation: 'GCSE/IGCSE Foundation',
+    gcse_higher: 'GCSE/IGCSE Higher',
     a_level: 'A Level',
 };
 

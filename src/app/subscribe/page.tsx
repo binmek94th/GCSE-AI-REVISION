@@ -121,7 +121,7 @@ function BuyTokenComponent() {
                         Unlock {pkg.name}
                     </h1>
                     <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem', lineHeight: 1.6 }}>
-                        Everything you need to ace your GCSEs — study materials, AI tutoring, and past papers.
+                        Everything you need to ace your GCSEs/IGCSEs — study materials, AI tutoring, and past papers.
                     </p>
                 </div>
 

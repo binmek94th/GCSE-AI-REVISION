@@ -52,20 +52,20 @@ const emailToDocId = (email: string) => email.toLowerCase().replace(/\./g, '_dot
 
 const getFriendlyAuthError = (errorCode: string): string => {
     switch (errorCode) {
-        case 'auth/invalid-email':
+        case 'oauth-callback/invalid-email':
             return 'Invalid email address. Please check and try again.';
-        case 'auth/user-disabled':
+        case 'oauth-callback/user-disabled':
             return 'This account has been disabled. Contact support.';
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-        case 'auth/request-had-invalid-authentication-credentials':
+        case 'oauth-callback/user-not-found':
+        case 'oauth-callback/wrong-password':
+        case 'oauth-callback/invalid-credential':
+        case 'oauth-callback/request-had-invalid-authentication-credentials':
             return 'Incorrect email or password. Please try again.';
-        case 'auth/too-many-requests':
+        case 'oauth-callback/too-many-requests':
             return 'Too many failed attempts. Please try again later.';
-        case 'auth/network-request-failed':
+        case 'oauth-callback/network-request-failed':
             return 'Network error. Please check your connection.';
-        case 'auth/missing-password':
+        case 'oauth-callback/missing-password':
             return 'Password is required.';
         default:
             return 'Something went wrong. Please try again.';
@@ -331,10 +331,10 @@ export default function LoginPage() {
         } catch (err: any) {
             // Wrong credentials — increment attempt counter
             const isCredentialError = [
-                'auth/wrong-password',
-                'auth/user-not-found',
-                'auth/invalid-credential',
-                'auth/request-had-invalid-authentication-credentials',
+                'oauth-callback/wrong-password',
+                'oauth-callback/user-not-found',
+                'oauth-callback/invalid-credential',
+                'oauth-callback/request-had-invalid-authentication-credentials',
             ].includes(err.code);
 
             if (isCredentialError) {

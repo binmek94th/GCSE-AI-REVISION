@@ -87,7 +87,7 @@ export function PlannerResults({ onNavigate, onBuyPack }: PlannerResultsProps) {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <TrendingUp className="w-6 h-6 text-primary" />
-                                    Your GCSE Readiness Score
+                                    Your GCSE/IGCSE Readiness Score
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>

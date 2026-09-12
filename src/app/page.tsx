@@ -81,8 +81,8 @@ function HomePage() {
     const experts = [
         {
             name: 'Sarah K.',
-            role: 'GCSE Maths Reviewer',
-            bio: '12 years teaching GCSE Maths',
+            role: 'GCSE/IGCSE Maths Reviewer',
+            bio: '12 years teaching GCSE/IGCSE Maths',
         },
         {
             name: 'James T.',
@@ -96,7 +96,7 @@ function HomePage() {
         },
         {
             name: 'Daniel R.',
-            role: 'GCSE Chemistry Reviewer',
+            role: 'GCSE/IGCSE Chemistry Reviewer',
             bio: 'Experienced subject teacher focused on exam technique',
         },
         {
@@ -106,7 +106,7 @@ function HomePage() {
         },
         {
             name: 'Marcus B.',
-            role: 'GCSE Physics Reviewer',
+            role: 'GCSE/IGCSE Physics Reviewer',
             bio: 'Physics teacher with strong focus on problem-solving and exam confidence',
         },
     ];
@@ -117,8 +117,8 @@ function HomePage() {
             a: 'StudyCedo combines premium revision content with a personalised study path, weak-area focus, quizzes, mocks, and AI support all in one system tailored to your exam board.',
         },
         {
-            q: 'Is it for GCSE and A Level?',
-            a: 'Yes. StudyCedo is built for secondary students and supports both GCSE and A Level study.',
+            q: 'Is it for GCSE/IGCSE and A Level?',
+            a: 'Yes. StudyCedo is built for secondary students and supports both GCSE/IGCSE and A Level study.',
         },
         {
             q: 'Can I try it for free?',
@@ -142,6 +142,10 @@ function HomePage() {
         router.push(url);
     };
 
+    const scrollToSection = (id: string) => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white overflow-x-hidden" style={{ fontFamily: 'system-ui, sans-serif' }}>
 
@@ -162,7 +166,7 @@ function HomePage() {
                             transition={{ delay: 0.2, duration: 0.6 }}
                             className="text-purple-600 font-medium tracking-wide uppercase text-xs sm:text-sm"
                         >
-                            GCSE &amp; A Level, personalised by AI
+                            GCSE/IGCSE &amp; A Level, personalised by AI
                         </motion.p>
 
                         <motion.h1
@@ -209,7 +213,7 @@ function HomePage() {
                                 className="w-full cursor-pointer sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-white text-purple-600 rounded-full font-semibold hover:bg-gray-50 transition-colors border-2 border-purple-200 text-sm sm:text-base"
                                 onClick={() => {
                                     setActiveTab('plan');
-                                    document.getElementById('plan-section')?.scrollIntoView({ behavior: 'smooth' });
+                                    scrollToSection('plan-section');
                                 }}
                             >
                                 See How It Works
@@ -241,7 +245,7 @@ function HomePage() {
                             <div className="space-y-3">
                                 <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
                                     <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0" />
-                                    <span className="text-sm text-gray-900">GCSE Maths: Quadratic Equations</span>
+                                    <span className="text-sm text-gray-900">GCSE/IGCSE Maths: Quadratic Equations</span>
                                 </div>
                                 <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
                                     <div className="w-2 h-2 bg-purple-600 rounded-full flex-shrink-0" />
@@ -306,7 +310,7 @@ function HomePage() {
                         </div>
                         <div className="space-y-2">
                             {[
-                                { color: 'bg-blue-600', text: 'GCSE Maths: Quadratic Equations', bg: 'bg-blue-50' },
+                                { color: 'bg-blue-600', text: 'GCSE/IGCSE Maths: Quadratic Equations', bg: 'bg-blue-50' },
                                 { color: 'bg-purple-600', text: 'Biology: Cell Structure Review', bg: 'bg-purple-50' },
                             ].map((item, i) => (
                                 <div key={i} className={`flex items-center gap-3 p-3 ${item.bg} rounded-xl`}>
@@ -334,7 +338,7 @@ function HomePage() {
                     {/* 2-col on mobile, 3-col on sm, 5-col on md */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 sm:gap-6 text-center">
                         {[
-                            { icon: GraduationCap, label: 'GCSE & A Level support' },
+                            { icon: GraduationCap, label: 'GCSE/IGCSE & A Level support' },
                             { icon: CheckCircle2, label: 'Teacher-reviewed content' },
                             { icon: Target, label: 'Personalised study plans' },
                             { icon: Sparkles, label: 'AI tutor, quizzes & mocks' },
@@ -399,7 +403,7 @@ function HomePage() {
             </section>
 
             {/* ── ADAPTIVE USP ── */}
-            <section className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-b from-white to-blue-50">
+            <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-b from-white to-blue-50">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center space-y-4 mb-10 sm:mb-16">
                         <motion.h2
@@ -472,7 +476,7 @@ function HomePage() {
             </section>
 
             {/* ── HOW IT WORKS ── */}
-            <section className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-b from-blue-50 to-white">
+            <section id="how-it-works" className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-b from-blue-50 to-white">
                 <div className="max-w-6xl mx-auto">
                     <motion.h2
                         initial={{ opacity: 0, y: 20 }}
@@ -612,7 +616,7 @@ function HomePage() {
                                         <span className="text-xs sm:text-sm text-gray-500">3 topics</span>
                                     </div>
                                     <div className="space-y-2">
-                                        {['GCSE Maths: Quadratic Equations', 'Biology: Cell Structure', 'Chemistry: Periodic Table'].map((t, i) => (
+                                        {['GCSE/IGCSE Maths: Quadratic Equations', 'Biology: Cell Structure', 'Chemistry: Periodic Table'].map((t, i) => (
                                             <div key={i} className="p-3 bg-white rounded-lg text-xs sm:text-sm text-gray-900">{t}</div>
                                         ))}
                                     </div>
@@ -682,7 +686,7 @@ function HomePage() {
                                 <p className="text-gray-600 text-sm sm:text-base">See how your confidence and readiness improve over time.</p>
                                 <div className="space-y-5 sm:space-y-6">
                                     {[
-                                        { label: 'GCSE Maths', pct: 72 },
+                                        { label: 'GCSE/IGCSE Maths', pct: 72 },
                                         { label: 'Biology', pct: 65 },
                                         { label: 'Chemistry', pct: 48 },
                                     ].map((item, i) => (
@@ -770,7 +774,7 @@ function HomePage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
                         {[
                             { quote: "It finally told me what to revise instead of giving me more random stuff.", author: 'Year 11 student' },
-                            { quote: 'The weak-area feature made it obvious where I was losing marks.', author: 'GCSE Maths student' },
+                            { quote: 'The weak-area feature made it obvious where I was losing marks.', author: 'GCSE/IGCSE Maths student' },
                             { quote: 'It gave my daughter structure, which was the biggest thing missing.', author: 'Parent of Year 11 student' },
                         ].map((t, i) => (
                             <motion.div
@@ -1036,7 +1040,7 @@ function HomePage() {
                                 <h3 className="text-xl sm:text-2xl font-bold text-white">StudyCedo</h3>
                             </div>
                             <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
-                                StudyCedo helps GCSE and A Level students revise with premium content, personalised study paths, and AI support built around how they learn.
+                                StudyCedo helps GCSE/IGCSE and A Level students revise with premium content, personalised study paths, and AI support built around how they learn.
                             </p>
                             <div className="flex gap-3 sm:gap-4 pt-2 sm:pt-4">
                                 {[Facebook, Twitter, Instagram, Linkedin].map((Icon, i) => (
@@ -1051,12 +1055,36 @@ function HomePage() {
                             </div>
                         </div>
 
-                        {/* Product */}
+                        {/* Product — now links to real sections on this page instead of dead "#" anchors */}
                         <div className="col-span-1">
                             <h4 className="font-semibold text-white mb-3 sm:mb-4 text-sm sm:text-base">Product</h4>
                             <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                                {['Features', 'How it works', 'AI Tutor', 'Study Plans'].map((l, i) => (
-                                    <li key={i}><a href="#" className="hover:text-white transition-colors">{l}</a></li>
+                                {[
+                                    { label: 'Features', action: () => scrollToSection('features') },
+                                    { label: 'How it works', action: () => scrollToSection('how-it-works') },
+                                    {
+                                        label: 'AI Tutor',
+                                        action: () => {
+                                            setActiveTab('tutor');
+                                            scrollToSection('plan-section');
+                                        },
+                                    },
+                                    {
+                                        label: 'Study Plans',
+                                        action: () => {
+                                            setActiveTab('plan');
+                                            scrollToSection('plan-section');
+                                        },
+                                    },
+                                ].map((l, i) => (
+                                    <li key={i}>
+                                        <button
+                                            onClick={l.action}
+                                            className="cursor-pointer text-left hover:text-white transition-colors"
+                                        >
+                                            {l.label}
+                                        </button>
+                                    </li>
                                 ))}
                             </ul>
                         </div>
@@ -1065,7 +1093,7 @@ function HomePage() {
                         <div className="col-span-1">
                             <h4 className="font-semibold text-white mb-3 sm:mb-4 text-sm sm:text-base">Subjects</h4>
                             <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
-                                {['GCSE Maths', 'GCSE Science', 'A Level Maths', 'View all subjects'].map((l, i) => (
+                                {['GCSE/IGCSE Maths', 'GCSE/IGCSE Science', 'A Level Maths', 'View all subjects'].map((l, i) => (
                                     <li key={i}><a href="/subjects" className="hover:text-white transition-colors">{l}</a></li>
                                 ))}
                             </ul>

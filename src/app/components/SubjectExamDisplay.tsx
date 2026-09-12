@@ -14,6 +14,13 @@ type ExamItem = {
 const LEVELS = ["GCSE", "A-Level"] as const;
 type Level = typeof LEVELS[number];
 
+// Display-only labels — the underlying values above stay as "GCSE"/"A-Level"
+// since they're matched against each exam item's `level` field.
+const LEVEL_LABELS: Record<Level, string> = {
+    "GCSE": "GCSE/IGCSE",
+    "A-Level": "A-Level",
+};
+
 export default function SubjectExamDisplay({ initialPacks }: { initialPacks: ExamItem[] }) {
     const [selectedLevel, setSelectedLevel] = useState<Level>("GCSE");
     const [selectedBoard, setSelectedBoard] = useState<string>("all");
@@ -82,7 +89,7 @@ export default function SubjectExamDisplay({ initialPacks }: { initialPacks: Exa
                     </div>
                     <div className="flex-1">
                         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-                            {selectedLevel} Exam Subjects
+                            {LEVEL_LABELS[selectedLevel]} Exam Subjects
                         </h1>
                         <p className="text-slate-500 mt-1">
                             {sortedSubjects.length} subject{sortedSubjects.length === 1 ? "" : "s"}
@@ -110,7 +117,7 @@ export default function SubjectExamDisplay({ initialPacks }: { initialPacks: Exa
                                                     : "text-slate-500 hover:text-slate-700"
                                             }`}
                                         >
-                                            {level}
+                                            {LEVEL_LABELS[level]}
                                         </button>
                                     );
                                 })}

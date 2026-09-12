@@ -212,10 +212,10 @@ function SubjectsHub({ onNavigate }: SubjectsHubProps) {
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl md:text-4xl font-bold text-text-main mb-4">
-                        GCSE Subject Packs
+                        GCSE/IGCSE Subject Packs
                     </h1>
                     <p className="text-xl text-text-muted max-w-3xl">
-                        Comprehensive revision materials for every GCSE subject. Pay once, keep forever.
+                        Comprehensive revision materials for every GCSE/IGCSE subject. Pay once, keep forever.
                     </p>
                 </div>
 

@@ -437,7 +437,7 @@ export default function ProfilePage() {
                                     <SelectContent>
                                         <SelectGroup>
                                             <SelectLabel>Levels</SelectLabel>
-                                            <SelectItem value="GCSE">GCSE</SelectItem>
+                                            <SelectItem value="GCSE">GCSE/IGCSE</SelectItem>
                                             <SelectItem value="A-Level">A-Level</SelectItem>
                                         </SelectGroup>
                                     </SelectContent>

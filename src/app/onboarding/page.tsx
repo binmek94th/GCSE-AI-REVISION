@@ -179,7 +179,7 @@ function OnBoarding() {
     const levelOptions = [
         {
             value: 'GCSE',
-            title: 'GCSE',
+            title: 'GCSE/IGCSE',
             subtitle: 'Years 9–11 · Grades 9–1',
             Icon: BookOpen,
         },

@@ -51,7 +51,7 @@ export function Navigation({ currentPage }: NavigationProps) {
 
     const pathname = usePathname();
 
-    const showNavigation = ["/auth/login", "/auth/register", '/onboarding', "/subjects", "/subscribe", "/support", "/"].includes(pathname);
+    const showNavigation = ["/oauth-callback/login", "/oauth-callback/register", '/onboarding', "/subjects", "/subscribe", "/support", "/"].includes(pathname);
 
     if (!showNavigation) return null;
 
@@ -86,7 +86,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleNavigate('/auth/login')}
+                                onClick={() => handleNavigate('/oauth-callback/login')}
                                 className="text-text-muted hover:text-primary hover:cursor-pointer"
                             >
                                 <User className="w-4 h-4 mr-2" />
@@ -94,7 +94,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                             </Button>
                             <Button
                                 size="sm"
-                                onClick={() => handleNavigate('/auth/register')}
+                                onClick={() => handleNavigate('/oauth-callback/register')}
                                 className="bg-primary hover:bg-primary-dark ml-2 px-6 rounded-xl hover:cursor-pointer"
                             >
                                 Get Started
@@ -148,7 +148,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                                     ))}
                                     <div className="h-px bg-border my-4"></div>
                                     <Button
-                                        onClick={() => handleNavigate('/auth/login')}
+                                        onClick={() => handleNavigate('/oauth-callback/login')}
                                         className="justify-start"
                                         variant="ghost"
                                     >

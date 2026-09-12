@@ -69,7 +69,7 @@ export default function TutorSignupPage() {
                 // a tutor role to it. If it fails, fall through to the
                 // generic error below without ever confirming the email
                 // is taken.
-                if (code === 'auth/email-already-in-use') {
+                if (code === 'oauth-callback/email-already-in-use') {
                     const signInCred = await signInWithEmailAndPassword(auth, email, password);
                     idToken = await signInCred.user.getIdToken();
                     emailVerified = signInCred.user.emailVerified;
