@@ -3,13 +3,15 @@
 import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, Timestamp } from "@firebase/firestore";
+import GoogleIcon from '@/app/components/GoogleIcon';
+import { Loader2 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -77,6 +79,22 @@ const formatCountdown = (ms: number): string => {
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
+// Kept separate from getFriendlyAuthError above (which has its own, unrelated
+// "oauth-callback/..." prefix mismatch left as-is) so Google's own error
+// codes get an accurate message.
+const getGoogleErrorMessage = (errorCode: string): string => {
+    switch (errorCode) {
+        case 'auth/account-exists-with-different-credential':
+            return 'An account already exists with this email using a different sign-in method. Log in with your password instead.';
+        case 'auth/popup-blocked':
+            return 'Your browser blocked the Google sign-in popup. Please allow popups for this site and try again.';
+        case 'auth/network-request-failed':
+            return 'Network error. Please check your connection.';
+        default:
+            return 'Google sign-in failed. Please try again.';
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -172,6 +190,7 @@ export default function LoginPage() {
     // Login state
     const [error, setError] = useState<string | null>(null);
     const [isLocked, setIsLocked] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [lockoutRemaining, setLockoutRemaining] = useState(0);
 
     // Forgot-password state — two steps: 'email' -> 'code'
@@ -288,6 +307,62 @@ export default function LoginPage() {
         await deleteDoc(ref).catch(() => {}); // non-fatal
     }, [getAttemptDoc]);
 
+    // If they'd taken the free assessment as a guest and then tried to
+    // register (with email/password OR Google) using an email that already
+    // had a real account, that page couldn't attach the guest session
+    // directly — bring its data over now that they're logged in to the
+    // real one. Shared by both sign-in paths below.
+    const mergePendingGuestIfAny = async (idToken: string) => {
+        try {
+            const pendingGuestUid = localStorage.getItem('pendingMergeGuestUid');
+            if (!pendingGuestUid) return;
+            await fetch('/api/onboarding/merge-anonymous', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+                body: JSON.stringify({ guestUid: pendingGuestUid }),
+            });
+            localStorage.removeItem('pendingMergeGuestUid');
+        } catch (mergeErr) {
+            console.error('Guest data merge failed:', mergeErr);
+            // Non-fatal — worst case they redo the free assessment.
+        }
+    };
+
+    // Where to send them once they're authenticated — same rule either way:
+    // no profile doc yet -> finish registering; doc but no onboarding -> the
+    // assessment; otherwise -> the dashboard.
+    const routeAfterAuth = async (uid: string) => {
+        const userDocSnap = await getDoc(doc(db, 'users', uid));
+        if (!userDocSnap.exists()) {
+            router.push('/auth/register');
+            return;
+        }
+        const userData = userDocSnap.data();
+        router.push(userData?.onboardingComplete ? '/dashboard' : '/onboarding');
+    };
+
+    // ---------------------------------------------------------------------------
+    // Google sign-in
+    // ---------------------------------------------------------------------------
+    const handleGoogleLogin = async () => {
+        setError(null);
+        setGoogleLoading(true);
+        try {
+            const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+            const idToken = await cred.user.getIdToken();
+            await mergePendingGuestIfAny(idToken);
+            await routeAfterAuth(cred.user.uid);
+        } catch (err: any) {
+            const code = err?.code ?? '';
+            if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+                return; // they just closed the popup — not an error worth showing
+            }
+            setError(getGoogleErrorMessage(code));
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
     // ---------------------------------------------------------------------------
     // Login submit
     // ---------------------------------------------------------------------------
@@ -308,25 +383,8 @@ export default function LoginPage() {
             // Success — clear any previous attempt record
             await clearAttempts(data.email);
 
-            // If they'd taken the free assessment as a guest and then tried
-            // to register with an email that already had an account, the
-            // register page couldn't attach that guest session directly —
-            // bring its data over now that they're logged in to the real one.
-            try {
-                const pendingGuestUid = localStorage.getItem('pendingMergeGuestUid');
-                if (pendingGuestUid) {
-                    const idToken = await userCredential.user.getIdToken();
-                    await fetch('/api/onboarding/merge-anonymous', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-                        body: JSON.stringify({ guestUid: pendingGuestUid }),
-                    });
-                    localStorage.removeItem('pendingMergeGuestUid');
-                }
-            } catch (mergeErr) {
-                console.error('Guest data merge failed:', mergeErr);
-                // Non-fatal — worst case they redo the free assessment.
-            }
+            const idToken = await userCredential.user.getIdToken();
+            await mergePendingGuestIfAny(idToken);
 
             if (!userCredential.user.emailVerified) {
                 router.push('/verify-email');
@@ -534,6 +592,26 @@ export default function LoginPage() {
                         {isSubmitting ? 'Logging in…' : 'Login'}
                     </Button>
                 </form>
+
+                <div className="flex items-center gap-3 my-4">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-xs text-muted-foreground">or</span>
+                    <div className="h-px flex-1 bg-border" />
+                </div>
+
+                <Button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={googleLoading || isLocked}
+                    className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 border border-border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {googleLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                        <GoogleIcon className="w-4 h-4" />
+                    )}
+                    Continue with Google
+                </Button>
 
                 <p className="mt-4 text-sm text-muted-foreground">
                     Don&#39;t have an account?{' '}
