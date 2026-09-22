@@ -190,11 +190,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Subscription tier
+    // Guests taking the free assessment are signed in anonymously and won't
+    // have a `users/{uid}` doc yet — treat that as the free tier rather than
+    // rejecting the request, instead of requiring a full account up front.
     const userSnap = await admin.firestore().collection("users").doc(uid).get();
-    if (!userSnap.exists) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-    const userData = userSnap.data()!;
+    const userData = userSnap.exists ? userSnap.data()! : {};
     const isPro = userData.subscriptionStatus === "active";
 
     // 3. Rate limit

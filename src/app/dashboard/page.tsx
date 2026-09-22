@@ -107,12 +107,15 @@ function Dashboard() {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             console.log(currentUser);
             if (!currentUser) { router.push("/auth/login"); return; }
-            if (!currentUser.emailVerified) { router.push("/verify-email"); return; }
+            // Guests from the free assessment are signed in anonymously and
+            // have no email to verify — let them preview the dashboard.
+            if (!currentUser.isAnonymous && !currentUser.emailVerified) { router.push("/verify-email"); return; }
 
             const userRef = doc(db, "users", currentUser.uid);
             const userSnap = await getDoc(userRef);
-            if (!(userSnap.data() as any).onboardingComplete) {
+            if (!(userSnap.data() as any)?.onboardingComplete) {
                 router.push("/onboarding");
+                return;
             }
 
             const token = await currentUser.getIdToken();

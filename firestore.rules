@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /study_packs/{packId} {
+      allow read: if true;
+      allow write: if false; // only Admin SDK (server/pipelines) can write
+    }
+
+    match /packages/{packageId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /users/{userId} {
+      // Was `if request.auth != null` — any signed-in user (including an
+      // anonymous session) could read or overwrite ANY user's doc, not just
+      // their own. Scoped to the owning uid, matching the subcollections
+      // below. This is what makes it safe for anonymous free-assessment
+      // guests to write their own doc without being able to touch anyone
+      // else's.
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /subscriptions/{subId} {
+        // Only ever written by Admin SDK (Stripe webhook, cancel/resume
+        // routes) — no client code writes here. Client can read its own
+        // subscription status; writes are server-only so nobody can grant
+        // themselves Pro by writing to this doc directly.
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      match /generationLimits/{dateKey} {
+    		allow read, write: if request.auth != null && request.auth.uid == userId;
+  		}
+    }
+
+    match /users_login_attempts/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // NOTE: no client code writes here — the app's actual rate limiting uses
+    // users/{uid}/generationLimits, which the Admin SDK writes to (Admin SDK
+    // bypasses rules entirely, so it doesn't need a client-facing rule at
+    // all). This top-level collection looks like leftover/legacy and is
+    // currently open to read+write from anyone, authenticated or not.
+    // Locked down; restore the old `if true` here if something client-side
+    // does turn out to depend on it.
+    match /generationLimits/{dateKey} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    match /user_generated_materials/{docId} {
+      allow create: if true;
+
+      allow read, update, delete: if request.auth != null;
+    }
+
+  }
+}

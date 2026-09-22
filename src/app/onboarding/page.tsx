@@ -1,11 +1,13 @@
 'use client'
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CheckCircle, ArrowLeft, ArrowRight, Clock, Target, GraduationCap, BookOpen } from 'lucide-react';
 import { EXAM_DATA } from "@/app/onboarding/exam_data";
 import Quiz from "@/app/onboarding/Question";
 import { QuizResultSuggestion, SubjectSelection } from "@/app/onboarding/Schema";
 import { auth, db } from "@/lib/firebase";
-import { doc, setDoc } from "@firebase/firestore";
+import { doc, getDoc, setDoc } from "@firebase/firestore";
+import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
+import EmailGate from "@/app/onboarding/EmailGate";
 import { QuizSuggestionsDisplay } from "@/app/onboarding/StudyPlanSuggestion";
 import {A_Level_EXAM_DATA} from "@/app/onboarding/a-levelExamData";
 
@@ -40,6 +42,53 @@ function OnBoarding() {
         examBoard: "AQA",
         level: "GCSE"
     });
+
+    // Guests take the free assessment without creating an account: we sign
+    // them in anonymously so the existing quiz-submit flow (which needs a
+    // Firebase uid) works unchanged, then only ask for an email right before
+    // revealing the result. If they later register, linking that email to
+    // this same anonymous uid keeps all of this data with zero migration.
+    const [authReady, setAuthReady] = useState(false);
+    const [emailCaptured, setEmailCaptured] = useState(false);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                try {
+                    await signInAnonymously(auth);
+                } catch (err) {
+                    console.error("Anonymous sign-in failed:", err);
+                    setAuthReady(true); // let them proceed; submit will just fail with a clear error
+                }
+                return; // onAuthStateChanged fires again once the anonymous user is set
+            }
+
+            if (!user.isAnonymous) {
+                setEmailCaptured(true); // real accounts always have an email already
+            } else {
+                try {
+                    const snap = await getDoc(doc(db, "users", user.uid));
+                    if (snap.exists() && snap.data()?.email) setEmailCaptured(true);
+                } catch (err) {
+                    console.error("Error checking guest email status:", err);
+                }
+            }
+            setAuthReady(true);
+        });
+        return unsubscribe;
+    }, []);
+
+    const handleEmailCaptured = async (email: string) => {
+        const user = auth.currentUser;
+        if (user) {
+            await setDoc(doc(db, "users", user.uid), {
+                email,
+                emailCapturedAt: new Date(),
+                leadSource: "free_assessment",
+            }, { merge: true });
+        }
+        setEmailCaptured(true);
+    };
 
     // Grade scale depends on the level chosen.
     const gradeOptions = level === 'A-Level'
@@ -151,6 +200,11 @@ function OnBoarding() {
                     subjects: selectedSubjects.subjects,
                     preferences,
                     onboardingComplete: true,
+                    accountType: user.isAnonymous ? "anonymous" : "permanent",
+                    // Saved here (not just kept in React state) so the result
+                    // survives a refresh and can be merged into a real account
+                    // later if this is a guest session.
+                    quizPlan: plan,
                     updatedAt: new Date(),
                 }, { merge: true });
             }
@@ -179,7 +233,7 @@ function OnBoarding() {
     const levelOptions = [
         {
             value: 'GCSE',
-            title: 'GCSE/IGCSE',
+            title: 'GCSE',
             subtitle: 'Years 9–11 · Grades 9–1',
             Icon: BookOpen,
         },
@@ -197,7 +251,11 @@ function OnBoarding() {
             backgroundColor: '#F8FAFC',
             colorScheme: 'light'
         }}>
-            {!level ? (
+            {!authReady ? (
+                <div className="max-w-3xl mx-auto px-4 py-10 sm:px-6">
+                    <p style={{ fontSize: 14, color: '#475569' }}>Loading…</p>
+                </div>
+            ) : !level ? (
                 /* Step 0 — Level selection */
                 <div className="max-w-3xl mx-auto px-4 py-10 sm:px-6">
                     <div style={{ marginBottom: 28 }}>
@@ -263,9 +321,13 @@ function OnBoarding() {
                         ))}
                     </div>
                 </div>
+            ) : plan && showPlan && !emailCaptured ? (
+                <div className="max-w-3xl mx-auto px-4 py-10 sm:px-6">
+                    <EmailGate onSubmit={handleEmailCaptured} />
+                </div>
             ) : plan && showPlan ? (
                 <div className="max-w-3xl mx-auto px-4 py-10 sm:px-6">
-                    <QuizSuggestionsDisplay data={plan} />
+                    <QuizSuggestionsDisplay data={plan} isGuest={auth.currentUser?.isAnonymous ?? false} />
                 </div>
             ) : (
                 <div className="max-w-3xl mx-auto px-4 py-10 sm:px-6">

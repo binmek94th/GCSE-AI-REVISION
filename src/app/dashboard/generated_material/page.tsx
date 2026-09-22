@@ -33,8 +33,8 @@ interface SavedMaterial {
 }
 
 const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
-    gcse_foundation: 'GCSE/IGCSE Foundation',
-    gcse_higher:     'GCSE/IGCSE Higher',
+    gcse_foundation: 'GCSE Foundation',
+    gcse_higher:     'GCSE Higher',
     a_level:         'A Level',
 };
 

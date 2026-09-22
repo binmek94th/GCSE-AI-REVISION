@@ -17,7 +17,7 @@ type Level = typeof LEVELS[number];
 // Display-only labels — the underlying values above stay as "GCSE"/"A-Level"
 // since they're matched against each exam item's `level` field.
 const LEVEL_LABELS: Record<Level, string> = {
-    "GCSE": "GCSE/IGCSE",
+    "GCSE": "GCSE",
     "A-Level": "A-Level",
 };
 

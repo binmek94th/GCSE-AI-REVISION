@@ -308,6 +308,26 @@ export default function LoginPage() {
             // Success — clear any previous attempt record
             await clearAttempts(data.email);
 
+            // If they'd taken the free assessment as a guest and then tried
+            // to register with an email that already had an account, the
+            // register page couldn't attach that guest session directly —
+            // bring its data over now that they're logged in to the real one.
+            try {
+                const pendingGuestUid = localStorage.getItem('pendingMergeGuestUid');
+                if (pendingGuestUid) {
+                    const idToken = await userCredential.user.getIdToken();
+                    await fetch('/api/onboarding/merge-anonymous', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+                        body: JSON.stringify({ guestUid: pendingGuestUid }),
+                    });
+                    localStorage.removeItem('pendingMergeGuestUid');
+                }
+            } catch (mergeErr) {
+                console.error('Guest data merge failed:', mergeErr);
+                // Non-fatal — worst case they redo the free assessment.
+            }
+
             if (!userCredential.user.emailVerified) {
                 router.push('/verify-email');
                 return;

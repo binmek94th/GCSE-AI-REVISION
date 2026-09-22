@@ -23,7 +23,9 @@ export default function DashboardLayout({
                 return;
             }
 
-            if (!user.emailVerified) {
+            // Guests from the free assessment are signed in anonymously and
+            // have no email to verify — let them preview the dashboard.
+            if (!user.isAnonymous && !user.emailVerified) {
                 router.replace('/verify-email');
                 return;
             }

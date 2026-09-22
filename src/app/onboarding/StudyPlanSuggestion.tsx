@@ -9,9 +9,12 @@ import { useRouter } from "next/navigation";
 interface Props {
     data: QuizResultSuggestion;
     onMaterialClick?: (materialId: string) => void;
+    // True when this result belongs to an anonymous guest session (no
+    // permanent account yet) — shows a CTA to save progress by registering.
+    isGuest?: boolean;
 }
 
-export function QuizSuggestionsDisplay({ data, onMaterialClick }: Props) {
+export function QuizSuggestionsDisplay({ data, onMaterialClick, isGuest = false }: Props) {
     const { suggestions, metadata } = data;
     const [selectedMaterial, setSelectedMaterial] = useState<any>(null);
     const router = useRouter();
@@ -422,6 +425,51 @@ export function QuizSuggestionsDisplay({ data, onMaterialClick }: Props) {
                     </div>
                 )}
 
+                {/* Guest CTA — their result exists only under an anonymous
+                    session at this point, so offer to save it to a real account */}
+                {isGuest && (
+                    <div style={{
+                        backgroundColor: '#F0F9FF',
+                        border: '1px solid #BAE6FD',
+                        borderRadius: 12,
+                        padding: '18px 20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 16,
+                        flexWrap: 'wrap'
+                    }}>
+                        <div>
+                            <p style={{ fontSize: 14, fontWeight: 600, color: '#0C4A6E', marginBottom: 2 }}>
+                                Save this plan to an account
+                            </p>
+                            <p style={{ fontSize: 13, color: '#0369A1' }}>
+                                Create a free account to keep this study plan and pick up where you left off on any device.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => router.push("/auth/register")}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '10px 20px',
+                                borderRadius: 8,
+                                border: 'none',
+                                backgroundColor: '#0EA5E9',
+                                color: '#FFFFFF',
+                                fontSize: 13,
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap'
+                            }}
+                        >
+                            Create free account
+                            <ArrowRight style={{ width: 14, height: 14 }} />
+                        </button>
+                    </div>
+                )}
+
                 {/* Continue button */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button
@@ -432,16 +480,16 @@ export function QuizSuggestionsDisplay({ data, onMaterialClick }: Props) {
                             gap: 8,
                             padding: '10px 24px',
                             borderRadius: 8,
-                            border: 'none',
-                            backgroundColor: '#0EA5E9',
-                            color: '#FFFFFF',
+                            border: isGuest ? '1px solid #E2E8F0' : 'none',
+                            backgroundColor: isGuest ? '#FFFFFF' : '#0EA5E9',
+                            color: isGuest ? '#0F172A' : '#FFFFFF',
                             fontSize: 14,
                             fontWeight: 500,
                             cursor: 'pointer',
                             transition: 'background-color 0.15s'
                         }}
                     >
-                        Go to dashboard
+                        {isGuest ? 'Continue without an account' : 'Go to dashboard'}
                         <ArrowRight style={{ width: 16, height: 16 }} />
                     </button>
                 </div>

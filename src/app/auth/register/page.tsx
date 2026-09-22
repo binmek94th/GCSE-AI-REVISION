@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from "@/app/components/ui/input";
@@ -32,17 +32,42 @@ const registerSchema = z.object({
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
+// Firebase's SDK usually wraps auth failures into a FirebaseError with a
+// clean `.code` like "auth/email-already-in-use". But some paths (we saw
+// this on `linkWithCredential`) surface the raw Identity Toolkit REST body
+// instead — e.g. `{"error":{"code":400,"message":"EMAIL_EXISTS",...}}` —
+// with no usable `.code` at all. This pulls a canonical code out of
+// whichever shape actually shows up, so the friendly-message switch below
+// always has something to match against.
+const normalizeAuthErrorCode = (err: any): string => {
+    if (typeof err?.code === "string" && err.code.startsWith("auth/")) {
+        return err.code;
+    }
+    const raw: string =
+        err?.customData?._tokenResponse?.error?.message ||
+        err?.error?.message ||
+        err?.message ||
+        "";
+    if (/EMAIL_EXISTS/i.test(raw)) return "auth/email-already-in-use";
+    if (/CREDENTIAL_ALREADY_IN_USE/i.test(raw)) return "auth/credential-already-in-use";
+    if (/INVALID_EMAIL/i.test(raw)) return "auth/invalid-email";
+    if (/WEAK_PASSWORD/i.test(raw)) return "auth/weak-password";
+    if (/TOO_MANY_ATTEMPTS_TRY_LATER/i.test(raw)) return "auth/too-many-requests";
+    return typeof err?.code === "string" ? err.code : raw;
+};
+
 const getFriendlyAuthError = (errorCode: string): string => {
     switch (errorCode) {
-        case "oauth-callback/email-already-in-use":
-            return "An account with this email already exists. Try logging in instead.";
-        case "oauth-callback/invalid-email":
+        case "auth/email-already-in-use":
+        case "auth/credential-already-in-use":
+            return "An account with this email already exists. We've saved your assessment result — log in to bring it over.";
+        case "auth/invalid-email":
             return "Invalid email address. Please check and try again.";
-        case "oauth-callback/weak-password":
+        case "auth/weak-password":
             return "Password is too weak. Please choose a stronger one.";
-        case "oauth-callback/network-request-failed":
+        case "auth/network-request-failed":
             return "Network error. Please check your connection.";
-        case "oauth-callback/too-many-requests":
+        case "auth/too-many-requests":
             return "Too many attempts. Please try again later.";
         default:
             return "Something went wrong. Please try again.";
@@ -147,13 +172,42 @@ function RegisterFormInner() {
 
         setError(null);
         try {
-            const userCred = await createUserWithEmailAndPassword(
-                auth,
-                data.email,
-                data.password
-            );
+            // If they took the free assessment first, they're already signed
+            // in anonymously. Linking that same uid to this email/password
+            // (instead of creating a brand-new account) keeps every bit of
+            // onboarding/quiz data already saved under it — no merge needed.
+            const anonymousUser = auth.currentUser?.isAnonymous ? auth.currentUser : null;
+            let userCred;
+            try {
+                userCred = anonymousUser
+                    ? await linkWithCredential(
+                        anonymousUser,
+                        EmailAuthProvider.credential(data.email, data.password)
+                    )
+                    : await createUserWithEmailAndPassword(auth, data.email, data.password);
+            } catch (linkErr: any) {
+                const linkErrCode = normalizeAuthErrorCode(linkErr);
+                if (
+                    anonymousUser &&
+                    (linkErrCode === "auth/email-already-in-use" || linkErrCode === "auth/credential-already-in-use")
+                ) {
+                    // A real account already exists with this email — we can't
+                    // attach the guest session to it here. Remember the guest
+                    // uid so the login page can merge its data in once they
+                    // sign in to that existing account.
+                    try {
+                        localStorage.setItem('pendingMergeGuestUid', anonymousUser.uid);
+                    } catch {
+                        // localStorage unavailable — merge simply won't happen; non-fatal
+                    }
+                }
+                throw linkErr;
+            }
 
-            const user = await setDoc(doc(db, "users", userCred.user.uid), {
+            // merge: true — an anonymous guest session already has onboarding
+            // fields (level, subjects, quizPlan, email, …) saved under this
+            // uid; a plain overwrite would wipe them out.
+            await setDoc(doc(db, "users", userCred.user.uid), {
                 username: data.username,
                 username_lowercase: data.username.toLowerCase().trim(),
                 parent_email: data.parent_email,
@@ -162,8 +216,9 @@ function RegisterFormInner() {
                 userType: "student",
                 createdAt: new Date(),
                 tokens: 1000,
-            });
-            localStorage.setItem('User', JSON.stringify(user));
+                accountType: "permanent",
+            }, { merge: true });
+            localStorage.setItem('User', JSON.stringify({ uid: userCred.user.uid, email: data.email }));
 
             const idToken = await userCred.user.getIdToken();
 
@@ -204,7 +259,7 @@ function RegisterFormInner() {
 
             router.push('/verify-email');
         } catch (err: any) {
-            setError(getFriendlyAuthError(err.code));
+            setError(getFriendlyAuthError(normalizeAuthErrorCode(err)));
         }
     };
 
