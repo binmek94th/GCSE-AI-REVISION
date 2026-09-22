@@ -241,7 +241,7 @@ function RegisterFormInner() {
             // verification link, just delivered through your own sender
             // domain/templates instead of Firebase's default email service.
             try {
-                const res = await fetch('/api/auth/send-verification-email', {
+                const res = await fetch('/api/auth/send-verification-code', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
                 });
