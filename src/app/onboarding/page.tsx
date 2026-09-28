@@ -1,26 +1,28 @@
 'use client'
 import { useEffect, useState } from 'react';
 import { CheckCircle, ArrowLeft, ArrowRight, Clock, Target, GraduationCap, BookOpen } from 'lucide-react';
-import { EXAM_DATA } from "@/app/onboarding/exam_data";
 import Quiz from "@/app/onboarding/Question";
 import { QuizResultSuggestion, SubjectSelection } from "@/app/onboarding/Schema";
 import { auth, db } from "@/lib/firebase";
-import { doc, getDoc, setDoc } from "@firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc } from "@firebase/firestore";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import EmailGate from "@/app/onboarding/EmailGate";
 import { QuizSuggestionsDisplay } from "@/app/onboarding/StudyPlanSuggestion";
-import {A_Level_EXAM_DATA} from "@/app/onboarding/a-levelExamData";
 
-// Shared shape across GCSE (tiered) and A-Level (untiered) datasets.
+// One entry per pack in the `study_packs` collection. That collection is the
+// source of truth for which level / exam board / subject / tier combinations
+// exist, so there is no separate static list to keep in sync.
 type ExamEntry = {
     exam_board: string;
     subject: string;
     level?: string;
-    tier?: string;
-    note?: string;
+    tier?: string; // undefined for untiered subjects
 };
 
-const ALL_EXAM_DATA: ExamEntry[] = [...EXAM_DATA, ...A_Level_EXAM_DATA];
+// study_packs marks untiered subjects with the literal string "Untiered".
+// The rest of onboarding treats "no tier" as an empty/undefined tier, so
+// normalise it once here.
+const isRealTier = (t?: string) => !!t && t.trim().toLowerCase() !== 'untiered';
 
 function OnBoarding() {
     const [currentStep, setCurrentStep] = useState(1);
@@ -50,6 +52,37 @@ function OnBoarding() {
     // this same anonymous uid keeps all of this data with zero migration.
     const [authReady, setAuthReady] = useState(false);
     const [emailCaptured, setEmailCaptured] = useState(false);
+
+    // Level / exam board / subject / tier options, loaded from `study_packs`
+    // (publicly readable, so this doesn't depend on the anonymous sign-in).
+    const [examData, setExamData] = useState<ExamEntry[]>([]);
+    const [examDataLoading, setExamDataLoading] = useState(true);
+    const [examDataError, setExamDataError] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const snap = await getDocs(collection(db, "study_packs"));
+                const entries: ExamEntry[] = snap.docs
+                    .map(d => d.data() as any)
+                    .filter(d => d.exam_board && d.subject && d.level)
+                    .map(d => ({
+                        exam_board: d.exam_board,
+                        subject: d.subject,
+                        level: d.level,
+                        tier: isRealTier(d.tier) ? d.tier : undefined,
+                    }));
+                if (!cancelled) setExamData(entries);
+            } catch (err) {
+                console.error("Error loading study packs:", err);
+                if (!cancelled) setExamDataError(true);
+            } finally {
+                if (!cancelled) setExamDataLoading(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -99,7 +132,7 @@ function OnBoarding() {
     const hoursOptions = ["1-5", "5-10", "10-15", "15-20", "20+"];
 
     // Everything below is derived from the dataset for the *currently selected* level.
-    const activeData = ALL_EXAM_DATA.filter(item => item.level === level);
+    const activeData = examData.filter(item => item.level === level);
 
     // Exam boards are no longer hardcoded — they come straight from the data for this level.
     const examBoards = Array.from(new Set(activeData.map(item => item.exam_board))).sort();
@@ -119,13 +152,13 @@ function OnBoarding() {
             activeData
                 .filter(item => item.subject === subject && item.exam_board === examBoard)
                 .map(item => item.tier)
-                .filter((t): t is string => Boolean(t))
+                .filter((t): t is string => isRealTier(t))
         ));
 
     // Pick a sensible exam board for a given level (keep current if it still exists).
     const firstBoardForLevel = (lvl: string) => {
         const boards = Array.from(new Set(
-            ALL_EXAM_DATA.filter(item => item.level === lvl).map(item => item.exam_board)
+            examData.filter(item => item.level === lvl).map(item => item.exam_board)
         )).sort();
         return boards.includes(globalExamBoard) ? globalExamBoard : (boards[0] ?? 'AQA');
     };
@@ -251,9 +284,15 @@ function OnBoarding() {
             backgroundColor: '#F8FAFC',
             colorScheme: 'light'
         }}>
-            {!authReady ? (
+            {!authReady || examDataLoading ? (
                 <div className="max-w-3xl mx-auto px-4 py-10 sm:px-6">
                     <p style={{ fontSize: 14, color: '#475569' }}>Loading…</p>
+                </div>
+            ) : examDataError || examData.length === 0 ? (
+                <div className="max-w-3xl mx-auto px-4 py-10 sm:px-6">
+                    <p style={{ fontSize: 14, color: '#475569' }}>
+                        We couldn&#39;t load the subject list. Please refresh the page and try again.
+                    </p>
                 </div>
             ) : !level ? (
                 /* Step 0 — Level selection */
