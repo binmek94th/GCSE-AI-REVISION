@@ -46,35 +46,55 @@ export async function GET(request: NextRequest) {
         // Handle status filtering
         if (status && status !== 'all') {
             if (status === 'pending') {
-                // For pending, we need both explicitly pending and missing status.
-                const pendingSnapshot = await query.where('moderation_status', '==', 'pending').get();
-                const allSnapshot = await query.get();
+                // "Pending" means moderation_status is 'pending' OR missing
+                // entirely (older docs). Firestore can't query "field is
+                // missing", so we have to look at every doc — but we do it
+                // with ONE lightweight projection (only the few fields we
+                // need to filter + sort) instead of downloading the whole
+                // collection twice with all its question text, choices and
+                // explanations, which is what made this so slow.
+                const lightSnapshot = await query
+                    .select('subject', 'createdAt', 'created_at', 'moderation_status')
+                    .get();
 
-                const missingStatusDocs = allSnapshot.docs.filter(
-                    (doc) => !doc.data().moderation_status
+                const toMillis = (v: any): number =>
+                    typeof v?.toMillis === 'function' ? v.toMillis() : 0;
+
+                const pendingIndex = lightSnapshot.docs
+                    .map(doc => {
+                        const d = doc.data();
+                        return {
+                            ref: doc.ref,
+                            status: d.moderation_status as string | undefined,
+                            subject: String(d.subject || '').toLowerCase(),
+                            // A-Level docs use `createdAt`; older ones `created_at`.
+                            time: toMillis(d.createdAt) || toMillis(d.created_at),
+                        };
+                    })
+                    .filter(d => !d.status || d.status === 'pending');
+
+                // Subject A→Z, then most recent first — same order as before.
+                pendingIndex.sort((a, b) =>
+                    a.subject !== b.subject
+                        ? a.subject.localeCompare(b.subject)
+                        : b.time - a.time
                 );
 
-                // Combine + sort (most recent first) for consistent ordering.
-                const combinedDocs = [...pendingSnapshot.docs, ...missingStatusDocs];
-                combinedDocs.sort((a, b) => {
-                    const aSubject = (a.data().subject || '').toLowerCase();
-                    const bSubject = (b.data().subject || '').toLowerCase();
-                    if (aSubject !== bSubject) {
-                        return aSubject.localeCompare(bSubject);
-                    }
-                    const aTime = a.data().created_at?.toMillis() || 0;
-                    const bTime = b.data().created_at?.toMillis() || 0;
-                    return bTime - aTime;
-                });
-
-                const total = combinedDocs.length;
+                const total = pendingIndex.length;
                 const totalPages = Math.max(1, Math.ceil(total / limit));
-                const paginatedDocs = combinedDocs.slice(offset, offset + limit);
+                const pageRefs = pendingIndex.slice(offset, offset + limit).map(d => d.ref);
 
-                const questions = paginatedDocs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                }));
+                // Only the requested page is fetched in full.
+                const pageDocs = pageRefs.length
+                    ? await admin.firestore().getAll(...pageRefs)
+                    : [];
+
+                const questions = pageDocs
+                    .filter(doc => doc.exists)
+                    .map(doc => ({
+                        id: doc.id,
+                        ...doc.data(),
+                    }));
 
                 return NextResponse.json({
                     success: true,
