@@ -101,13 +101,24 @@ export async function GET(req: Request) {
             subjectsSnap.docs.map(async (subjectDoc) => {
                 const packId = subjectDoc.id;
                 const packData = subjectDoc.data();
-                const subjectName = packData?.subject ?? packId;
+
+                // The `subjects` doc's own `level`/`subject` fields are
+                // captured once at enroll time from the student's general
+                // preference (see /api/enroll-subject) — not necessarily
+                // this specific pack's own declared level, and they can
+                // drift if the student's preference changes later. Resolve
+                // the authoritative values from study_packs instead, the
+                // same way /api/quiz-results does; fall back to the
+                // subjects doc only if the pack itself can't be found.
+                const studyPackDoc = await admin.firestore().collection("study_packs").doc(packId).get();
+                const studyPackData = studyPackDoc.exists ? studyPackDoc.data() : null;
+                const subjectName = studyPackData?.subject ?? packData?.subject ?? packId;
+                const packLevel = studyPackData?.level ?? packData?.level;
 
                 // Only return mistakes matching the student's level.
                 // Fail-open: if either the student's level or the pack's
                 // level is missing, don't filter — avoids silently hiding
                 // mistakes due to incomplete data.
-                const packLevel = packData?.level;
                 if (level && packLevel && packLevel !== level) return;
 
                 const progressDoc = await admin
