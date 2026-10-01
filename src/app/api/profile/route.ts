@@ -64,19 +64,28 @@ export async function GET(req: Request) {
         const subjectProgress: { [subject: string]: { total: number; correct: number; accuracy: number } } = {};
 
         for (const subjectDoc of subjectsSnapshot.docs) {
-            const subjectName = subjectDoc.id; // this is the packId
+            const packId = subjectDoc.id;
             const subjectData = subjectDoc.data();
 
-            // ✅ Filter by level: look up the pack's level and skip if it
-            // doesn't match the student's level. Fail-open — if either the
-            // student's level or the pack's level is missing, don't filter,
-            // so progress is never silently hidden due to incomplete data.
-            const packDoc = await db.collection("study_packs").doc(subjectName).get();
-            console.log(packDoc.data())
-            console.log(level)
+            // Look up the pack's subject + level. Previously this grouped
+            // subjectProgress by the raw packId (e.g. "A_Level_AQA_Biology")
+            // instead of the actual subject — which meant
+            // dashboard/plan/page.tsx's findQuizStat (which looks for a key
+            // like "biology") could never match it: "A_Level_AQA_Biology"
+            // doesn't case-sensitively contain "biology" ('B' vs 'b'), so
+            // the Progress Overview card showed "Complete a quiz to unlock
+            // your readiness score" even with real quiz data recorded.
+            // Keying by the resolved, normalized subject name fixes the
+            // match and also merges packs of the same subject across
+            // different exam boards into one entry, which is what a
+            // "progress by subject" view should do anyway.
+            const packDoc = await db.collection("study_packs").doc(packId).get();
             const packLevel = packDoc.exists ? packDoc.data()?.level : undefined;
             if (level && packLevel && packLevel !== level)
                 continue;
+
+            const resolvedSubject: string = (packDoc.exists ? packDoc.data()?.subject : undefined) ?? packId;
+            const subjectKey = resolvedSubject.toLowerCase().replace(/\s+/g, '_');
 
             for (const [questionId, progressData] of Object.entries(subjectData)) {
                 if (typeof progressData === 'object' && progressData !== null) {
@@ -84,15 +93,15 @@ export async function GET(req: Request) {
                     totalQuestions++;
 
                     // Initialize subject tracking if needed
-                    if (!subjectProgress[subjectName]) {
-                        subjectProgress[subjectName] = { total: 0, correct: 0, accuracy: 0 };
+                    if (!subjectProgress[subjectKey]) {
+                        subjectProgress[subjectKey] = { total: 0, correct: 0, accuracy: 0 };
                     }
-                    subjectProgress[subjectName].total++;
+                    subjectProgress[subjectKey].total++;
 
                     // Check if answer was correct (using 'correct' field)
                     if (data.correct === true) {
                         correctAnswers++;
-                        subjectProgress[subjectName].correct++;
+                        subjectProgress[subjectKey].correct++;
                     }
 
                     // Track quiz sessions using quizId if available, or create session ID from timestamp
@@ -101,7 +110,7 @@ export async function GET(req: Request) {
                     } else if (data.answeredAt) {
                         // Group questions answered within 1 hour as a single quiz session
                         const timestamp = data.answeredAt.toDate ? data.answeredAt.toDate() : new Date(data.answeredAt);
-                        const sessionKey = `${subjectName}-${Math.floor(timestamp.getTime() / (60 * 60 * 1000))}`; // Hour-based grouping
+                        const sessionKey = `${packId}-${Math.floor(timestamp.getTime() / (60 * 60 * 1000))}`; // Hour-based grouping
                         quizSessions.add(sessionKey);
                     }
                 }
