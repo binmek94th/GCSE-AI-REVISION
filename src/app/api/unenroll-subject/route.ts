@@ -22,7 +22,16 @@ export async function POST(req: Request) {
             .doc(subjectId)
             .delete();
 
-        generateStudyPlanForUser(userId)
+        // Same fire-and-forget issue as enroll-subject: unawaited here
+        // meant it could be killed mid-run on a serverless deployment the
+        // moment the response below was sent. Awaited now; failures are
+        // logged, not turned into a 500, since the unenroll itself already
+        // succeeded above.
+        try {
+            await generateStudyPlanForUser(userId);
+        } catch (planError) {
+            console.error(`Study plan regeneration failed for user ${userId} after unenrolling from ${subjectId}:`, planError);
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

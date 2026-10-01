@@ -40,7 +40,22 @@ export async function POST(req: Request) {
             lastOpenedAt: admin.firestore.FieldValue.serverTimestamp(),
             ...(isNew && { enrolledAt: admin.firestore.FieldValue.serverTimestamp() }),
         }, { merge: true });
-        generateStudyPlanForUser(userId)
+
+        // Was previously fire-and-forget (not awaited). That's harmless on
+        // a long-lived local dev server, but on a serverless deployment the
+        // function's execution environment can be frozen/torn down the
+        // moment the response below is sent — killing this in-flight call
+        // (which makes an OpenAI request and several Firestore reads)
+        // before it ever finishes. Awaiting it keeps the function alive
+        // until the plan is actually written. Still non-fatal: enrollment
+        // itself already succeeded above, so a plan-generation failure is
+        // logged rather than turned into a 500 — the daily cron job
+        // (generateDailyStudyPlans) will pick it up as a fallback.
+        try {
+            await generateStudyPlanForUser(userId);
+        } catch (planError) {
+            console.error(`Study plan generation failed for user ${userId} after enrolling in ${subjectId}:`, planError);
+        }
 
         return NextResponse.json({ success: true, enrolled: isNew });
     } catch (error) {
