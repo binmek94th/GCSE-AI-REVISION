@@ -79,44 +79,29 @@ export async function GET(req: Request) {
         const userData = userDoc.data();
         const level = userData?.preferences?.level ?? userData?.level ?? null;
 
-        // 1. All question_progress sub-docs (one per subject/pack)
-        const progressSnap = await admin
+        // Mirrors /api/incorrect-questions' approach (which is known to find
+        // these correctly) instead of this route's own earlier logic, which
+        // scanned every question_progress doc regardless of ownership and
+        // re-resolved each pack's level via a separate study_packs lookup.
+        // Walking the user's own `subjects` subcollection — the same
+        // ownership source /api/incorrect-questions and /api/user/packs
+        // use — is simpler and already has each pack's level on hand.
+        const subjectsSnap = await admin
             .firestore()
             .collection("users")
             .doc(userId)
-            .collection("question_progress")
+            .collection("subjects")
             .get();
 
-        if (progressSnap.empty) return NextResponse.json({ questions: [] });
+        if (subjectsSnap.empty) return NextResponse.json({ questions: [] });
 
-        // 2. Collect incorrectly answered question IDs grouped by subjectId
-        const incorrectBySubject: Record<string, { questionId: string; userAnswer: string; answeredAt: string | null }[]> = {};
-
-        progressSnap.forEach((doc) => {
-            const subjectId = doc.id;
-            const data = doc.data() as Record<string, { correct: boolean; userAnswer: string; answeredAt: any }>;
-            Object.entries(data).forEach(([questionId, entry]) => {
-                if (entry.correct === false) {
-                    if (!incorrectBySubject[subjectId]) incorrectBySubject[subjectId] = [];
-                    incorrectBySubject[subjectId].push({
-                        questionId,
-                        userAnswer: entry.userAnswer ?? '',
-                        answeredAt: entry.answeredAt?.toDate?.()?.toISOString() ?? null,
-                    });
-                }
-            });
-        });
-
-        if (Object.keys(incorrectBySubject).length === 0) return NextResponse.json({ questions: [] });
-
-        // 3. Fetch question docs & resolve subject names
         const results: any[] = [];
 
         await Promise.all(
-            Object.entries(incorrectBySubject).map(async ([subjectId, wrongAnswers]) => {
-                const packDoc = await admin.firestore().collection("study_packs").doc(subjectId).get();
-                const packData = packDoc.exists ? packDoc.data() : null;
-                const subjectName = packData?.subject ?? subjectId;
+            subjectsSnap.docs.map(async (subjectDoc) => {
+                const packId = subjectDoc.id;
+                const packData = subjectDoc.data();
+                const subjectName = packData?.subject ?? packId;
 
                 // Only return mistakes matching the student's level.
                 // Fail-open: if either the student's level or the pack's
@@ -124,6 +109,27 @@ export async function GET(req: Request) {
                 // mistakes due to incomplete data.
                 const packLevel = packData?.level;
                 if (level && packLevel && packLevel !== level) return;
+
+                const progressDoc = await admin
+                    .firestore()
+                    .collection("users")
+                    .doc(userId)
+                    .collection("question_progress")
+                    .doc(packId)
+                    .get();
+
+                if (!progressDoc.exists) return;
+                const progressData = progressDoc.data() as Record<string, { correct: boolean; userAnswer: string; answeredAt: any }>;
+
+                const wrongAnswers = Object.entries(progressData)
+                    .filter(([, entry]) => entry.correct === false)
+                    .map(([questionId, entry]) => ({
+                        questionId,
+                        userAnswer: entry.userAnswer ?? '',
+                        answeredAt: entry.answeredAt?.toDate?.()?.toISOString() ?? null,
+                    }));
+
+                if (wrongAnswers.length === 0) return;
 
                 const isALevel = packLevel === 'A-Level' || packLevel === 'alevel' || packLevel === 'a-level';
                 const questionsCollection = isALevel ? 'a-levelExamQuestions' : 'questions';
@@ -142,7 +148,7 @@ export async function GET(req: Request) {
 
                         results.push({
                             id: questionId,
-                            subjectId,
+                            subjectId: packId,
                             subject: subjectName,
                             question: normalized.question,
                             options: normalized.options,

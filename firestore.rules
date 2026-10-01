@@ -33,6 +33,17 @@ service cloud.firestore {
       match /generationLimits/{dateKey} {
     		allow read, write: if request.auth != null && request.auth.uid == userId;
   		}
+
+      // Written directly by the client in MaterialQuizModal (the
+      // per-material quiz) — every other writer (Quizzes tab, Mock Exam,
+      // Retry Failed) goes through the Admin SDK server-side and bypasses
+      // rules entirely, so only this one path needs a client-facing rule.
+      // This was missing entirely before, so MaterialQuizModal's answers
+      // were silently rejected by Firestore (denied by default — rules
+      // don't cascade to subcollections with no matching rule of their own).
+      match /question_progress/{packId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     match /users_login_attempts/{docId} {
