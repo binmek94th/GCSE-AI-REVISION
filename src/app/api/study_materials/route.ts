@@ -319,7 +319,13 @@ export async function POST(req: Request) {
 
         progressDocs.forEach((doc) => {
             const data = doc.data();
-            totalCompleted += Object.values(data).filter((v) => v === true).length;
+            // Same shape as above: each entry is {done: true, completedAt},
+            // not a plain boolean — `=== true` never matched it, so this
+            // count (and the "First Steps" badge below) never triggered
+            // correctly either.
+            totalCompleted += Object.values(data).filter(
+                (v) => v === true || (typeof v === 'object' && v !== null && (v as any).done === true)
+            ).length;
         });
 
         const newBadges = [...currentBadges];

@@ -86,8 +86,17 @@ export async function GET(request: NextRequest) {
             // against materials that actually exist (avoids stale progress keys)
             const validMaterialIds = new Set(materialsSnapshot.docs.map(d => d.id));
 
+            // /api/study_materials' POST writes each entry as
+            // {materialId: {done: true, completedAt}}, not a plain boolean —
+            // this was checking `=== true`, which an object never satisfies,
+            // so finishedMaterialIds was always empty and "Materials" showed
+            // 0%/"Not started" no matter how much was actually completed.
+            // Also accepts a literal `true` for any older/other callers.
+            const isMaterialDone = (value: unknown): boolean =>
+                value === true || (typeof value === 'object' && value !== null && (value as any).done === true);
+
             const finishedMaterialIds = Object.keys(progressData).filter(
-                key => progressData[key] === true && validMaterialIds.has(key)
+                key => isMaterialDone(progressData[key]) && validMaterialIds.has(key)
             );
             const finishedCount = finishedMaterialIds.length;
 
