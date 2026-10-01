@@ -65,7 +65,7 @@ function daysUntil(date: Date | null): number {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SubscriptionContent() {
-    const { isLoading, hasAccess, subscription, refresh } = useSubscriptionGate();
+    const { isLoading, hasAccess, isTrialing, trialDaysRemaining, subscription, refresh } = useSubscriptionGate();
     const [canceling, setCanceling] = useState(false);
     const [resuming, setResuming]   = useState(false);
     const router = useRouter();
@@ -150,7 +150,41 @@ export default function SubscriptionContent() {
         );
     }
 
-    const sub = subscription!;
+    const sub = subscription;
+
+    // ── On the free trial, no Stripe subscription exists yet ───────────────────
+    // hasAccess can be true purely from the trial window (see
+    // useSubscriptionGate), so this has its own branch rather than assuming a
+    // Stripe subscription object is always present once hasAccess is true.
+    if (!sub) {
+        return (
+            <div className="bg-bg-subtle py-8">
+                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <Card className="border-2 border-dashed">
+                        <CardContent className="p-12 text-center">
+                            <Crown className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                            <h2 className="text-2xl font-bold text-text-main mb-2">
+                                {isTrialing ? "You're on a free trial" : 'No Active Subscription'}
+                            </h2>
+                            <p className="text-text-muted mb-6 max-w-md mx-auto">
+                                {isTrialing
+                                    ? `You have full access for ${trialDaysRemaining} more day${trialDaysRemaining !== 1 ? 's' : ''}. Subscribe any time to keep it after your trial ends.`
+                                    : 'Subscribe to unlock unlimited AI tutoring, quizzes, study plans, and all premium study resources.'}
+                            </p>
+                            <Button
+                                size="lg"
+                                onClick={() => router.push('/subscribe')}
+                                className="bg-primary hover:bg-primary-dark"
+                            >
+                                View Subscription Plans
+                                <ChevronRight className="w-4 h-4 ml-2" />
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-bg-subtle py-8">
