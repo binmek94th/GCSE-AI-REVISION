@@ -21,7 +21,10 @@ export function Navigation({ currentPage }: NavigationProps) {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
+            // Anonymous sessions (free-assessment guests) aren't a real,
+            // logged-in account — treat them the same as signed-out here so
+            // the nav shows Login/Get Started instead of Dashboard/Logout.
+            setUser(currentUser && !currentUser.isAnonymous ? currentUser : null);
         });
         return () => unsubscribe();
     }, []);
@@ -82,24 +85,24 @@ export function Navigation({ currentPage }: NavigationProps) {
                         ))}
                         <div className="w-px h-6 bg-border mx-2"></div>
                         { !user ?
-                        <div>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleNavigate('/auth/login')}
-                                className="text-text-muted hover:text-primary hover:cursor-pointer"
-                            >
-                                <User className="w-4 h-4 mr-2" />
-                                Login
-                            </Button>
-                            <Button
-                                size="sm"
-                                onClick={() => handleNavigate('/auth/register')}
-                                className="bg-primary hover:bg-primary-dark ml-2 px-6 rounded-xl hover:cursor-pointer"
-                            >
-                                Get Started
-                            </Button>
-                        </div> :
+                            <div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleNavigate('/auth/login')}
+                                    className="text-text-muted hover:text-primary hover:cursor-pointer"
+                                >
+                                    <User className="w-4 h-4 mr-2" />
+                                    Login
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={() => handleNavigate('/auth/register')}
+                                    className="bg-primary hover:bg-primary-dark ml-2 px-6 rounded-xl hover:cursor-pointer"
+                                >
+                                    Get Started
+                                </Button>
+                            </div> :
                             <div className={"flex gap-3"}>
                                 <Button className={"hover:cursor-pointer"} onClick={() => handleNavigate("/dashboard")} variant={"default"}>
                                     Dashboard

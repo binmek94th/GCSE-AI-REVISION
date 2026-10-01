@@ -425,74 +425,67 @@ export function QuizSuggestionsDisplay({ data, onMaterialClick, isGuest = false 
                     </div>
                 )}
 
-                {/* Guest CTA — their result exists only under an anonymous
-                    session at this point, so offer to save it to a real account */}
-                {isGuest && (
+                {/* Guests must create an account to continue — their result
+                    exists only under an anonymous session at this point. */}
+                {isGuest ? (
                     <div style={{
                         backgroundColor: '#F0F9FF',
                         border: '1px solid #BAE6FD',
                         borderRadius: 12,
-                        padding: '18px 20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: 16,
-                        flexWrap: 'wrap'
+                        padding: '20px 22px',
+                        textAlign: 'center'
                     }}>
-                        <div>
-                            <p style={{ fontSize: 14, fontWeight: 600, color: '#0C4A6E', marginBottom: 2 }}>
-                                Save this plan to an account
-                            </p>
-                            <p style={{ fontSize: 13, color: '#0369A1' }}>
-                                Create a free account to keep this study plan and pick up where you left off on any device.
-                            </p>
-                        </div>
+                        <p style={{ fontSize: 15, fontWeight: 600, color: '#0C4A6E', marginBottom: 4 }}>
+                            Create a free account to continue
+                        </p>
+                        <p style={{ fontSize: 13, color: '#0369A1', marginBottom: 16 }}>
+                            This saves your study plan and unlocks your dashboard — it only takes a minute.
+                        </p>
                         <button
                             onClick={() => router.push("/auth/register")}
                             style={{
-                                display: 'flex',
+                                display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 8,
-                                padding: '10px 20px',
+                                padding: '11px 26px',
                                 borderRadius: 8,
                                 border: 'none',
                                 backgroundColor: '#0EA5E9',
                                 color: '#FFFFFF',
-                                fontSize: 13,
+                                fontSize: 14,
                                 fontWeight: 500,
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap'
+                                cursor: 'pointer'
                             }}
                         >
                             Create free account
-                            <ArrowRight style={{ width: 14, height: 14 }} />
+                            <ArrowRight style={{ width: 16, height: 16 }} />
+                        </button>
+                    </div>
+                ) : (
+                    /* Continue button — only reachable by accounts that already exist */
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button
+                            onClick={() => router.push("/dashboard")}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '10px 24px',
+                                borderRadius: 8,
+                                border: 'none',
+                                backgroundColor: '#0EA5E9',
+                                color: '#FFFFFF',
+                                fontSize: 14,
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                transition: 'background-color 0.15s'
+                            }}
+                        >
+                            Go to dashboard
+                            <ArrowRight style={{ width: 16, height: 16 }} />
                         </button>
                     </div>
                 )}
-
-                {/* Continue button */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                        onClick={() => router.push("/dashboard")}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            padding: '10px 24px',
-                            borderRadius: 8,
-                            border: isGuest ? '1px solid #E2E8F0' : 'none',
-                            backgroundColor: isGuest ? '#FFFFFF' : '#0EA5E9',
-                            color: isGuest ? '#0F172A' : '#FFFFFF',
-                            fontSize: 14,
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            transition: 'background-color 0.15s'
-                        }}
-                    >
-                        {isGuest ? 'Continue without an account' : 'Go to dashboard'}
-                        <ArrowRight style={{ width: 16, height: 16 }} />
-                    </button>
-                </div>
             </div>
         </div>
     );

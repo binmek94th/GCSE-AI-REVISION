@@ -8,6 +8,7 @@ import { collection, doc, getDoc, getDocs, setDoc } from "@firebase/firestore";
 import { onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import EmailGate from "@/app/onboarding/EmailGate";
 import { QuizSuggestionsDisplay } from "@/app/onboarding/StudyPlanSuggestion";
+import Spinner from "../components/ui/Spinner";
 
 // One entry per pack in the `study_packs` collection. That collection is the
 // source of truth for which level / exam board / subject / tier combinations
@@ -286,7 +287,7 @@ function OnBoarding() {
         }}>
             {!authReady || examDataLoading ? (
                 <div className="max-w-3xl mx-auto px-4 py-10 sm:px-6">
-                    <p style={{ fontSize: 14, color: '#475569' }}>Loading…</p>
+                    <Spinner></Spinner>
                 </div>
             ) : examDataError || examData.length === 0 ? (
                 <div className="max-w-3xl mx-auto px-4 py-10 sm:px-6">

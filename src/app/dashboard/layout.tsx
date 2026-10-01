@@ -23,9 +23,14 @@ export default function DashboardLayout({
                 return;
             }
 
-            // Guests from the free assessment are signed in anonymously and
-            // have no email to verify — let them preview the dashboard.
-            if (!user.isAnonymous && !user.emailVerified) {
+            // Guests from the free assessment must create an account before
+            // they can use the dashboard.
+            if (user.isAnonymous) {
+                router.replace('/auth/register');
+                return;
+            }
+
+            if (!user.emailVerified) {
                 router.replace('/verify-email');
                 return;
             }
