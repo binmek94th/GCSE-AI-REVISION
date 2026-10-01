@@ -22,6 +22,28 @@ interface QuizComponentProps {
     onExit: () => void;
 }
 
+// Normalises options into a {key, value}[] list regardless of whether the
+// question stores them as an array of texts (keys assigned A, B, C…) or an
+// object map ({A: "...", B: "..."}).
+function getOptionList(options: Record<string, string> | string[]): { key: string; value: string }[] {
+    if (Array.isArray(options)) {
+        return options.map((value, idx) => ({ key: String.fromCharCode(65 + idx), value }));
+    }
+    return Object.entries(options).map(([key, value]) => ({ key, value }));
+}
+
+// `correctAnswer` on a question doc can be either the correct option's KEY
+// (older/legacy questions) or its full TEXT (questions written by the AI
+// generator script) — resolve either into the option key so a selected key
+// can always be compared against it directly.
+function resolveCorrectKey(options: Record<string, string> | string[], correctAnswer: string): string {
+    if (!Array.isArray(options) && Object.prototype.hasOwnProperty.call(options, correctAnswer)) {
+        return correctAnswer; // already a valid key
+    }
+    const match = getOptionList(options).find(o => o.value === correctAnswer);
+    return match ? match.key : correctAnswer; // fall back to whatever was stored
+}
+
 export function QuizComponent({ questions, packId, onComplete, onExit }: QuizComponentProps) {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -39,7 +61,10 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
     };
 
     const getOptionText = (question: Question, key: string): string => {
-        if (Array.isArray(question.options)) return key;
+        if (Array.isArray(question.options)) {
+            const idx = key.charCodeAt(0) - 65;
+            return question.options[idx] ?? key;
+        }
         return question.options[key] || key;
     };
 
@@ -51,7 +76,7 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
             setStreakUpdated(true);
         }
 
-        const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+        const isCorrect = selectedAnswer === resolveCorrectKey(currentQuestion.options, currentQuestion.correctAnswer);
         const selectedText = getOptionText(currentQuestion, selectedAnswer);
 
         setIsAnswered(true);
@@ -138,7 +163,8 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                         <h3 className="font-semibold text-gray-900">Review Your Answers</h3>
                         {questions.map((question, index) => {
                             const answer = answers[question.id];
-                            const correctAnswerText = getOptionText(question, question.correctAnswer);
+                            const correctKey = resolveCorrectKey(question.options, question.correctAnswer);
+                            const correctAnswerText = getOptionText(question, correctKey);
                             return (
                                 <div
                                     key={question.id}
@@ -159,7 +185,7 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
                                             </p>
                                             {!answer?.correct && (
                                                 <p className="text-sm text-green-700 mt-1">
-                                                    Correct answer: <span className="font-medium">{question.correctAnswer} - {correctAnswerText}</span>
+                                                    Correct answer: <span className="font-medium">{correctKey} - {correctAnswerText}</span>
                                                 </p>
                                             )}
                                         </div>
@@ -206,13 +232,12 @@ export function QuizComponent({ questions, packId, onComplete, onExit }: QuizCom
 
                 <div className="space-y-3">
                     {(() => {
-                        const optionsArray = Array.isArray(currentQuestion.options)
-                            ? currentQuestion.options.map((opt, idx) => ({ key: String.fromCharCode(65 + idx), value: opt }))
-                            : Object.entries(currentQuestion.options).map(([key, value]) => ({ key, value }));
+                        const optionsArray = getOptionList(currentQuestion.options);
+                        const correctKey = resolveCorrectKey(currentQuestion.options, currentQuestion.correctAnswer);
 
                         return optionsArray.map((option, index) => {
                             const isSelected = selectedAnswer === option.key;
-                            const isCorrect = option.key === currentQuestion.correctAnswer;
+                            const isCorrect = option.key === correctKey;
                             const showCorrect = isAnswered && isCorrect;
                             const showWrong = isAnswered && isSelected && !isCorrect;
 

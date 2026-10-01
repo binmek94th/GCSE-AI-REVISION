@@ -9,11 +9,35 @@ interface NormalizedQuestion {
     moderation_status?: string;
 }
 
+// Same two shapes seen everywhere else in the app:
+//   legacy: options is already {key: text}, correctAnswer is a KEY
+//   generator-written: options is string[], correctAnswer is the TEXT
+// Normalises both into {key: text} options + a correctAnswer that is
+// always a valid key into that map, since MistakeBank.tsx (and every
+// other quiz screen) compares a selected key directly against this value.
+function normaliseGcseOptionsAndAnswer(rawOptions: any, rawCorrectAnswer: string): { options: Record<string, string>; correctAnswer: string } {
+    if (Array.isArray(rawOptions)) {
+        const options: Record<string, string> = {};
+        rawOptions.forEach((text: string, i: number) => {
+            options[String.fromCharCode(65 + i)] = text;
+        });
+        const match = Object.entries(options).find(([, text]) => text === rawCorrectAnswer);
+        return { options, correctAnswer: match ? match[0] : rawCorrectAnswer };
+    }
+    const options: Record<string, string> = rawOptions ?? {};
+    if (Object.prototype.hasOwnProperty.call(options, rawCorrectAnswer)) {
+        return { options, correctAnswer: rawCorrectAnswer }; // already a valid key
+    }
+    const match = Object.entries(options).find(([, text]) => text === rawCorrectAnswer);
+    return { options, correctAnswer: match ? match[0] : rawCorrectAnswer };
+}
+
 function normalizeGcseQuestion(qData: any): NormalizedQuestion {
+    const { options, correctAnswer } = normaliseGcseOptionsAndAnswer(qData.options, qData.correctAnswer ?? qData.answer ?? '');
     return {
         question: qData.question ?? qData.questionText ?? '',
-        options: qData.options ?? {},
-        correctAnswer: qData.correctAnswer ?? qData.answer ?? '',
+        options,
+        correctAnswer,
         explanation: qData.explanation ?? '',
         moderation_status: qData.moderation_status,
     };

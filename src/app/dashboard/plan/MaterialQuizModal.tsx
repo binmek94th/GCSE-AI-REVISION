@@ -48,6 +48,18 @@ function normaliseOptions(options: Record<string, string> | string[]): Choice[] 
         .map(([option, text]) => ({ option, text }));
 }
 
+// `correctAnswer` on a question doc can be either the correct option's KEY
+// (older/legacy questions) or its full TEXT (questions written by the AI
+// generator script) — resolve either into the option key so a selected
+// option key can always be compared against it directly.
+function resolveCorrectKey(options: Record<string, string> | string[], correctAnswer: string): string {
+    if (!Array.isArray(options) && Object.prototype.hasOwnProperty.call(options, correctAnswer)) {
+        return correctAnswer; // already a valid key
+    }
+    const match = normaliseOptions(options).find(c => c.text === correctAnswer);
+    return match ? match.option : correctAnswer; // fall back to whatever was stored
+}
+
 function getDifficultyLabel(d: number | string): { label: string; color: string } {
     const n = typeof d === 'string' ? parseInt(d) : d;
     if (n <= 1) return { label: 'Easy',   color: '#22C55E' };
@@ -148,7 +160,8 @@ export function MaterialQuizModal({
 
     const current     = materialQuestions[currentIndex];
     const choices     = current ? normaliseOptions(current.options) : [];
-    const isCorrect   = hasConfirmed && selectedOption === current?.correctAnswer;
+    const correctKey  = current ? resolveCorrectKey(current.options, current.correctAnswer) : '';
+    const isCorrect   = hasConfirmed && selectedOption === correctKey;
     const correctCount = scores.filter(Boolean).length;
     const pct         = Math.round((correctCount / materialQuestions.length) * 100);
     const progressPct = ((currentIndex + (hasConfirmed ? 1 : 0)) / materialQuestions.length) * 100;
@@ -157,7 +170,7 @@ export function MaterialQuizModal({
     const handleCheck = async () => {
         if (!selectedOption || !current) return;
 
-        const correct = selectedOption === current.correctAnswer;
+        const correct = selectedOption === correctKey;
 
         setHasConfirmed(true);
         setShowExplanation(true);
@@ -298,8 +311,8 @@ export function MaterialQuizModal({
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
                                     {choices.map(c => {
                                         const isSelected  = selectedOption === c.option;
-                                        const showCorrect = hasConfirmed && c.option === current.correctAnswer;
-                                        const showWrong   = hasConfirmed && isSelected && c.option !== current.correctAnswer;
+                                        const showCorrect = hasConfirmed && c.option === correctKey;
+                                        const showWrong   = hasConfirmed && isSelected && c.option !== correctKey;
 
                                         let bg = '#F8FAFC', border = '#E2E8F0', textCol = '#374151';
                                         if (showCorrect)     { bg = '#F0FDF4'; border = '#86EFAC'; textCol = '#166534'; }
@@ -355,7 +368,7 @@ export function MaterialQuizModal({
                                                 fontSize: 12, fontWeight: 700,
                                                 color: isCorrect ? '#166534' : '#92400E',
                                             }}>
-                                                {isCorrect ? 'Correct!' : `Correct answer: ${current.correctAnswer}`}
+                                                {isCorrect ? 'Correct!' : `Correct answer: ${choices.find(c => c.option === correctKey)?.text ?? current.correctAnswer}`}
                                             </span>
                                         </div>
                                         <div style={{ fontSize: 12.5, color: '#374151' }}>

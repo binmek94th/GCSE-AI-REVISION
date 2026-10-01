@@ -40,8 +40,8 @@ export async function GET(req: Request) {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
 
-        // Check if user owns the pack
-        const pack = await admin
+        // Ownership is tracked in `subjects` (same model as /api/user/packs)
+        const ownsPackDoc = await admin
             .firestore()
             .collection("users")
             .doc(userId)
@@ -49,9 +49,9 @@ export async function GET(req: Request) {
             .doc(packId)
             .get();
 
-        if (!pack.exists) {
+        if (!ownsPackDoc.exists) {
             return NextResponse.json(
-                { message: "Pack not purchased" },
+                { message: "Pack not found for this user" },
                 { status: 403 }
             );
         }
@@ -145,17 +145,17 @@ export async function POST(req: Request) {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
 
-        const boughtDoc = await admin
+        const ownsPackDoc = await admin
             .firestore()
             .collection("users")
             .doc(userId)
-            .collection("boughtPacks")
+            .collection("subjects")
             .doc(packId)
             .get();
 
-        if (!boughtDoc.exists) {
+        if (!ownsPackDoc.exists) {
             return NextResponse.json(
-                { message: "Pack not purchased" },
+                { message: "Pack not found for this user" },
                 { status: 403 }
             );
         }
@@ -211,18 +211,18 @@ export async function DELETE(req: Request) {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
 
-        // Check if user owns the pack
-        const boughtDoc = await admin
+        // Ownership is tracked in `subjects` (same model as /api/user/packs)
+        const ownsPackDoc = await admin
             .firestore()
             .collection("users")
             .doc(userId)
-            .collection("boughtPacks")
+            .collection("subjects")
             .doc(packId)
             .get();
 
-        if (!boughtDoc.exists) {
+        if (!ownsPackDoc.exists) {
             return NextResponse.json(
-                { message: "Pack not purchased" },
+                { message: "Pack not found for this user" },
                 { status: 403 }
             );
         }
