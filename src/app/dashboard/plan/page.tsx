@@ -211,19 +211,53 @@ function PlanTab({ subjects, studyPack }: PlanTabProps) {
         fetchTargetGrades();
     }, []);
 
-    // Fetch incorrect questions (mistake bank) for the Retry Failed card
+    // Fetch incorrect questions (mistake bank) for the Retry Failed card.
+    //
+    // Was calling /api/mistake-bank, which re-derives each pack's level
+    // itself and picks the GCSE or A-Level question collection based on
+    // it. /api/incorrect-questions (what the Quizzes tab's own "Retry
+    // Failed" button uses, and confirmed working) always reads from the
+    // GCSE "questions" collection regardless of the pack's level — which
+    // is also where /api/quizzes actually serves questions from for every
+    // pack, A-Level ones included. That mismatch is what made
+    // /api/mistake-bank come back empty for an A-Level pack even though
+    // the questions themselves were real and already answered. Querying
+    // the same proven endpoint per pack sidesteps that entirely.
     useEffect(() => {
         const fetchMistakes = async () => {
             const user = auth.currentUser;
             if (!user) { setLoadingMistakes(false); return; }
             try {
                 const idToken = await user.getIdToken();
-                const res = await fetch('/api/mistake-bank', {
-                    headers: { Authorization: `Bearer ${idToken}` },
-                });
-                if (!res.ok) { setMistakesError(true); setLoadingMistakes(false); return; }
-                const data = await res.json();
-                setMistakes(Array.isArray(data?.questions) ? data.questions : []);
+                const authHeader = { Authorization: `Bearer ${idToken}` };
+
+                const packsRes = await fetch('/api/user/packs', { headers: authHeader });
+                if (!packsRes.ok) { setMistakesError(true); setLoadingMistakes(false); return; }
+                const packsData = await packsRes.json();
+                const packs: { id: string; subject: string }[] = packsData?.packs ?? [];
+
+                // Only the count per pack is needed for this summary card —
+                // a small limit keeps this to one lightweight request per
+                // pack instead of pulling full question bodies.
+                const counts = await Promise.all(packs.map(async (pack) => {
+                    try {
+                        const res = await fetch(`/api/incorrect-questions?packId=${pack.id}&limit=1`, { headers: authHeader });
+                        if (!res.ok) return { subject: pack.subject, count: 0 };
+                        const data = await res.json();
+                        return { subject: pack.subject, count: Number(data?.total) || 0 };
+                    } catch {
+                        return { subject: pack.subject, count: 0 };
+                    }
+                }));
+
+                // Kept as one entry per mistake (not per pack) so the
+                // existing bySubject/totalToFix grouping below, which just
+                // reads `.subject` and counts array length, didn't need to
+                // change — these are placeholders, not real question data.
+                const synthesized: MistakeQuestion[] = counts.flatMap(({ subject, count }) =>
+                    Array.from({ length: count }, () => ({ subject }))
+                );
+                setMistakes(synthesized);
             } catch (err) {
                 console.error('Failed to fetch mistakes:', err);
                 setMistakesError(true);

@@ -29,9 +29,9 @@ export async function GET(req: Request) {
 
         // Level the user is studying (GCSE / A-Level). Onboarding stores it
         // top-level; fall back to preferences for safety.
-        const level: string =
-            userData?.level ?? userData?.preferences?.level ?? "GCSE";
-
+        console.log(userData.preferences);
+        const level: string = userData?.preferences?.level ?? "GCSE";
+        console.log("level", level)
         if (!examBoard) {
             return NextResponse.json(
                 { error: "Exam board not set in preferences" },

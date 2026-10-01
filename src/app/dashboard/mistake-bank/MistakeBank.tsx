@@ -26,6 +26,29 @@ interface MistakeQuestion {
 
 type Screen = 'home' | 'setup' | 'quiz' | 'results';
 
+// Same two shapes seen everywhere else in the app:
+//   legacy: options is already {key: text}, correctAnswer is a KEY
+//   generator-written: options is string[], correctAnswer is the TEXT
+// /api/incorrect-questions returns raw question docs as-is (no
+// normalization), so this runs client-side instead — mirrors the server
+// helper of the same name in /api/mistake-bank.
+function normaliseGcseOptionsAndAnswer(rawOptions: any, rawCorrectAnswer: string): { options: Record<string, string>; correctAnswer: string } {
+    if (Array.isArray(rawOptions)) {
+        const options: Record<string, string> = {};
+        rawOptions.forEach((text: string, i: number) => {
+            options[String.fromCharCode(65 + i)] = text;
+        });
+        const match = Object.entries(options).find(([, text]) => text === rawCorrectAnswer);
+        return { options, correctAnswer: match ? match[0] : rawCorrectAnswer };
+    }
+    const options: Record<string, string> = rawOptions ?? {};
+    if (Object.prototype.hasOwnProperty.call(options, rawCorrectAnswer)) {
+        return { options, correctAnswer: rawCorrectAnswer }; // already a valid key
+    }
+    const match = Object.entries(options).find(([, text]) => text === rawCorrectAnswer);
+    return { options, correctAnswer: match ? match[0] : rawCorrectAnswer };
+}
+
 // ─── Small helpers ────────────────────────────────────────────────────────────
 
 function OptionRow({ optionKey, text, isCorrect, isUserWrong }: {
@@ -448,14 +471,59 @@ export default function MistakeBankTab() {
     const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
     const router = useRouter();
 
+    // Was calling /api/mistake-bank — see the same note in dashboard/plan/
+    // page.tsx's fetchMistakes for why that route can come back empty for
+    // an A-Level-labelled pack even when the questions themselves are real.
+    // Aggregating /api/incorrect-questions per pack (the endpoint the
+    // Quizzes tab's own Retry Failed button uses, confirmed working)
+    // sidesteps that by reading from wherever /api/quizzes actually served
+    // the questions from in the first place.
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, async (user) => {
             if (!user) { router.push('/auth/login'); return; }
             try {
                 const idToken = await user.getIdToken();
-                const res = await fetch('/api/mistake-bank', { headers: { Authorization: `Bearer ${idToken}` } });
-                const data = await res.json();
-                setQuestions(data.questions ?? []);
+                const authHeader = { Authorization: `Bearer ${idToken}` };
+
+                const packsRes = await fetch('/api/user/packs', { headers: authHeader });
+                const packsData = await packsRes.json();
+                const packs: { id: string; subject: string }[] = packsData?.packs ?? [];
+
+                const perPack = await Promise.all(packs.map(async (pack) => {
+                    try {
+                        const res = await fetch(`/api/incorrect-questions?packId=${pack.id}&limit=999`, { headers: authHeader });
+                        if (!res.ok) return [] as MistakeQuestion[];
+                        const data = await res.json();
+                        const rawQuestions: any[] = Array.isArray(data?.questions) ? data.questions : [];
+                        return rawQuestions.map((q): MistakeQuestion => {
+                            const { options, correctAnswer } = normaliseGcseOptionsAndAnswer(
+                                q.options,
+                                q.correctAnswer ?? q.correct_answer ?? q.answer ?? ''
+                            );
+                            return {
+                                id: q.id,
+                                subjectId: pack.id,
+                                subject: pack.subject,
+                                question: q.question ?? q.questionText ?? '',
+                                options,
+                                correctAnswer,
+                                explanation: q.explanation ?? '',
+                                userAnswer: q.userAnswer ?? '',
+                                answeredAt: q.answeredAt?.toDate ? q.answeredAt.toDate().toISOString() : (q.answeredAt ?? null),
+                            };
+                        });
+                    } catch {
+                        return [] as MistakeQuestion[];
+                    }
+                }));
+
+                const combined = perPack.flat().sort((a, b) => {
+                    if (!a.answeredAt) return 1;
+                    if (!b.answeredAt) return -1;
+                    return new Date(b.answeredAt).getTime() - new Date(a.answeredAt).getTime();
+                });
+
+                setQuestions(combined);
             } catch (err) {
                 console.error('Failed to load mistake bank:', err);
             } finally {
