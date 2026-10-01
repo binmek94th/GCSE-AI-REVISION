@@ -41,15 +41,15 @@ export async function GET(req: Request) {
         const userId = decodedToken.uid;
 
         // Check if user owns the pack
-        const boughtDoc = await admin
+        const pack = await admin
             .firestore()
             .collection("users")
             .doc(userId)
-            .collection("boughtPacks")
+            .collection("subjects")
             .doc(packId)
             .get();
 
-        if (!boughtDoc.exists) {
+        if (!pack.exists) {
             return NextResponse.json(
                 { message: "Pack not purchased" },
                 { status: 403 }
