@@ -163,6 +163,7 @@ function MockTests({ initialPacks = [], studyPack }: MockTestsTabProps) {
             <MockTestComponent
                 questions={testQuestions}
                 subject={selectedPaper?.subject ?? selectedPaperId}
+                packId={selectedPaperId}
                 onComplete={handleTestComplete}
                 onExit={handleTestExit}
             />

@@ -48,7 +48,10 @@ export async function GET(req: Request) {
 
         const userRecord = await admin.auth().getUser(uid);
 
-        const packRef = db.collection("users").doc(uid).collection("boughtPacks");
+        // `boughtPacks` was an older ownership model nothing in the app
+        // writes to anymore — pack ownership is tracked in `subjects`
+        // (see /api/user/packs, /api/quiz-results), so this always read 0.
+        const packRef = db.collection("users").doc(uid).collection("subjects");
         const packSnapshot = await packRef.get();
         const studyPacks = packSnapshot.size;
 

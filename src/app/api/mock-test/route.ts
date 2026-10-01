@@ -1,5 +1,5 @@
 import {NextResponse} from "next/server";
-import admin from "firebase-admin";
+import admin from "@/lib/firebaseAdmin";
 
 export async function GET(req: Request) {
     try {
@@ -128,6 +128,85 @@ export async function GET(req: Request) {
 
     } catch (error) {
         console.error("Error fetching mock test:", error);
+        return NextResponse.json({ message: "Internal server error" }, { status: 500 });
+    }
+}
+
+// ------------------------
+// POST: Save a completed mock test's result + per-question progress
+// ------------------------
+// Previously missing entirely — the client always called this (see
+// MockTestComponent.handleSubmitTest), so every mock test silently failed
+// to save anything: no history for MockTests.tsx to show, and no
+// question_progress entries, so wrong answers never appeared in Retry
+// Failed / the mistake bank either.
+export async function POST(req: Request) {
+    try {
+        const idToken = req.headers.get("Authorization")?.split("Bearer ")[1];
+        if (!idToken) {
+            return NextResponse.json({ message: "Missing ID token" }, { status: 400 });
+        }
+
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const userId = decodedToken.uid;
+
+        const body = await req.json();
+        const { packId, subject, results, score, correctCount, totalCount, timeTaken } = body;
+
+        if (
+            !subject ||
+            !Array.isArray(results) ||
+            typeof score !== "number" ||
+            typeof correctCount !== "number" ||
+            typeof totalCount !== "number"
+        ) {
+            return NextResponse.json({ message: "Missing or invalid fields" }, { status: 400 });
+        }
+
+        const db = admin.firestore();
+        const batch = db.batch();
+
+        // 1. History entry — what MockTests.tsx's "Recent Mock Exams" reads.
+        const historyRef = db.collection("users").doc(userId).collection("mock_tests").doc();
+        batch.set(historyRef, {
+            subject,
+            score,
+            correctCount,
+            totalCount,
+            timeTaken: timeTaken ?? null,
+            date: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // 2. Per-question progress — same schema as /api/quizzes and
+        //    /api/incorrect-questions, so mock test mistakes show up in the
+        //    mistake bank / Retry Failed too, not just quiz-tab mistakes.
+        //    packId is the study pack this mock test was run against
+        //    (falls back to the raw subject name if the client ever omits
+        //    it, matching how older code paths behaved).
+        const progressPackId = packId || subject;
+        const progressUpdate: Record<string, unknown> = {};
+        for (const r of results) {
+            if (!r?.questionId) continue;
+            progressUpdate[r.questionId] = {
+                correct: r.correct === true,
+                userAnswer: r.userAnswer ?? null,
+                answeredAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+        }
+        if (Object.keys(progressUpdate).length > 0) {
+            const progressRef = db
+                .collection("users")
+                .doc(userId)
+                .collection("question_progress")
+                .doc(progressPackId);
+            batch.set(progressRef, progressUpdate, { merge: true });
+        }
+
+        await batch.commit();
+
+        return NextResponse.json({ message: "Mock test saved" }, { status: 200 });
+    } catch (error) {
+        console.error("Error saving mock test:", error);
         return NextResponse.json({ message: "Internal server error" }, { status: 500 });
     }
 }

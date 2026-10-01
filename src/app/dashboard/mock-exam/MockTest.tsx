@@ -15,7 +15,11 @@ interface Choice {
 interface Question {
     id: string;
     question: string;
-    options: string[];
+    questionText?: string;
+    options: string[] | Record<string, string>;
+    choices?: Choice[];
+    correct_answer?: string;
+    correctAnswer?: string;
     explanation?: string;
     marks?: number;
     topic?: string;
@@ -28,21 +32,58 @@ interface Question {
 interface MockTestComponentProps {
     questions: Question[];
     subject: string;
+    // The study pack this mock test is run against — keys the
+    // question_progress entries the server writes so wrong answers here
+    // also surface in the mistake bank / Retry Failed, not just quiz-tab
+    // mistakes. Optional only for backwards compatibility with any other
+    // caller; the server falls back to `subject` if omitted.
+    packId?: string;
     onComplete: (score: number, correctCount: number, totalCount: number) => void;
     onExit: () => void;
 }
 
-// Derive the correct answer key from choices
+// Normalises both question shapes this component can receive:
+//   GCSE:    question + options (array of texts, or {key: text}) + correct_answer/correctAnswer (the correct option's TEXT)
+//   A-Level: questionText + choices [{option, text, isCorrect, why?}]
+// into a single {option, text, why?}[] list, so the rest of the component
+// doesn't need to know which shape it's looking at.
+function getChoiceList(question: Question): { option: string; text: string; why?: string }[] {
+    if (Array.isArray(question.choices) && question.choices.length > 0) {
+        return question.choices.map(c => ({ option: c.option, text: c.text, why: c.why }));
+    }
+    const options = question.options;
+    if (Array.isArray(options)) {
+        return options.map((text, i) => ({ option: String(i), text }));
+    }
+    if (options && typeof options === 'object') {
+        return Object.entries(options as Record<string, string>).map(([option, text]) => ({ option, text }));
+    }
+    return [];
+}
+
+// The option key (matching getChoiceList's `option`) that is correct.
 function getCorrectKey(question: Question): string {
-    return question.choices?.find(c => c.isCorrect)?.option ?? '';
+    if (Array.isArray(question.choices) && question.choices.length > 0) {
+        return question.choices.find(c => c.isCorrect)?.option ?? '';
+    }
+    // GCSE docs store the correct option's TEXT, not a key — look it up.
+    const correctText = question.correct_answer ?? question.correctAnswer;
+    if (correctText == null) return '';
+    const match = getChoiceList(question).find(c => c.text === correctText);
+    return match?.option ?? '';
 }
 
-// Get display text for a given option key
+// Display text for a given option key.
 function getOptionText(question: Question, key: string): string {
-    return question.choices?.find(c => c.option === key)?.text ?? key;
+    return getChoiceList(question).find(c => c.option === key)?.text ?? key;
 }
 
-export function MockTestComponent({ questions, subject, onComplete, onExit }: MockTestComponentProps) {
+// Question text, whichever field it's stored under.
+function getQuestionText(question: Question): string {
+    return question.questionText ?? question.question ?? '';
+}
+
+export function MockTestComponent({ questions, subject, packId, onComplete, onExit }: MockTestComponentProps) {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
     const [answers, setAnswers] = useState<Record<string, { selected: string; correct: boolean; selectedText: string }>>({});
@@ -141,6 +182,7 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
+                        packId,
                         subject,
                         results,
                         score,
@@ -230,7 +272,7 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
     if (reviewMode) {
         const answer = answers[currentQuestion.id];
         const correctKey = getCorrectKey(currentQuestion);
-        const choices = currentQuestion.choices ?? [];
+        const choices = getChoiceList(currentQuestion);
 
         return (
             <div className="space-y-6">
@@ -276,7 +318,7 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                         )}
 
                         <div className="p-4 bg-purple-50 rounded-lg">
-                            <h3 className="text-lg font-semibold text-gray-900">{currentQuestion.questionText}</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">{getQuestionText(currentQuestion)}</h3>
                             {currentQuestion.marks && (
                                 <p className="text-sm text-purple-600 mt-1">[{currentQuestion.marks} mark{currentQuestion.marks !== 1 ? 's' : ''}]</p>
                             )}
@@ -383,7 +425,7 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
     }
 
     // ── Test Taking Screen ─────────────────────────────────────────────────────
-    const choices = currentQuestion.choices ?? [];
+    const choices = getChoiceList(currentQuestion);
 
     return (
         <div className="space-y-6">
@@ -428,7 +470,7 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
 
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 p-4 bg-purple-50 rounded-lg">
-                            <h3 className="text-lg font-semibold text-gray-900">{currentQuestion.question}</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">{getQuestionText(currentQuestion)}</h3>
                             {currentQuestion.marks && (
                                 <p className="text-sm text-purple-600 mt-1">[{currentQuestion.marks} mark{currentQuestion.marks !== 1 ? 's' : ''}]</p>
                             )}
@@ -444,7 +486,7 @@ export function MockTestComponent({ questions, subject, onComplete, onExit }: Mo
                     </div>
 
                     <div className="space-y-3">
-                        {Object.entries(currentQuestion.options).map(([key, value]) => {
+                        {choices.map(({ option: key, text: value }) => {
                             const isSelected = selectedAnswer === key;
                             const isPreviouslySelected = answers[currentQuestion.id]?.selected === key;
 
