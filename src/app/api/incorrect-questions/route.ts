@@ -20,6 +20,32 @@ function shuffleArray<T>(array: T[]): T[] {
     return shuffled;
 }
 
+// A-Level docs store options as `choices: [{option, text, isCorrect}]` and
+// the question text as `questionText`, instead of GCSE's `options` +
+// `question`. Mapped into the same shape GCSE docs use (mirrors
+// /api/quizzes' normalizeALevelDoc) so the client doesn't need to care
+// which collection a question actually came from.
+function normalizeALevelDoc(id: string, data: FirebaseFirestore.DocumentData) {
+    const choices: { option: string; text: string; isCorrect: boolean }[] = Array.isArray(data.choices) ? data.choices : [];
+    const options: Record<string, string> = {};
+    let correctAnswer = "";
+    for (const c of choices) {
+        if (!c || typeof c.option !== "string") continue;
+        options[c.option] = c.text;
+        if (c.isCorrect) correctAnswer = c.option;
+    }
+    return {
+        id,
+        question: data.questionText ?? "",
+        options,
+        correctAnswer,
+        explanation: data.explanation ?? "",
+        subject: data.subject,
+        examBoard: data.examBoard,
+        flag: data.flag,
+    };
+}
+
 // ------------------------
 // GET: Fetch incorrect questions by subject
 // ------------------------
@@ -56,6 +82,16 @@ export async function GET(req: Request) {
             );
         }
 
+        // GCSE and A-Level questions live in separate collections — this
+        // previously only ever looked in the GCSE 'questions' collection,
+        // so a pack whose approved questions only exist in
+        // 'a-levelExamQuestions' would always report 0 incorrect questions
+        // here, regardless of what the user actually got wrong.
+        const studyPackDoc = await admin.firestore().collection("study_packs").doc(packId).get();
+        const packLevel = studyPackDoc.exists ? studyPackDoc.data()?.level : undefined;
+        const isALevel = packLevel === "A-Level" || packLevel === "alevel" || packLevel === "a-level";
+        const questionsCollection = isALevel ? "a-levelExamQuestions" : "questions";
+
         // Get user's question progress for this pack
         const progressDocRef = admin
             .firestore()
@@ -89,7 +125,7 @@ export async function GET(req: Request) {
 
         // Fetch full question details for all incorrect questions
         const questionPromises = incorrectQuestionIds.map((questionId) =>
-            admin.firestore().collection("questions").doc(questionId).get()
+            admin.firestore().collection(questionsCollection).doc(questionId).get()
         );
 
         const questionDocs = await Promise.all(questionPromises);
@@ -98,8 +134,7 @@ export async function GET(req: Request) {
         const questions = questionDocs
             .filter((doc) => doc.exists)
             .map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
+                ...(isALevel ? normalizeALevelDoc(doc.id, doc.data()!) : { id: doc.id, ...doc.data() }),
                 userAnswer: progressData[doc.id]?.userAnswer || null,
                 answeredAt: progressData[doc.id]?.answeredAt || null,
             }));
