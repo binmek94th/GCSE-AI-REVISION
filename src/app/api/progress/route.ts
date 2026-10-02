@@ -67,11 +67,20 @@ export async function GET(request: NextRequest) {
                 continue;
             }
 
+            // GCSE and A-Level materials live in separate collections (see
+            // /api/study_materials, which already branches on this). This
+            // route was always querying 'study_materials' (GCSE) regardless
+            // of the pack's own level — so for any A-Level pack,
+            // totalSubjectMaterials came back 0 and "Materials" showed
+            // 0%/"Not started" no matter how much was actually completed.
+            const isALevel = packLevel === 'A-Level' || packLevel === 'alevel' || packLevel === 'a-level';
+            const materialsCollection = isALevel ? 'alevel_study_materials' : 'study_materials';
+
             // ✅ Query materials the same way the study-materials GET does —
             //    by subject name + examBoard + approved, NOT by packId
             let materialsQuery = admin
                 .firestore()
-                .collection('study_materials')
+                .collection(materialsCollection)
                 .where('subject', '==', subjectName)
                 .where('moderation_status', '==', 'approved');
 
