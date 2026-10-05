@@ -151,7 +151,7 @@ export function Navigation({ currentPage }: NavigationProps) {
                                     ))}
                                     <div className="h-px bg-border my-4"></div>
                                     <Button
-                                        onClick={() => handleNavigate('/oauth-callback/login')}
+                                        onClick={() => handleNavigate('/auth/login')}
                                         className="justify-start"
                                         variant="ghost"
                                     >
