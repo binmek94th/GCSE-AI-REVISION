@@ -143,7 +143,7 @@ function RetryFailedCard({
                     onClick={onGo}
                     className="bg-amber-600 hover:bg-amber-700 text-white cursor-pointer flex-shrink-0"
                 >
-                    <RefreshCw className="w-4 h-4 mr-2" /> Retry Failed
+                    <RefreshCw className="w-4 h-4 mr-2" /> Review mistakes
                 </Button>
             </CardContent>
         </Card>

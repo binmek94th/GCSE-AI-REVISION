@@ -8,7 +8,6 @@ const PrivacyPolicyPage = () => {
     const companyDetails = {
         legalName: "StudyCedo Ltd",
         tradingAs: "StudyCedo",
-        postalAddress: "Office address to be provided, United Kingdom",
         privacyEmail: "privacy@Studycedo.com",
         supportEmail: "support@Studycedo.com",
         securityEmail: "security@Studycedo.com",
@@ -41,9 +40,6 @@ const PrivacyPolicyPage = () => {
                         <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
                             Privacy Policy
                         </h1>
-                        <p className="text-slate-600 italic">
-                            Effective date: {effectiveDate}
-                        </p>
                         <p className="text-slate-700 mt-4 leading-relaxed">
                             This Privacy Policy explains how {companyDetails.tradingAs} (&#34;we&#34;, &#34;us&#34;, &#34;our&#34;), operated by {companyDetails.legalName}, collects, uses, discloses, and protects personal information when you use our website, applications, and services (the &#34;Service&#34;).
                         </p>
@@ -85,10 +81,8 @@ const PrivacyPolicyPage = () => {
                         <h2 className="text-2xl font-bold text-slate-900 mb-4">1. Who We Are</h2>
                         <div className="space-y-2 text-slate-700">
                             <p><strong>Controller:</strong> {companyDetails.legalName} (trading as {companyDetails.tradingAs})</p>
-                            <p><strong>Registered address:</strong> {companyDetails.postalAddress}</p>
                             <p><strong>Email:</strong> <a href={`mailto:${companyDetails.privacyEmail}`} className="text-blue-600 hover:underline">{companyDetails.privacyEmail}</a></p>
                             <p><strong>Data Protection Officer:</strong> {companyDetails.dpoName}</p>
-                            <p><strong>ICO Registration:</strong> {companyDetails.icoNumber}</p>
                         </div>
                     </section>
 
@@ -625,15 +619,6 @@ const PrivacyPolicyPage = () => {
                                 <li>For under-18s: Parents/guardians can exercise rights on the child&#39;s behalf</li>
                             </ul>
                         </div>
-
-                        <div className="mt-6">
-                            <h3 className="text-lg font-semibold text-slate-900 mb-3">Right to Complain</h3>
-                            <p className="text-slate-700 mb-2">If you&#39;re unhappy with how we handle your data:</p>
-                            <ul className="list-disc pl-6 space-y-1 text-slate-700">
-                                <li><strong>UK:</strong> Contact the Information Commissioner&#39;s Office (ICO) at <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">ico.org.uk</a></li>
-                                <li><strong>EEA:</strong> Contact your local Data Protection Authority</li>
-                            </ul>
-                        </div>
                     </section>
 
                     {/* Section 12: Security */}
@@ -763,7 +748,6 @@ const PrivacyPolicyPage = () => {
                                 <h3 className="font-semibold text-slate-900 mb-3">Privacy Requests or Questions</h3>
                                 <div className="space-y-2 text-sm text-slate-700">
                                     <p><strong>Email:</strong> <a href={`mailto:${companyDetails.privacyEmail}`} className="text-blue-600 hover:underline">{companyDetails.privacyEmail}</a></p>
-                                    <p><strong>Address:</strong> {companyDetails.postalAddress}</p>
                                     <p><strong>DPO:</strong> {companyDetails.dpoName}</p>
                                 </div>
                             </div>
@@ -838,9 +822,6 @@ const PrivacyPolicyPage = () => {
 
                     {/* Footer */}
                     <div className="mt-12 pt-8 border-t border-slate-200">
-                        <p className="text-sm text-slate-600 text-center italic">
-                            Last updated: {effectiveDate}
-                        </p>
                         <div className="flex justify-center gap-6 mt-4 text-sm">
                             <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
                             <Link href="/notice" className="text-blue-600 hover:underline">Notice</Link>

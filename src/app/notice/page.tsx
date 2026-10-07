@@ -26,9 +26,6 @@ const DisclaimersPage = () => {
                         <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">
                             Disclaimers & Legal Information
                         </h1>
-                        <p className="text-slate-600">
-                            Last updated: {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        </p>
                         <p className="text-sm text-slate-500 mt-2">
                             Version 1.0 • <Link href="#changelog" className="text-blue-600 hover:underline">View change log</Link>
                         </p>
@@ -369,17 +366,17 @@ const DisclaimersPage = () => {
                         </div>
                     </section>
 
-                    <section id="changelog" className="mb-10 scroll-mt-6">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-4">Change Log</h2>
-                        <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
-                            <div className="space-y-4">
-                                <div>
-                                    <p className="font-semibold text-slate-900">Version 1.0 - {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                                    <p className="text-sm text-slate-600">Initial publication of disclaimers page</p>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
+                    {/*<section id="changelog" className="mb-10 scroll-mt-6">*/}
+                    {/*    <h2 className="text-2xl font-bold text-slate-900 mb-4">Change Log</h2>*/}
+                    {/*    <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">*/}
+                    {/*        <div className="space-y-4">*/}
+                    {/*            <div>*/}
+                    {/*                <p className="font-semibold text-slate-900">Version 1.0 - {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>*/}
+                    {/*                <p className="text-sm text-slate-600">Initial publication of disclaimers page</p>*/}
+                    {/*            </div>*/}
+                    {/*        </div>*/}
+                    {/*    </div>*/}
+                    {/*</section>*/}
 
                     <div className="mt-12 pt-8 border-t border-slate-200">
                         <h3 className="font-semibold text-slate-900 mb-4">Related Legal Documents</h3>

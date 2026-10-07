@@ -47,7 +47,7 @@ const MOBILE_MORE_TABS = ['quizzes', 'mocktests', 'mistakes', 'tutor', 'upload',
 const MOBILE_MORE_ITEMS = [
     { value: 'quizzes',      icon: Brain,          label: 'Quizzes' },
     { value: 'mocktests',    icon: TestTube,        label: 'Mocks' },
-    { value: 'mistakes',     icon: AlertCircle,     label: 'Retry Failed' },
+    { value: 'mistakes',     icon: AlertCircle,     label: 'Review mistakes' },
     { value: 'tutor',        icon: MessageCircle,   label: 'Tutor' },
     { value: 'upload',       icon: Upload,          label: 'Upload' },
     { value: 'ask-ai',       icon: Sparkles,        label: 'Ask AI' },
@@ -285,7 +285,7 @@ function Dashboard() {
                                     </TabsTrigger>
 
                                     <TabsTrigger value="mistakes" className={`${TAB_CLASS} hidden sm:flex`}>
-                                        <AlertCircle className="w-4 h-4" /> Retry Failed
+                                        <AlertCircle className="w-4 h-4" /> Review mistakes
                                     </TabsTrigger>
 
                                     <span className="hidden sm:block w-px h-5 bg-gray-200 self-center mx-1.5" />

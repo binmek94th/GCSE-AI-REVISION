@@ -136,7 +136,7 @@ function RetryIncorrectButton({ packId, onQuizComplete, onQuizStart }: RetryInco
                 <>
                     <span className="flex items-center cursor-pointer">
                         <RefreshCw className="w-4 h-4 mr-2" />
-                        Retry Failed Questions ({incorrectCount})
+                        Review mistakes Questions ({incorrectCount})
                     </span>
                 </>
             )}
