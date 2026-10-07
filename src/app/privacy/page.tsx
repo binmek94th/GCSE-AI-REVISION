@@ -105,12 +105,8 @@ const PrivacyPolicyPage = () => {
                         <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">Age Requirements</h3>
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 space-y-3">
                             <div>
-                                <p className="font-semibold text-slate-900">Under 13:</p>
+                                <p className="font-semibold text-slate-900">Under :16</p>
                                 <p className="text-sm text-slate-700">You must have verifiable parental consent before creating an account</p>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-slate-900">Ages 13-15 (UK):</p>
-                                <p className="text-sm text-slate-700">We recommend parental oversight; consent is required for marketing</p>
                             </div>
                             <div>
                                 <p className="font-semibold text-slate-900">Ages 16-17:</p>
@@ -123,7 +119,7 @@ const PrivacyPolicyPage = () => {
                         </div>
 
                         <h3 className="text-xl font-semibold text-slate-900 mt-6 mb-3">How We Obtain Parental Consent</h3>
-                        <p className="text-slate-700 mb-2">For users under 13:</p>
+                        <p className="text-slate-700 mb-2">For users under 16:</p>
                         <ul className="list-disc pl-6 space-y-1 text-slate-700">
                             <li>Parent/guardian email verification required</li>
                             <li>Parent receives explanation of data use and rights</li>
@@ -321,8 +317,7 @@ const PrivacyPolicyPage = () => {
                                 <thead className="bg-slate-100">
                                 <tr>
                                     <th className="border border-slate-300 p-3 text-left font-semibold">Purpose</th>
-                                    <th className="border border-slate-300 p-3 text-left font-semibold">Under 13</th>
-                                    <th className="border border-slate-300 p-3 text-left font-semibold">Ages 13-15 (UK)</th>
+                                    <th className="border border-slate-300 p-3 text-left font-semibold">Under 16</th>
                                     <th className="border border-slate-300 p-3 text-left font-semibold">Ages 16+</th>
                                 </tr>
                                 </thead>
@@ -692,7 +687,7 @@ const PrivacyPolicyPage = () => {
                             <div>
                                 <h3 className="text-lg font-semibold text-slate-900 mb-2">Marketing Messages</h3>
                                 <ul className="list-disc pl-6 space-y-1 text-slate-700 text-sm">
-                                    <li>Consent required for under-16s (parental consent if under 13)</li>
+                                    <li>Consent required for under-16s (parental consent if under 16)</li>
                                     <li>You can unsubscribe anytime via the email link or account settings</li>
                                     <li>We may still send service updates (non-marketing)</li>
                                 </ul>

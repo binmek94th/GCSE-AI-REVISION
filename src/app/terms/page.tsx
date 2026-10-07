@@ -204,7 +204,7 @@ const TermsOfServicePage = () => {
                                     />
                                 </svg>
                                 <span>
-                                    Users <strong>under 13</strong> require verifiable parental
+                                    Users <strong>under 16</strong> require verifiable parental
                                     consent
                                 </span>
                             </li>

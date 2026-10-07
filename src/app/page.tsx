@@ -518,60 +518,6 @@ function HomePage() {
                 </div>
             </section>
 
-            {/* ── TEACHER-REVIEWED SECTION ── */}
-            <section className="py-16 sm:py-24 px-4 sm:px-6 bg-gradient-to-b from-white to-blue-50">
-                <div className="max-w-6xl mx-auto">
-                    <div className="text-center space-y-4 mb-10 sm:mb-16">
-                        <motion.h2
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            className="text-3xl sm:text-4xl font-bold text-gray-900"
-                        >
-                            Built with teacher-reviewed subject expertise
-                        </motion.h2>
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            whileInView={{ opacity: 1 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: 0.2 }}
-                            className="text-base sm:text-xl text-gray-600 max-w-3xl mx-auto"
-                        >
-                            StudyCedo combines AI personalisation with revision content reviewed by experienced subject specialists — so students get structured support they can trust.
-                        </motion.p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-                        {experts.map((expert, idx) => (
-                            <motion.div
-                                key={idx}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: idx * 0.05, duration: 0.6 }}
-                                className="bg-white rounded-2xl p-5 sm:p-6 shadow-md hover:shadow-lg transition-shadow"
-                            >
-                                <div className="flex items-start gap-3 sm:gap-4">
-                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex-shrink-0 flex items-center justify-center bg-purple-100 text-purple-700 font-bold text-lg sm:text-xl">
-                                        {expert.name.charAt(0)}
-                                    </div>
-                                    <div className="space-y-1 min-w-0">
-                                        <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{expert.name}</h3>
-                                        <p className="text-xs sm:text-sm text-purple-600 font-medium">{expert.role}</p>
-                                        <p className="text-xs sm:text-sm text-gray-600">{expert.bio}</p>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-
-                    <div className="text-center">
-                        <p className="text-xs sm:text-sm text-gray-500 mb-6">
-                            Every subject is reviewed for clarity, structure, and relevance to real exam preparation.
-                        </p>
-                    </div>
-                </div>
-            </section>
 
             {/* ── PRODUCT WALKTHROUGH TABS ── */}
             <section className="py-16 sm:py-24 px-4 sm:px-6">
