@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/ca
 import { Button } from '@/app/components/ui/button';
 import { Copy, Check, LogOut, Users, TrendingUp, DollarSign, Loader2, Landmark, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
+import StudentsSection from '@/app/tutors/dashboard/StudentsSection';
 
 interface Referral {
     id: string;
@@ -215,6 +216,9 @@ export default function TutorDashboardPage() {
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* Tutor code + students linked via link or code, with their progress */}
+                <StudentsSection referralCode={tutor.referralCode} />
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

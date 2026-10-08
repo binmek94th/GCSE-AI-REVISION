@@ -8,6 +8,7 @@ import {useRouter} from "next/navigation";
 import SubscriptionPage from "@/app/dashboard/subscription/page";
 import {Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue} from "@/app/components/ui/select";
 import { toast } from "sonner";
+import MyTutorsCard from "@/app/dashboard/profile/MyTutorsCard";
 
 interface ProfileData {
     email: string;
@@ -659,6 +660,9 @@ export default function ProfilePage() {
                     </div>
                 </div>
             )}
+
+            {/* Tutor — add a tutor with their code */}
+            <MyTutorsCard />
 
             {/* Subscription Component */}
             <SubscriptionPage />
