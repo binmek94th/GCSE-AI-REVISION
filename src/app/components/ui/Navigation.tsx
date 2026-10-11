@@ -34,7 +34,8 @@ export function Navigation({ currentPage }: NavigationProps) {
         { label: 'Free Planner', href: '/onboarding' },
         { label: 'Subjects', href: '/subjects' },
         { label: 'Support', href: '/support' },
-        { label: 'Plan', href: '/subscribe' }
+        { label: 'Plan', href: '/subscribe' },
+        { label: ' For Tutors', href: '/tutors/login' }
     ];
 
     const handleNavigate = (href: string) => {
