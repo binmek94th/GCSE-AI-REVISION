@@ -14,6 +14,7 @@
 // whichever way they were linked.
 import admin from '@/lib/firebaseAdmin';
 import type { NextRequest } from 'next/server';
+import { resolvePackMeta } from '@/lib/packNames';
 
 export type LinkSource = 'referral_link' | 'code';
 
@@ -36,6 +37,11 @@ function toMillis(v: any): number | null {
 }
 
 const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString());
+
+/** Firestore Timestamp / Date / string -> ISO string (or null). */
+export function timestampToIso(v: any): string | null {
+    return iso(toMillis(v));
+}
 
 function dayKey(ms: number): string {
     return new Date(ms).toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
@@ -130,6 +136,46 @@ export async function getLinkedStudents(tutorId: string): Promise<LinkedStudent[
     return Array.from(byStudent.values());
 }
 
+export interface StudentTutor {
+    tutorId: string;
+    name: string;
+    source: LinkSource;
+}
+
+/**
+ * The ACTIVE tutors a student currently shares progress with (referral link +
+ * code, minus anything they've removed). Mirror image of getLinkedStudents.
+ */
+export async function getActiveTutorsForStudent(studentId: string): Promise<StudentTutor[]> {
+    const [referralSnap, linkSnap] = await Promise.all([
+        db().collection('referrals').where('referredUserId', '==', studentId).get(),
+        db().collection('tutor_students').where('studentId', '==', studentId).get(),
+    ]);
+
+    const revoked = new Set<string>();
+    const sources = new Map<string, LinkSource>();
+
+    linkSnap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.status === 'revoked') revoked.add(data.tutorId);
+        else sources.set(data.tutorId, 'code');
+    });
+    referralSnap.docs.forEach((d) => {
+        const tutorId = d.data().tutorId;
+        if (tutorId && !revoked.has(tutorId) && !sources.has(tutorId)) sources.set(tutorId, 'referral_link');
+    });
+
+    const tutors = await Promise.all(
+        Array.from(sources.entries()).map(async ([tutorId, source]) => {
+            const snap = await db().collection('tutors').doc(tutorId).get();
+            if (!snap.exists || snap.data()?.status !== 'active') return null;
+            // Only the tutor's name is exposed — nothing else about them.
+            return { tutorId, name: snap.data()!.name as string, source };
+        })
+    );
+    return tutors.filter((t): t is StudentTutor => t !== null);
+}
+
 /** True if the student is currently linked to the tutor (and hasn't revoked). */
 export async function isStudentLinked(tutorId: string, studentId: string): Promise<boolean> {
     const linkSnap = await db().collection('tutor_students').doc(linkDocId(tutorId, studentId)).get();
@@ -143,64 +189,6 @@ export async function isStudentLinked(tutorId: string, studentId: string): Promi
         .limit(1)
         .get();
     return !ref.empty;
-}
-
-// ─── Pack naming ────────────────────────────────────────────────────────────
-
-export interface PackMeta {
-    packId: string;
-    subject: string;          // human name, e.g. "English Literature"
-    examBoard: string | null; // e.g. "AQA"
-    level: string | null;     // "GCSE" | "A-Level"
-    tier: string | null;      // e.g. "Higher"; null for untiered packs
-    isRealPack: boolean;      // true if subject/level came from study_packs or the student's enrolment
-}
-
-const KNOWN_BOARDS = ['Cambridge CIE', 'Edexcel', 'Eduqas', 'WJEC', 'CCEA', 'AQA', 'OCR', 'CIE', 'IB'];
-
-const titleCase = (text: string) =>
-    text.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\b\w/g, (c) => c.toUpperCase());
-
-/**
- * Last-resort naming from the id alone, so the tutor never sees a raw id:
- *   "A_Level_Cambridge_CIE_English_Literature" -> English Literature · Cambridge CIE · A-Level
- *   "art_and_design" / "daily-assessment"       -> Art And Design / Daily Assessment
- */
-function parsePackId(packId: string): { subject: string; examBoard: string | null; level: string | null } {
-    let rest = packId;
-    let level: string | null = null;
-
-    const lvl = rest.match(/^(a[_-]?level|gcse)[_-]+(.*)$/i);
-    if (lvl) {
-        level = /^gcse$/i.test(lvl[1]) ? 'GCSE' : 'A-Level';
-        rest = lvl[2];
-    }
-
-    let examBoard: string | null = null;
-    if (level) {
-        const flat = rest.replace(/[_-]+/g, ' ');
-        const board = KNOWN_BOARDS.find((b) => flat.toLowerCase().startsWith(b.toLowerCase() + ' '));
-        if (board) {
-            examBoard = board;
-            rest = flat.slice(board.length + 1);
-        }
-    }
-    return { subject: titleCase(rest) || titleCase(packId), examBoard, level };
-}
-
-/** study_packs first, then the student's enrolment doc, then the id itself. */
-function resolvePackMeta(packId: string, pack: FirebaseFirestore.DocumentData | null, enrol: FirebaseFirestore.DocumentData | undefined): PackMeta {
-    const parsed = parsePackId(packId);
-    const subject = (pack?.subject || enrol?.subject || '') as string;
-    const tierRaw = typeof pack?.tier === 'string' ? pack.tier.trim() : '';
-    return {
-        packId,
-        subject: subject || parsed.subject,
-        examBoard: (pack?.exam_board || enrol?.examBoard || parsed.examBoard || null) as string | null,
-        level: (pack?.level || enrol?.level || parsed.level || null) as string | null,
-        tier: tierRaw && tierRaw.toLowerCase() !== 'untiered' ? tierRaw : null,
-        isRealPack: Boolean(subject),
-    };
 }
 
 // ─── Progress aggregation (read-only) ───────────────────────────────────────

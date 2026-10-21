@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import admin from "@/lib/firebaseAdmin";
+import { resolvePackMeta } from "@/lib/packNames";
 
 export async function GET(req: Request) {
     try {
@@ -62,35 +63,60 @@ export async function GET(req: Request) {
         let correctAnswers = 0;
         const quizSessions = new Set<string>(); // Track unique quiz sessions by date
         const subjectProgress: { [subject: string]: { total: number; correct: number; accuracy: number } } = {};
+        // One entry per study pack, with a readable name + exam board + level —
+        // what the Profile page's "Progress by Subject" cards display.
+        const packProgress: {
+            packId: string;
+            subject: string;
+            examBoard: string | null;
+            level: string | null;
+            tier: string | null;
+            total: number;
+            correct: number;
+            accuracy: number;
+        }[] = [];
 
-        for (const subjectDoc of subjectsSnapshot.docs) {
+        // Look every pack up at once (this used to wait for each one in turn),
+        // and use the student's enrolments we already loaded as a fallback for
+        // names.
+        const packSnaps = await Promise.all(
+            subjectsSnapshot.docs.map((d) => db.collection("study_packs").doc(d.id).get())
+        );
+        const enrolById = new Map(packSnapshot.docs.map((d) => [d.id, d.data()]));
+
+        for (let i = 0; i < subjectsSnapshot.docs.length; i++) {
+            const subjectDoc = subjectsSnapshot.docs[i];
             const packId = subjectDoc.id;
             const subjectData = subjectDoc.data();
 
-            // Look up the pack's subject + level. Previously this grouped
-            // subjectProgress by the raw packId (e.g. "A_Level_AQA_Biology")
-            // instead of the actual subject — which meant
-            // dashboard/plan/page.tsx's findQuizStat (which looks for a key
-            // like "biology") could never match it: "A_Level_AQA_Biology"
-            // doesn't case-sensitively contain "biology" ('B' vs 'b'), so
-            // the Progress Overview card showed "Complete a quiz to unlock
-            // your readiness score" even with real quiz data recorded.
-            // Keying by the resolved, normalized subject name fixes the
-            // match and also merges packs of the same subject across
-            // different exam boards into one entry, which is what a
-            // "progress by subject" view should do anyway.
-            const packDoc = await db.collection("study_packs").doc(packId).get();
-            const packLevel = packDoc.exists ? packDoc.data()?.level : undefined;
+            const packDoc = packSnaps[i];
+            const packData = packDoc.exists ? packDoc.data() ?? null : null;
+
+            // Keep the level filter exactly as before: only a pack whose own
+            // level is known and differs from the student's is hidden.
+            const packLevel = packData?.level;
             if (level && packLevel && packLevel !== level)
                 continue;
 
-            const resolvedSubject: string = (packDoc.exists ? packDoc.data()?.subject : undefined) ?? packId;
-            const subjectKey = resolvedSubject.toLowerCase().replace(/\s+/g, '_');
+            // Readable name / exam board / level. Falls back from study_packs
+            // to the student's enrolment to the id itself, so a pack whose
+            // study_packs record is missing no longer shows up as a raw id
+            // like "a_level_cambridge_cie_english_literature".
+            const meta = resolvePackMeta(packId, packData, enrolById.get(packId));
+
+            // subjectProgress is keyed by the normalized subject name — the
+            // Plan page's findQuizStat looks up "biology" etc. Using the
+            // readable subject here (not the raw id) keeps that matching.
+            const subjectKey = meta.subject.toLowerCase().replace(/\s+/g, '_');
+
+            let packTotal = 0;
+            let packCorrect = 0;
 
             for (const [questionId, progressData] of Object.entries(subjectData)) {
                 if (typeof progressData === 'object' && progressData !== null) {
                     const data = progressData as any;
                     totalQuestions++;
+                    packTotal++;
 
                     // Initialize subject tracking if needed
                     if (!subjectProgress[subjectKey]) {
@@ -101,6 +127,7 @@ export async function GET(req: Request) {
                     // Check if answer was correct (using 'correct' field)
                     if (data.correct === true) {
                         correctAnswers++;
+                        packCorrect++;
                         subjectProgress[subjectKey].correct++;
                     }
 
@@ -114,6 +141,19 @@ export async function GET(req: Request) {
                         quizSessions.add(sessionKey);
                     }
                 }
+            }
+
+            if (packTotal > 0) {
+                packProgress.push({
+                    packId,
+                    subject: meta.subject,
+                    examBoard: meta.examBoard,
+                    level: meta.level,
+                    tier: meta.tier,
+                    total: packTotal,
+                    correct: packCorrect,
+                    accuracy: Math.round((packCorrect / packTotal) * 100),
+                });
             }
         }
 
@@ -156,6 +196,7 @@ export async function GET(req: Request) {
                 totalQuestions: totalQuestions,
                 correctAnswers: correctAnswers,
                 subjectProgress: subjectProgress,
+                packProgress: packProgress.sort((x, y) => y.total - x.total),
                 aiInteractions: aiInteractions
             }
         };

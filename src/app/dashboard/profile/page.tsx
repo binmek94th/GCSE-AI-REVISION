@@ -30,6 +30,17 @@ interface ProfileData {
                 accuracy: number;
             };
         };
+        // One entry per study pack, with a readable name, exam board and level.
+        packProgress?: {
+            packId: string;
+            subject: string;
+            examBoard: string | null;
+            level: string | null;
+            tier: string | null;
+            total: number;
+            correct: number;
+            accuracy: number;
+        }[];
         aiInteractions: {
             total: number;
         };
@@ -43,6 +54,38 @@ interface ProfileData {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface ProgressRow {
+    key: string;
+    name: string;
+    tag: string; // "AQA · A-Level" — shown under the name
+    total: number;
+    correct: number;
+    accuracy: number;
+}
+
+// "a_level_aqa_maths" / "daily-assessment" -> "A Level Aqa Maths" / "Daily Assessment"
+const prettifyKey = (key: string) =>
+    key.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase());
+
+// Rows for "Progress by Subject": the real study pack name plus its exam board
+// and level, instead of the raw pack id.
+function buildProgressRows(stats: ProfileData["stats"]): ProgressRow[] {
+    if (stats.packProgress && stats.packProgress.length > 0) {
+        return stats.packProgress.map((p) => ({
+            key: p.packId,
+            name: p.subject,
+            tag: [p.examBoard, p.level, p.tier].filter(Boolean).join(" · "),
+            total: p.total,
+            correct: p.correct,
+            accuracy: p.accuracy,
+        }));
+    }
+    // Older response without the per-pack list: fall back to the per-subject map.
+    return Object.entries(stats.subjectProgress ?? {})
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([key, p]) => ({ key, name: prettifyKey(key), tag: "", ...p }));
+}
 
 // ✅ Exam boards available per level. GCSE only offers the boards that
 // actually have GCSE content; A-Level includes the full set.
@@ -620,17 +663,21 @@ export default function ProfilePage() {
             </div>
 
             {/* Subject Progress Section */}
-            {profileData.stats.subjectProgress && Object.keys(profileData.stats.subjectProgress).length > 0 && (
+            {buildProgressRows(profileData.stats).length > 0 && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Progress by Subject</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(profileData.stats.subjectProgress)
-                            .sort((a, b) => b[1].total - a[1].total) // Sort by most questions attempted
-                            .map(([subject, progress]) => (
-                                <div key={subject} className="border border-gray-200 rounded-lg p-4">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h4 className="font-semibold text-gray-900 capitalize">{subject}</h4>
-                                        <span className={`text-sm font-bold ${
+                        {buildProgressRows(profileData.stats)
+                            .map((progress) => (
+                                <div key={progress.key} className="border border-gray-200 rounded-lg p-4">
+                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                        <div className="min-w-0">
+                                            <h4 className="font-semibold text-gray-900 truncate">{progress.name}</h4>
+                                            {progress.tag && (
+                                                <p className="text-xs text-gray-500 truncate">{progress.tag}</p>
+                                            )}
+                                        </div>
+                                        <span className={`flex-shrink-0 text-sm font-bold ${
                                             progress.accuracy >= 70 ? 'text-green-600' :
                                                 progress.accuracy >= 50 ? 'text-yellow-600' :
                                                     'text-red-600'
