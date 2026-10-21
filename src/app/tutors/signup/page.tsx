@@ -7,6 +7,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'fire
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Loader2, Users } from 'lucide-react';
+import { normalizeAuthErrorCode, isCredentialError, signupErrorMessage } from '@/lib/authErrors';
 
 export default function TutorSignupPage() {
     const router = useRouter();
@@ -59,20 +60,31 @@ export default function TutorSignupPage() {
                 idToken = await cred.user.getIdToken();
                 emailVerified = cred.user.emailVerified;
             } catch (createErr: unknown) {
-                const code = (createErr as { code?: string })?.code;
+                const code = normalizeAuthErrorCode(createErr);
 
-                // ✅ This email already has an account (e.g. an existing
-                // student). Rather than surfacing that fact — which would
-                // leak account existence to whoever's typing — try signing
-                // in with the same credentials they just submitted. If it
-                // succeeds, it's genuinely their account and we just attach
-                // a tutor role to it. If it fails, fall through to the
-                // generic error below without ever confirming the email
-                // is taken.
-                if (code === 'oauth-callback/email-already-in-use') {
-                    const signInCred = await signInWithEmailAndPassword(auth, email, password);
-                    idToken = await signInCred.user.getIdToken();
-                    emailVerified = signInCred.user.emailVerified;
+                // This email already has an account (e.g. an existing
+                // student). Try signing in with the credentials they just
+                // submitted: if that works it's genuinely their account and
+                // we attach a tutor role to it.
+                //
+                // The check below used to compare against
+                // 'oauth-callback/email-already-in-use', which Firebase never
+                // returns (the real code is 'auth/email-already-in-use', and
+                // sometimes only the raw EMAIL_EXISTS body comes back), so
+                // this branch never ran and every failure showed the same
+                // generic message.
+                if (code === 'auth/email-already-in-use') {
+                    try {
+                        const signInCred = await signInWithEmailAndPassword(auth, email, password);
+                        idToken = await signInCred.user.getIdToken();
+                        emailVerified = signInCred.user.emailVerified;
+                    } catch (signInErr: unknown) {
+                        // Wrong password for the existing account -> say the
+                        // account exists. Anything else (network, rate limit)
+                        // keeps its own message.
+                        const signInCode = normalizeAuthErrorCode(signInErr);
+                        throw { code: isCredentialError(signInCode) ? 'auth/email-already-in-use' : signInCode };
+                    }
                 } else {
                     throw createErr;
                 }
@@ -80,9 +92,8 @@ export default function TutorSignupPage() {
 
             await registerAsTutorAndContinue(idToken, emailVerified);
         } catch (err) {
-            // Deliberately generic — never distinguishes "wrong password"
-            // from "no such account" from "email taken by someone else".
-            setError('Something went wrong. Please check your details and try again.');
+            console.error('Tutor signup failed:', err);
+            setError(signupErrorMessage(err));
         } finally {
             setLoading(false);
         }

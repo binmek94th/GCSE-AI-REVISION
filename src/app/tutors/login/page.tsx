@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Loader2, Users } from 'lucide-react';
+import { loginErrorMessage } from '@/lib/authErrors';
 
 export default function TutorLoginPage() {
     const router = useRouter();
@@ -31,7 +32,10 @@ export default function TutorLoginPage() {
 
             router.push('/tutors/dashboard');
         } catch (err) {
-            setError('Invalid email or password');
+            // Was "Invalid email or password" for EVERY failure, including
+            // rate limiting and network errors, which hid the real cause.
+            console.error('Tutor login failed:', err);
+            setError(loginErrorMessage(err));
         } finally {
             setLoading(false);
         }

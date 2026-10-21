@@ -12,6 +12,7 @@ import { Input } from "@/app/components/ui/input";
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp, Timestamp } from "@firebase/firestore";
 import GoogleIcon from '@/app/components/GoogleIcon';
 import { Loader2 } from 'lucide-react';
+import { normalizeAuthErrorCode, isCredentialError } from '@/lib/authErrors';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -54,20 +55,20 @@ const emailToDocId = (email: string) => email.toLowerCase().replace(/\./g, '_dot
 
 const getFriendlyAuthError = (errorCode: string): string => {
     switch (errorCode) {
-        case 'oauth-callback/invalid-email':
+        case 'auth/invalid-email':
             return 'Invalid email address. Please check and try again.';
-        case 'oauth-callback/user-disabled':
+        case 'auth/user-disabled':
             return 'This account has been disabled. Contact support.';
-        case 'oauth-callback/user-not-found':
-        case 'oauth-callback/wrong-password':
-        case 'oauth-callback/invalid-credential':
-        case 'oauth-callback/request-had-invalid-authentication-credentials':
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+        case 'auth/request-had-invalid-authentication-credentials':
             return 'Incorrect email or password. Please try again.';
-        case 'oauth-callback/too-many-requests':
+        case 'auth/too-many-requests':
             return 'Too many failed attempts. Please try again later.';
-        case 'oauth-callback/network-request-failed':
+        case 'auth/network-request-failed':
             return 'Network error. Please check your connection.';
-        case 'oauth-callback/missing-password':
+        case 'auth/missing-password':
             return 'Password is required.';
         default:
             return 'Something went wrong. Please try again.';
@@ -81,9 +82,7 @@ const formatCountdown = (ms: number): string => {
     return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
-// Kept separate from getFriendlyAuthError above (which has its own, unrelated
-// "oauth-callback/..." prefix mismatch left as-is) so Google's own error
-// codes get an accurate message.
+// Google-popup specific messages (kept separate from the password ones above).
 const getGoogleErrorMessage = (errorCode: string): string => {
     switch (errorCode) {
         case 'auth/account-exists-with-different-credential':
@@ -92,6 +91,12 @@ const getGoogleErrorMessage = (errorCode: string): string => {
             return 'Your browser blocked the Google sign-in popup. Please allow popups for this site and try again.';
         case 'auth/network-request-failed':
             return 'Network error. Please check your connection.';
+        case 'auth/user-disabled':
+            return 'This account has been disabled. Contact support.';
+        case 'auth/unauthorized-domain':
+            return "This website isn't authorised for Google sign-in yet. Please contact support.";
+        case 'auth/operation-not-allowed':
+            return "Google sign-in isn't enabled right now. Please contact support.";
         default:
             return 'Google sign-in failed. Please try again.';
     }
@@ -353,7 +358,8 @@ export default function LoginPage() {
             await mergePendingGuestIfAny(idToken);
             await routeAfterAuth(cred.user.uid);
         } catch (err: any) {
-            const code = err?.code ?? '';
+            console.error('Google login failed:', err);
+            const code = normalizeAuthErrorCode(err);
             if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
                 return; // they just closed the popup — not an error worth showing
             }
@@ -407,15 +413,18 @@ export default function LoginPage() {
 
             router.push('/dashboard');
         } catch (err: any) {
-            // Wrong credentials — increment attempt counter
-            const isCredentialError = [
-                'oauth-callback/wrong-password',
-                'oauth-callback/user-not-found',
-                'oauth-callback/invalid-credential',
-                'oauth-callback/request-had-invalid-authentication-credentials',
-            ].includes(err.code);
+            console.error('Login failed:', err);
 
-            if (isCredentialError) {
+            // Firebase's error isn't always a clean FirebaseError (sometimes
+            // only the raw REST body comes back), so read the code robustly.
+            // Both this check and the messages above used to compare against
+            // 'oauth-callback/...' codes that Firebase never returns, so wrong
+            // passwords were never counted toward the lockout and every
+            // failure showed "Something went wrong".
+            const code = normalizeAuthErrorCode(err);
+
+            // Wrong credentials — increment attempt counter
+            if (isCredentialError(code)) {
                 const attempts = await recordFailedAttempt(data.email);
                 const remaining = MAX_ATTEMPTS - attempts;
 
@@ -428,12 +437,12 @@ export default function LoginPage() {
                     );
                 } else {
                     setError(
-                        `${getFriendlyAuthError(err.code)} ` +
+                        `${getFriendlyAuthError(code)} ` +
                         `${remaining} attempt${remaining === 1 ? '' : 's'} remaining before your account is locked.`
                     );
                 }
             } else {
-                setError(getFriendlyAuthError(err.code ?? err.message));
+                setError(getFriendlyAuthError(code));
             }
         }
     };

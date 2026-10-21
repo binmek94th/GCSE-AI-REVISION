@@ -22,6 +22,7 @@ import { Button } from "@/app/components/ui/button";
 import { doc, getDoc, setDoc } from "@firebase/firestore";
 import { CheckCircle, XCircle, Loader2, Gift } from 'lucide-react';
 import GoogleIcon from '@/app/components/GoogleIcon';
+import { normalizeAuthErrorCode } from '@/lib/authErrors';
 
 const registerSchema = z.object({
     username: z.string().min(3, "Username must be at least 3 characters"),
@@ -59,35 +60,16 @@ const googleCompleteSchema = z.object({
 
 type GoogleCompleteForm = z.infer<typeof googleCompleteSchema>;
 
-// Firebase's SDK usually wraps auth failures into a FirebaseError with a
-// clean `.code` like "auth/email-already-in-use". But some paths (we saw
-// this on `linkWithCredential`) surface the raw Identity Toolkit REST body
-// instead — e.g. `{"error":{"code":400,"message":"EMAIL_EXISTS",...}}` —
-// with no usable `.code` at all. This pulls a canonical code out of
-// whichever shape actually shows up, so the friendly-message switch below
-// always has something to match against.
-const normalizeAuthErrorCode = (err: any): string => {
-    if (typeof err?.code === "string" && err.code.startsWith("auth/")) {
-        return err.code;
-    }
-    const raw: string =
-        err?.customData?._tokenResponse?.error?.message ||
-        err?.error?.message ||
-        err?.message ||
-        "";
-    if (/EMAIL_EXISTS/i.test(raw)) return "auth/email-already-in-use";
-    if (/CREDENTIAL_ALREADY_IN_USE/i.test(raw)) return "auth/credential-already-in-use";
-    if (/INVALID_EMAIL/i.test(raw)) return "auth/invalid-email";
-    if (/WEAK_PASSWORD/i.test(raw)) return "auth/weak-password";
-    if (/TOO_MANY_ATTEMPTS_TRY_LATER/i.test(raw)) return "auth/too-many-requests";
-    return typeof err?.code === "string" ? err.code : raw;
-};
-
-const getFriendlyAuthError = (errorCode: string): string => {
+// `hadGuestSession`: they took the free assessment first, so their result is
+// saved under a guest session and logging in will bring it over. Only mention
+// that when it's actually true.
+const getFriendlyAuthError = (errorCode: string, hadGuestSession = false): string => {
     switch (errorCode) {
         case "auth/email-already-in-use":
         case "auth/credential-already-in-use":
-            return "An account with this email already exists. We've saved your assessment result — log in to bring it over.";
+            return hadGuestSession
+                ? "An account with this email already exists. We've saved your assessment result — log in to bring it over."
+                : "An account with this email already exists. Please log in instead.";
         case "auth/account-exists-with-different-credential":
             return "An account already exists with this email using a different sign-in method. Try logging in with your password instead.";
         case "auth/invalid-email":
@@ -98,6 +80,14 @@ const getFriendlyAuthError = (errorCode: string): string => {
             return "Network error. Please check your connection.";
         case "auth/too-many-requests":
             return "Too many attempts. Please try again later.";
+        case "auth/popup-blocked":
+            return "Your browser blocked the Google sign-in popup. Please allow popups for this site and try again.";
+        case "auth/user-disabled":
+            return "This account has been disabled. Please contact support.";
+        case "auth/unauthorized-domain":
+            return "This website isn't authorised for Google sign-in yet. Please contact support.";
+        case "auth/operation-not-allowed":
+            return "This sign-in method isn't enabled right now. Please contact support.";
         default:
             return "Something went wrong. Please try again.";
     }
@@ -258,12 +248,14 @@ function RegisterFormInner() {
         }
 
         setError(null);
+        let hadGuestSession = false;
         try {
             // If they took the free assessment first, they're already signed
             // in anonymously. Linking that same uid to this email/password
             // (instead of creating a brand-new account) keeps every bit of
             // onboarding/quiz data already saved under it — no merge needed.
             const anonymousUser = auth.currentUser?.isAnonymous ? auth.currentUser : null;
+            hadGuestSession = !!anonymousUser;
             let userCred;
             try {
                 userCred = anonymousUser
@@ -312,7 +304,8 @@ function RegisterFormInner() {
 
             router.push('/verify-email');
         } catch (err: any) {
-            setError(getFriendlyAuthError(normalizeAuthErrorCode(err)));
+            console.error('Registration failed:', err);
+            setError(getFriendlyAuthError(normalizeAuthErrorCode(err), hadGuestSession));
         }
     };
 
