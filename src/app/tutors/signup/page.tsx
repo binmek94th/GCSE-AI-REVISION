@@ -34,15 +34,9 @@ export default function TutorSignupPage() {
             return;
         }
 
-        try {
-            await fetch('/api/auth/send-verification-code', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-            });
-        } catch (verifyErr) {
-            console.error('Failed to send verification code:', verifyErr);
-        }
-
+        // No code is sent here: /tutors/verify-email sends one automatically
+        // when it loads. Sending (and waiting) here as well made signup
+        // slower and caused that page's own send to hit the resend cooldown.
         router.push('/tutors/verify-email');
     };
 

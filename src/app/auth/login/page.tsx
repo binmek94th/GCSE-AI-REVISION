@@ -234,6 +234,12 @@ export default function LoginPage() {
 
     const watchedEmail = watch('email');
 
+    // Start downloading the dashboard's code while they type, so it's ready
+    // the moment they sign in.
+    useEffect(() => {
+        router.prefetch('/dashboard');
+    }, [router]);
+
     // ---------------------------------------------------------------------------
     // Lockout countdown ticker
     // ---------------------------------------------------------------------------
@@ -306,11 +312,15 @@ export default function LoginPage() {
         return newAttempts;
     }, [getAttemptDoc]);
 
-    /** Clear attempt record after successful login */
-    const clearAttempts = useCallback(async (email: string) => {
-        const { ref } = await getAttemptDoc(email);
-        await deleteDoc(ref).catch(() => {}); // non-fatal
-    }, [getAttemptDoc]);
+    /**
+     * Clear the attempt record after a successful login. Deleting a missing
+     * doc is a no-op, so there's no need to read it first (this used to be a
+     * read followed by a delete, awaited, before the user moved on). Callers
+     * don't wait for it either — failure is harmless.
+     */
+    const clearAttempts = useCallback((email: string) => {
+        deleteDoc(doc(db, 'users_login_attempts', emailToDocId(email))).catch(() => {}); // non-fatal
+    }, []);
 
     // If they'd taken the free assessment as a guest and then tried to
     // register (with email/password OR Google) using an email that already
@@ -386,8 +396,8 @@ export default function LoginPage() {
         try {
             const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
 
-            // Success — clear any previous attempt record
-            await clearAttempts(data.email);
+            // Success — clear any previous attempt record (not awaited)
+            clearAttempts(data.email);
 
             const idToken = await userCredential.user.getIdToken();
             await mergePendingGuestIfAny(idToken);

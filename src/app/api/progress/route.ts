@@ -11,19 +11,19 @@ export async function GET(request: NextRequest) {
         const decodedToken = await admin.auth().verifyIdToken(idToken);
         const userId = decodedToken.uid;
 
+        const db = admin.firestore();
+
+        // The user doc and their progress docs don't depend on each other —
+        // read them together instead of one after the other.
+        const [userDoc, progressSnapshot] = await Promise.all([
+            db.collection('users').doc(userId).get(),
+            db.collection('users').doc(userId).collection('progress').get(),
+        ]);
+
         // Get user's examBoard + level preference
-        const userDoc = await admin.firestore().collection('users').doc(userId).get();
         const userData = userDoc.data();
         const examBoard = userData?.preferences?.examBoard ?? userData?.examBoard ?? null;
         const level = userData?.level ?? userData?.preferences?.level ?? null;
-
-        // Get all progress documents for the user
-        const progressSnapshot = await admin
-            .firestore()
-            .collection('users')
-            .doc(userId)
-            .collection('progress')
-            .get();
 
         if (progressSnapshot.empty) {
             return NextResponse.json({
@@ -35,36 +35,45 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        const subjectProgress = [];
-        let totalMaterials = 0;
-        let totalFinished = 0;
+        // /api/study_materials' POST writes each entry as
+        // {materialId: {done: true, completedAt}}, not a plain boolean —
+        // this was checking `=== true`, which an object never satisfies,
+        // so finishedMaterialIds was always empty and "Materials" showed
+        // 0%/"Not started" no matter how much was actually completed.
+        // Also accepts a literal `true` for any older/other callers.
+        const isMaterialDone = (value: unknown): boolean =>
+            value === true || (typeof value === 'object' && value !== null && (value as any).done === true);
 
-        for (const doc of progressSnapshot.docs) {
+        // Every pack is independent, so they're processed at the same time.
+        // This loop used to run one pack after another (three awaited reads
+        // each), so the dashboard — which shows a full-screen spinner until
+        // this returns — waited for all of them back to back.
+        const perPack = await Promise.all(progressSnapshot.docs.map(async (doc) => {
             const packId = doc.id;
             const progressData = doc.data();
 
-            // Get the study pack to resolve the real subject name
-            const studyPackDoc = await admin
-                .firestore()
-                .collection('study_packs')
-                .doc(packId)
-                .get();
+            // The pack (to resolve the real subject name) and this pack's quiz
+            // progress don't depend on each other.
+            const [studyPackDoc, quizProgressDoc] = await Promise.all([
+                db.collection('study_packs').doc(packId).get(),
+                db.collection('users').doc(userId).collection('question_progress').doc(packId).get(),
+            ]);
 
             if (!studyPackDoc.exists) {
                 console.log('Study pack not found for:', packId);
-                continue;
+                return null;
             }
 
             const studyPackData = studyPackDoc.data();
             const subjectName = studyPackData?.subject;
-            if (!subjectName) continue;
+            if (!subjectName) return null;
 
             // ✅ Filter subjects by the user's level preference (fail-open if either
             //    side is missing, so we never silently hide content due to a
             //    missing level field on the pack or the user)
             const packLevel = studyPackData?.level;
             if (level && packLevel && packLevel !== level) {
-                continue;
+                return null;
             }
 
             // GCSE and A-Level materials live in separate collections (see
@@ -78,8 +87,7 @@ export async function GET(request: NextRequest) {
 
             // ✅ Query materials the same way the study-materials GET does —
             //    by subject name + examBoard + approved, NOT by packId
-            let materialsQuery = admin
-                .firestore()
+            let materialsQuery = db
                 .collection(materialsCollection)
                 .where('subject', '==', subjectName)
                 .where('moderation_status', '==', 'approved');
@@ -88,21 +96,15 @@ export async function GET(request: NextRequest) {
                 materialsQuery = materialsQuery.where('exam_board', '==', examBoard) as any;
             }
 
-            const materialsSnapshot = await materialsQuery.get();
+            // Only the ids and the count are used, so ask for no fields. Each
+            // material document holds its full lesson text (tens of KB), and
+            // this used to download all of it just to count them.
+            const materialsSnapshot = await materialsQuery.select().get();
             const totalSubjectMaterials = materialsSnapshot.size;
 
             // Build a set of valid material IDs so we only count progress
             // against materials that actually exist (avoids stale progress keys)
             const validMaterialIds = new Set(materialsSnapshot.docs.map(d => d.id));
-
-            // /api/study_materials' POST writes each entry as
-            // {materialId: {done: true, completedAt}}, not a plain boolean —
-            // this was checking `=== true`, which an object never satisfies,
-            // so finishedMaterialIds was always empty and "Materials" showed
-            // 0%/"Not started" no matter how much was actually completed.
-            // Also accepts a literal `true` for any older/other callers.
-            const isMaterialDone = (value: unknown): boolean =>
-                value === true || (typeof value === 'object' && value !== null && (value as any).done === true);
 
             const finishedMaterialIds = Object.keys(progressData).filter(
                 key => isMaterialDone(progressData[key]) && validMaterialIds.has(key)
@@ -114,14 +116,6 @@ export async function GET(request: NextRequest) {
                 : 0;
 
             // Quiz progress / grade
-            const quizProgressDoc = await admin
-                .firestore()
-                .collection('users')
-                .doc(userId)
-                .collection('question_progress')
-                .doc(packId)
-                .get();
-
             let grade = 'N/A';
             let accuracyPercentage = 0;
 
@@ -151,7 +145,7 @@ export async function GET(request: NextRequest) {
                 }
             }
 
-            subjectProgress.push({
+            return {
                 subjectId: packId,
                 subjectName,
                 totalMaterials: totalSubjectMaterials,
@@ -160,11 +154,14 @@ export async function GET(request: NextRequest) {
                 grade,
                 accuracyPercentage,
                 finishedMaterialIds,
-            });
+            };
+        }));
 
-            totalMaterials += totalSubjectMaterials;
-            totalFinished += finishedCount;
-        }
+        // Promise.all keeps the original order, so the response matches what
+        // the sequential loop produced.
+        const subjectProgress = perPack.filter((p): p is NonNullable<typeof p> => p !== null);
+        const totalMaterials = subjectProgress.reduce((sum, p) => sum + p.totalMaterials, 0);
+        const totalFinished = subjectProgress.reduce((sum, p) => sum + p.finishedMaterials, 0);
 
         const overallProgress = totalMaterials > 0
             ? Math.round((totalFinished / totalMaterials) * 100)

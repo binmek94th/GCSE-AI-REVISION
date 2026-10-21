@@ -204,9 +204,16 @@ function RegisterFormInner() {
     const googleUsername = watchGoogle('username');
     const { status: googleUsernameStatus, message: googleUsernameMessage } = useUsernameAvailability(googleUsername);
 
-    // ── Referral attribution + verification email — shared by both the
-    // password path and the Google-completion path below ──────────────────
-    const trackReferralAndVerify = async (idToken: string, alreadyVerified: boolean) => {
+    // ── Referral attribution — shared by both the password path and the
+    // Google-completion path below ──────────────────────────────────────────
+    //
+    // This used to ALSO send the verification email and wait for it (Admin
+    // lookup + a few Firestore calls + a Brevo API call) before moving on.
+    // /verify-email already sends a code by itself the first time it loads,
+    // so that was a slow duplicate — and the page's own send then got
+    // rejected by the 60s resend cooldown, which left it showing the
+    // "code not sent" state. The verify page is now the only sender.
+    const trackReferral = async (idToken: string) => {
         if (referralCode && referralTutorName) {
             try {
                 await fetch('/api/referrals/track-signup', {
@@ -217,23 +224,6 @@ function RegisterFormInner() {
             } catch (refErr) {
                 console.error('Referral tracking failed:', refErr);
             }
-        }
-
-        // Google accounts arrive already verified by Google — no need for
-        // our own verification email or the /verify-email gate.
-        if (alreadyVerified) return;
-
-        try {
-            const res = await fetch('/api/auth/send-verification-code', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
-            });
-            if (!res.ok) {
-                const err = await res.json();
-                console.error('Failed to send verification email:', err);
-            }
-        } catch (verifyErr) {
-            console.error('Verification email request failed:', verifyErr);
         }
     };
 
@@ -300,7 +290,7 @@ function RegisterFormInner() {
             localStorage.setItem('User', JSON.stringify({ uid: userCred.user.uid, email: data.email }));
 
             const idToken = await userCred.user.getIdToken();
-            await trackReferralAndVerify(idToken, false);
+            await trackReferral(idToken);
 
             router.push('/verify-email');
         } catch (err: any) {
@@ -404,7 +394,7 @@ function RegisterFormInner() {
             localStorage.setItem('User', JSON.stringify({ uid: pendingGoogleUser.uid, email }));
 
             const idToken = await pendingGoogleUser.getIdToken();
-            await trackReferralAndVerify(idToken, true);
+            await trackReferral(idToken);
 
             router.push('/onboarding');
         } catch (err: any) {
