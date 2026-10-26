@@ -12,10 +12,7 @@ cred = credentials.Certificate(
 firebase_admin.initialize_app(cred)
 
 emails = [
-    "agent.new@studycedo-test.com",
-    "agent.free@studycedo-test.com",
-    "agent.pro@studycedo-test.com",
-    "agent.teacher@studycedo-test.com",
+    "test@gmail.com",
 ]
 
 for email in emails:

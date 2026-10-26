@@ -8,12 +8,14 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
 import StudyMaterialTab from "@/app/dashboard/study_materials/StudyMaterialTab";
+import { gradeOptionsFor, defaultGradeFor } from "@/lib/grades";
 
 interface Subject {
     id: string;
     subject: string;
     examBoard: string;
     exam_board: string;
+    level?: string;
     tier: string;
     progress: number;
     enrolled: boolean;
@@ -43,6 +45,9 @@ function StudyPackTab() {
     const [loading, setLoading] = useState(false);
     const [enrollingIds, setEnrollingIds] = useState<Set<string>>(new Set());
     const [unenrollingIds, setUnenrollingIds] = useState<Set<string>>(new Set());
+    // Which pack is currently asking "what's your target grade?", and the grade picked so far.
+    const [gradePickerFor, setGradePickerFor] = useState<string | null>(null);
+    const [pickedGrade, setPickedGrade] = useState<string>('');
     const router = useRouter();
     const [packId, setPackId] = useState<string | null>(null);
     const searchParams = useSearchParams();
@@ -76,8 +81,16 @@ function StudyPackTab() {
 
     if (loading) return <Spinner />;
 
-    const handleEnroll = async (subject: Subject) => {
+    // "Add to Plan" first asks for a target grade (like onboarding does).
+    const openGradePicker = (subject: Subject) => {
         if (subject.enrolled || enrollingIds.has(subject.id)) return;
+        setGradePickerFor(subject.id);
+        setPickedGrade(defaultGradeFor(subject.level));
+    };
+
+    const handleEnroll = async (subject: Subject, targetGrade: string) => {
+        if (subject.enrolled || enrollingIds.has(subject.id)) return;
+        setGradePickerFor(null);
         setEnrollingIds(prev => new Set(prev).add(subject.id));
         try {
             const user = auth.currentUser;
@@ -90,6 +103,7 @@ function StudyPackTab() {
                     subject: subject.subject,
                     examBoard: subject.exam_board ?? subject.examBoard,
                     subjectId: subject.id,
+                    targetGrade,
                 }),
             });
             if (res.ok) setSubjects(prev => prev.map(s => s.id === subject.id ? { ...s, enrolled: true } : s));
@@ -206,9 +220,47 @@ function StudyPackTab() {
                                             }
                                         </Button>
                                     </div>
+                                ) : gradePickerFor === subject.id ? (
+                                    /* Asks for the target grade before adding */
+                                    <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Target grade</p>
+                                        <div className="mb-3 flex flex-wrap gap-1.5">
+                                            {gradeOptionsFor(subject.level).map(grade => (
+                                                <button
+                                                    key={grade}
+                                                    type="button"
+                                                    onClick={() => setPickedGrade(grade)}
+                                                    className={`h-9 min-w-9 rounded-md border px-2 text-sm font-medium cursor-pointer ${
+                                                        pickedGrade === grade
+                                                            ? 'border-sky-500 bg-sky-500 text-white'
+                                                            : 'border-gray-200 bg-white text-gray-900 hover:bg-gray-100'
+                                                    }`}
+                                                >
+                                                    {grade}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                onClick={() => setGradePickerFor(null)}
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1"
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleEnroll(subject, pickedGrade)}
+                                                size="sm"
+                                                className="flex-1 bg-sky-500 text-white hover:bg-sky-600"
+                                            >
+                                                Add to Plan
+                                            </Button>
+                                        </div>
+                                    </div>
                                 ) : (
                                     <Button
-                                        onClick={() => handleEnroll(subject)}
+                                        onClick={() => openGradePicker(subject)}
                                         disabled={isEnrolling}
                                         size="sm"
                                         variant="outline"

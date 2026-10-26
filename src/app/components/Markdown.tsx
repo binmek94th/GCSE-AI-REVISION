@@ -1,10 +1,66 @@
 'use client'
-import React, { JSX } from 'react';
+import React, { JSX, useEffect, useRef, useState } from 'react';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
 
 interface MarkdownContentProps {
     content: string;
+}
+
+// ── Figures ──────────────────────────────────────────────────────────────────
+// A line that is only an image: ![alt text](url). The alt group is greedy because
+// alt text can legitimately contain [ ] (e.g. "Diagram 6 — [IMAGE_5]").
+const IMAGE_LINE_RE = /^!\[(.*)\]\(([^)]+)\)$/;
+
+// The italic caption some materials put under an image: *Figure 6*, _Fig. 2: The cell_
+const FIGURE_CAPTION_RE = /^([*_])\s*(?:Figure|Fig\.?)\s*\d+[^*_]*\1$/i;
+
+// The extraction pipeline sometimes leaves a placeholder where the picture should
+// be (nothing, "#", "IMAGE_5", "[IMAGE_5]") — there is no image to try to load.
+const isPlaceholderSrc = (src: string) => {
+    const t = src.trim();
+    return !t || t === '#' || /^\[?\s*IMAGE[\s_-]*\d+\s*\]?$/i.test(t) || /^(null|undefined)$/i.test(t);
+};
+
+/**
+ * An image with its labels. If the picture doesn't exist (placeholder link) or
+ * can't be loaded (404, broken link), the WHOLE figure is dropped — including
+ * the "Diagram 6 — [IMAGE_5]" label and the "Figure 6" caption — so the lesson
+ * never says there's a diagram where there isn't one.
+ */
+function MarkdownFigure({ src, alt, caption }: { src: string; alt: string; caption?: React.ReactNode }) {
+    const [failed, setFailed] = useState(false);
+    const imgRef = useRef<HTMLImageElement>(null);
+
+    // A different image gets a fresh attempt.
+    useEffect(() => {
+        setFailed(false);
+    }, [src]);
+
+    // If the image already failed before this component hydrated, the browser's
+    // error event has come and gone, so onError never fires — check directly.
+    useEffect(() => {
+        const img = imgRef.current;
+        if (img && img.complete && img.naturalWidth === 0 && !/\.svg(\?|#|$)/i.test(src)) setFailed(true);
+    }, [src]);
+
+    if (failed || isPlaceholderSrc(src)) return null;
+
+    return (
+        <>
+            <figure style={{ margin: '16px 0', textAlign: 'center' }}>
+                <img
+                    ref={imgRef}
+                    src={src}
+                    alt={alt}
+                    style={{ maxWidth: '100%', height: 'auto', borderRadius: 8, border: '1px solid #E2E8F0' }}
+                    onError={() => setFailed(true)}
+                />
+                {alt && <figcaption style={{ fontSize: 12, color: '#94A3B8', marginTop: 6 }}>{alt}</figcaption>}
+            </figure>
+            {caption}
+        </>
+    );
 }
 
 export function MarkdownContent({ content }: MarkdownContentProps) {
@@ -292,7 +348,30 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
             flushList();
         };
 
+        // Pair each image with the italic "Figure N" caption under it (blank lines
+        // in between are skipped), so the caption appears and disappears with its
+        // image instead of being left behind on its own.
+        const figureCaptionAfter = new Map<number, number>();
+        const consumedCaptionLines = new Set<number>();
+        {
+            let inFence = false;
+            for (let i = 0; i < lines.length; i++) {
+                const t = lines[i].trim();
+                if (t.startsWith('```')) { inFence = !inFence; continue; }
+                if (inFence || !IMAGE_LINE_RE.test(t)) continue;
+                let j = i + 1;
+                while (j < lines.length && lines[j].trim() === '') j++;
+                if (j < lines.length && FIGURE_CAPTION_RE.test(lines[j].trim())) {
+                    figureCaptionAfter.set(i, j);
+                    consumedCaptionLines.add(j);
+                }
+            }
+        }
+
         lines.forEach((line, index) => {
+            // Rendered together with the image above it (see MarkdownFigure).
+            if (consumedCaptionLines.has(index)) return;
+
             const trimmedLine = line.trim();
 
             // ── Code block ───────────────────────────────────────────────
@@ -358,20 +437,17 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
             }
 
             // ── Image ────────────────────────────────────────────────────
-            // NOTE: alt text can legitimately contain [ ] (e.g. "[IMAGE_1]" placeholders),
-            // so the alt group is greedy (.*) instead of [^\]]*, and relies on the
-            // anchored $ + single "](" separator to find the real boundary.
-            const imageMatch = trimmedLine.match(/^!\[(.*)\]\(([^)]+)\)$/);
+            const imageMatch = trimmedLine.match(IMAGE_LINE_RE);
             if (imageMatch) {
                 flushNonListState();
                 const [, alt, src] = imageMatch;
-                elements.push(
-                    <figure key={`img-${index}`} style={{ margin: '16px 0', textAlign: 'center' }}>
-                        <img src={src} alt={alt} style={{ maxWidth: '100%', height: 'auto', borderRadius: 8, border: '1px solid #E2E8F0' }}
-                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                        {alt && <figcaption style={{ fontSize: 12, color: '#94A3B8', marginTop: 6 }}>{alt}</figcaption>}
-                    </figure>
-                );
+                const captionLine = figureCaptionAfter.get(index);
+                const caption = captionLine !== undefined ? (
+                    <p key={`cap-${index}`} style={{ marginBottom: 12, color: '#475569', lineHeight: 1.7 }}>
+                        {parseInlineElements(lines[captionLine].trim())}
+                    </p>
+                ) : undefined;
+                elements.push(<MarkdownFigure key={`img-${index}`} src={src} alt={alt} caption={caption} />);
                 return;
             }
 

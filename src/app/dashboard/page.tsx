@@ -15,6 +15,7 @@ import { ProgressData } from "@/hooks/useProgress";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import Spinner from "@/app/components/ui/Spinner";
+import { useAutoEnrollFromOnboarding } from "@/app/dashboard/useAutoEnrollFromOnboarding";
 import { MOOD_MESSAGES, useMoodChecker } from "@/hooks/useMoodChecker";
 import { MoodChecker } from "@/app/dashboard/MoodChecker";
 import { useDashboard } from "@/contexts/DashboardContext";
@@ -71,7 +72,7 @@ function Dashboard() {
     const [showMoreDropdown, setShowMoreDropdown] = useState(false);
     const moreRef = useRef<HTMLDivElement>(null);
 
-    const { dashboardData, loading: dashboardLoading } = useDashboard();
+    const { dashboardData, loading: dashboardLoading, refreshDashboard } = useDashboard();
     const { shouldShow: showMoodChecker, loading: moodLoading, submitMood, closeMoodChecker } = useMoodChecker(idToken || null);
 
     useEffect(() => {
@@ -158,9 +159,14 @@ function Dashboard() {
         if (tabParam) setActiveTab(tabParam);
     }, [searchParams]);
 
-    useEffect(() => {
-        if (dashboardData?.studyPacks.length === 0) setActiveTab("studypack");
-    }, [dashboardData]);
+    // No study packs yet? If the student already chose subjects in onboarding,
+    // those become their study packs (and plan) — only if there's nothing to add
+    // are they sent to the Study Pack tab to pick some.
+    const settingUpPlan = useAutoEnrollFromOnboarding({
+        dashboardData,
+        refreshDashboard,
+        onNothingEnrolled: () => setActiveTab("studypack"),
+    });
 
     const handleTabChange = (value: string) => {
         setActiveTab(value);
@@ -172,6 +178,17 @@ function Dashboard() {
         try { await signOut(auth); router.push("auth/login"); }
         catch (err) { console.error("Logout failed:", err); }
     };
+
+    if (settingUpPlan) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="w-8 h-8 border-2 border-border border-t-primary rounded-full animate-spin mx-auto" />
+                    <p className="text-muted-foreground mt-4">Adding your subjects and building your study plan…</p>
+                </div>
+            </div>
+        );
+    }
 
     if (loading || moodLoading || dashboardLoading) return <Spinner />;
 
