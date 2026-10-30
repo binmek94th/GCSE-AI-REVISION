@@ -6,7 +6,7 @@ import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
-import { Copy, Check, LogOut, Users, TrendingUp, DollarSign, Loader2, Landmark, Pencil } from 'lucide-react';
+import { Copy, Check, LogOut, Users, TrendingUp, DollarSign, Loader2, Landmark, Pencil, User } from 'lucide-react';
 import { toast } from 'sonner';
 import StudentsSection from '@/app/tutors/dashboard/StudentsSection';
 
@@ -197,9 +197,14 @@ export default function TutorDashboardPage() {
                         <h1 className="text-2xl font-bold text-gray-900">Welcome, {tutor.name}</h1>
                         <p className="text-sm text-gray-600">Partner dashboard</p>
                     </div>
-                    <Button variant="outline" onClick={handleLogout} className="cursor-pointer">
-                        <LogOut className="w-4 h-4 mr-2" /> Log out
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => router.push('/tutors/profile')} className="cursor-pointer">
+                            <User className="w-4 h-4 mr-2" /> Profile
+                        </Button>
+                        <Button variant="outline" onClick={handleLogout} className="cursor-pointer">
+                            <LogOut className="w-4 h-4 mr-2" /> Log out
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Referral link */}

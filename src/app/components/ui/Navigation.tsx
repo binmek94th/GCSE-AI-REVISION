@@ -35,7 +35,7 @@ export function Navigation({ currentPage }: NavigationProps) {
         { label: 'Subjects', href: '/subjects' },
         { label: 'Support', href: '/support' },
         { label: 'Plan', href: '/subscribe' },
-        { label: ' For Tutors', href: '/tutors/login' }
+        { label: ' For Tutors', href: '/tutors' }
     ];
 
     const handleNavigate = (href: string) => {
