@@ -30,6 +30,8 @@ function BuyTokenComponent() {
     const [purchasing, setPurchasing] = useState(false);
     const [billingCycle, setBillingCycle] = useState<'month' | 'year'>('month');
     const searchParams = useSearchParams();
+    // Stripe sends people back here with ?canceled=true if they close its payment page.
+    const [showCancelNotice, setShowCancelNotice] = useState(searchParams.get("canceled") === "true");
 
     useEffect(() => {
         const fetchPackage = async () => {
@@ -105,6 +107,24 @@ function BuyTokenComponent() {
             padding: '2rem',
         }}>
             <div style={{ width: '100%', maxWidth: '480px' }}>
+
+                {showCancelNotice && (
+                    <div role="status" style={{
+                        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem',
+                        marginBottom: '1.25rem', padding: '0.85rem 1rem', borderRadius: '12px',
+                        background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.9rem', lineHeight: 1.5,
+                    }}>
+                        <span>Payment cancelled — you haven&#39;t been charged. You can try again whenever you&#39;re ready.</span>
+                        <button
+                            type="button"
+                            onClick={() => setShowCancelNotice(false)}
+                            aria-label="Dismiss"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400e', fontSize: '1.1rem', lineHeight: 1, padding: 0 }}
+                        >
+                            ×
+                        </button>
+                    </div>
+                )}
 
                 {/* Header */}
                 <div style={{ textAlign: 'center', marginBottom: '2rem' }}>

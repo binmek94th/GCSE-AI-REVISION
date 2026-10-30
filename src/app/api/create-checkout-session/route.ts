@@ -5,6 +5,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-08-27.basil",
 });
 
+// redirectTo is joined onto our own domain, so it must be a path on this site. Anything
+// else (e.g. ".evil.com" or "//evil.com") would send the student somewhere else after paying.
+const safeRedirectPath = (value: unknown): string =>
+    typeof value === "string" && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -28,7 +33,8 @@ export async function POST(req: Request) {
             );
         }
 
-        const payload = { userId, billing, redirectTo: redirectTo || null };
+        const successPath = safeRedirectPath(redirectTo);
+        const payload = { userId, billing, redirectTo: redirectTo ? successPath : null };
         const clientReferenceId = Buffer.from(JSON.stringify(payload)).toString("base64");
 
         console.log(redirectTo);
@@ -38,8 +44,10 @@ export async function POST(req: Request) {
             payment_method_types: ["card"],
             line_items: [{ price: priceId, quantity: 1 }],
             client_reference_id: clientReferenceId,
-            success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${redirectTo || "/dashboard"}`,
-            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/token?canceled=true`,
+            success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${successPath}`,
+            // Cancelled? Back to the page they came from (there is no /token page — that
+            // link used to 404), keeping redirectTo so trying again still lands in the right place.
+            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/subscribe?canceled=true${redirectTo ? `&redirectTo=${encodeURIComponent(successPath)}` : ""}`,
             metadata: { userId, billing },
         });
 

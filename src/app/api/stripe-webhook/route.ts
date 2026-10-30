@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import admin from "@/lib/firebaseAdmin";
+import { getCommissionRate } from "@/lib/commission";
 
 // This is CRITICAL - tells Next.js not to parse the body
 export const runtime = 'nodejs';
@@ -11,8 +12,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-
-const COMMISSION_RATE = parseInt(process.env.COMMISSION_RATE);
 
 /** Decode your encoded client_reference_id (Payment Links) */
 function decodeClientReferenceId(encoded: string | null): any | null {
@@ -184,6 +183,12 @@ const handleInvoicePaymentSucceeded = async (invoice: Stripe.Invoice) => {
         return;
     }
 
+    // Read the rate BEFORE changing anything. If COMMISSION_RATE is set to something
+    // unusable this throws, nothing has been written yet, and (on the
+    // invoice.payment_succeeded path) the webhook returns 500 so Stripe retries the
+    // event once the setting is fixed — the idempotency check above makes a retry safe.
+    const commissionRate = getCommissionRate();
+
     // First successful payment for this referral: lock in the
     // one-year rev-share window and mark as subscribed.
     if (referral.status !== "subscribed") {
@@ -215,9 +220,9 @@ const handleInvoicePaymentSucceeded = async (invoice: Stripe.Invoice) => {
     }
 
     const amountPaid = invoice.amount_paid / 100; // Stripe amounts are in the smallest currency unit
-    const commissionAmount = Math.round(amountPaid * COMMISSION_RATE * 100) / 100;
+    const commissionAmount = Math.round(amountPaid * commissionRate * 100) / 100;
 
-    if (commissionAmount <= 0) return;
+    if (!Number.isFinite(commissionAmount) || commissionAmount <= 0) return;
 
     await db.collection("commission_events").add({
         tutorId: referral.tutorId,
@@ -227,7 +232,7 @@ const handleInvoicePaymentSucceeded = async (invoice: Stripe.Invoice) => {
         periodStart: admin.firestore.Timestamp.fromDate(new Date(invoice.period_start * 1000)),
         periodEnd: admin.firestore.Timestamp.fromDate(new Date(invoice.period_end * 1000)),
         subscriptionAmount: amountPaid,
-        commissionRate: COMMISSION_RATE,
+        commissionRate,
         commissionAmount,
         status: "pending",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
