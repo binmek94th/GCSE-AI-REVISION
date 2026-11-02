@@ -4,8 +4,12 @@ import { Fragment, useEffect, useState } from 'react';
 import { auth } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
-import { Check, ChevronDown, ChevronUp, Copy, KeyRound, Loader2, Users } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Copy, KeyRound, Loader2, MessageSquare, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import HelpRequestsSection from '@/app/tutors/dashboard/HelpRequestsSection';
+import MessagesSection from '@/app/tutors/dashboard/MessagesSection';
+import ChatModal from '@/app/components/chat/ChatModal';
+import ChatPanel from '@/app/components/chat/ChatPanel';
 
 interface StudentSummary {
     studentId: string;
@@ -391,6 +395,14 @@ export default function StudentsSection({ referralCode }: { referralCode: string
     const [error, setError] = useState<string | null>(null);
     const [openId, setOpenId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    // The conversation currently open in the pop-up, and a counter that makes the inbox reload when it closes.
+    const [chatWith, setChatWith] = useState<{ studentId: string; name: string } | null>(null);
+    const [inboxRefresh, setInboxRefresh] = useState(0);
+    const openChat = (studentId: string, name: string) => setChatWith({ studentId, name });
+    const closeChat = () => {
+        setChatWith(null);
+        setInboxRefresh((n) => n + 1);
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -439,6 +451,12 @@ export default function StudentsSection({ referralCode }: { referralCode: string
                 </CardContent>
             </Card>
 
+            {/* Conversations with students */}
+            <MessagesSection onOpen={openChat} refreshKey={inboxRefresh} />
+
+            {/* Students asking for help with hard material */}
+            <HelpRequestsSection onMessage={openChat} />
+
             {/* Students */}
             <Card>
                 <CardHeader>
@@ -470,6 +488,7 @@ export default function StudentsSection({ referralCode }: { referralCode: string
                                         <th className="pb-2 font-medium">Accuracy</th>
                                         <th className="pb-2 font-medium">Materials</th>
                                         <th className="pb-2" />
+                                        <th className="pb-2" />
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -498,13 +517,24 @@ export default function StudentsSection({ referralCode }: { referralCode: string
                                                         {s.accuracy !== null ? `${s.accuracy}%` : '—'}
                                                     </td>
                                                     <td className="py-2.5 text-gray-900">{s.materialsCompleted}</td>
+                                                    <td className="py-2.5">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation(); // don't also expand the row
+                                                                openChat(s.studentId, s.name);
+                                                            }}
+                                                            className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                                        >
+                                                            <MessageSquare className="w-3.5 h-3.5" /> Message
+                                                        </button>
+                                                    </td>
                                                     <td className="py-2.5 text-gray-400">
                                                         {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                     </td>
                                                 </tr>
                                                 {open && (
                                                     <tr className="border-b bg-gray-50/60">
-                                                        <td colSpan={7} className="p-4">
+                                                        <td colSpan={8} className="p-4">
                                                             <StudentDetailPanel studentId={s.studentId} />
                                                         </td>
                                                     </tr>
@@ -518,6 +548,18 @@ export default function StudentsSection({ referralCode }: { referralCode: string
                     )}
                 </CardContent>
             </Card>
+
+            {chatWith && auth.currentUser && (
+                <ChatModal title={chatWith.name} onClose={closeChat}>
+                    <ChatPanel
+                        tutorId={auth.currentUser.uid}
+                        studentId={chatWith.studentId}
+                        role="tutor"
+                        otherName={chatWith.name}
+                        onRead={() => setInboxRefresh((n) => n + 1)}
+                    />
+                </ChatModal>
+            )}
         </>
     );
 }

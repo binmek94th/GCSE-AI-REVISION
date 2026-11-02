@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GraduationCap, Loader2, X } from "lucide-react";
+import { GraduationCap, Loader2, MessageSquare, X } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { toast } from "sonner";
+import ChatModal from "@/app/components/chat/ChatModal";
+import ChatPanel from "@/app/components/chat/ChatPanel";
 
 interface LinkedTutor {
     tutorId: string;
@@ -17,6 +19,7 @@ export default function MyTutorsCard() {
     const [adding, setAdding] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [removingId, setRemovingId] = useState<string | null>(null);
+    const [chatTutor, setChatTutor] = useState<LinkedTutor | null>(null);
 
     const authHeader = async () => {
         const idToken = await auth.currentUser?.getIdToken();
@@ -119,14 +122,23 @@ export default function MyTutorsCard() {
                                         {t.source === "referral_link" ? "Added through their sign-up link" : "Added with their tutor code"}
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => handleRemove(t)}
-                                    disabled={removingId === t.tutorId}
-                                    className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-50"
-                                >
-                                    {removingId === t.tutorId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-                                    Remove
-                                </button>
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={() => setChatTutor(t)}
+                                        className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 cursor-pointer"
+                                    >
+                                        <MessageSquare className="w-3.5 h-3.5" />
+                                        Message
+                                    </button>
+                                    <button
+                                        onClick={() => handleRemove(t)}
+                                        disabled={removingId === t.tutorId}
+                                        className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 cursor-pointer disabled:opacity-50"
+                                    >
+                                        {removingId === t.tutorId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                                        Remove
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -153,6 +165,12 @@ export default function MyTutorsCard() {
                 </button>
             </div>
             {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+
+            {chatTutor && auth.currentUser && (
+                <ChatModal title={chatTutor.name} onClose={() => setChatTutor(null)}>
+                    <ChatPanel tutorId={chatTutor.tutorId} studentId={auth.currentUser.uid} role="student" otherName={chatTutor.name} />
+                </ChatModal>
+            )}
         </div>
     );
 }

@@ -26,6 +26,7 @@ import ProfilePage from "@/app/dashboard/profile/page";
 import MockTests from "@/app/dashboard/mock-exam/page";
 import { doc, getDoc } from "@firebase/firestore";
 import { GatedFeature } from "@/app/components/GatedFeature";
+import TutorChatLauncher from "@/app/components/chat/TutorChatLauncher";
 import { toast } from "sonner";
 import UploadTab from "@/app/dashboard/upload/UploadTab";
 import GeneratedMaterialsListPage from "@/app/dashboard/generated_material/page";
@@ -239,6 +240,9 @@ function Dashboard() {
                             </div>
                         )}
 
+                        {/* Only appears for students who have a tutor */}
+                        <TutorChatLauncher />
+
                         <div className="relative">
                             <Button
                                 onClick={() => setShowProfileDropdown(v => !v)}
@@ -308,7 +312,7 @@ function Dashboard() {
                                     <span className="hidden sm:block w-px h-5 bg-gray-200 self-center mx-1.5" />
 
                                     <TabsTrigger value="tutor" className={`${TAB_CLASS} hidden sm:flex`}>
-                                        <MessageCircle className="w-4 h-4" /> Tutor
+                                        <MessageCircle className="w-4 h-4" /> AI Help
                                     </TabsTrigger>
 
                                     <TabsTrigger value="ask-ai" className={`${TAB_CLASS} hidden sm:flex`}>
