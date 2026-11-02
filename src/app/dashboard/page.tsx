@@ -4,12 +4,12 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import {
     Calendar, Brain, TestTube, MessageCircle, LogOut, User, ChevronDown,
-    Upload, BookOpen, AlertCircle, Package, Trophy, MoreHorizontal, Sparkles
+    BookOpen, AlertCircle, Package, Trophy, MoreHorizontal, Sparkles
 } from 'lucide-react';
 import PlanTab from "@/app/dashboard/plan/page";
 import StudyPackTab from "@/app/dashboard/studyPack/page";
 import QuizzesTab from "@/app/dashboard/quizzes/page";
-import StudentAIChat from "@/app/dashboard/chat/page";
+import AITutorTab, { AITutorView } from "@/app/dashboard/ai-tutor/AITutorTab";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ProgressData } from "@/hooks/useProgress";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -28,7 +28,6 @@ import { doc, getDoc } from "@firebase/firestore";
 import { GatedFeature } from "@/app/components/GatedFeature";
 import TutorChatLauncher from "@/app/components/chat/TutorChatLauncher";
 import { toast } from "sonner";
-import UploadTab from "@/app/dashboard/upload/UploadTab";
 import GeneratedMaterialsListPage from "@/app/dashboard/generated_material/page";
 import MistakeBankTab from "@/app/dashboard/mistake-bank/MistakeBank";
 import AskAIPage from "@/app/dashboard/ask-ai/page";
@@ -45,13 +44,12 @@ const MORE_ITEMS = [
 ];
 
 // On mobile these tabs collapse into "More"; on desktop they appear in the bar.
-const MOBILE_MORE_TABS = ['quizzes', 'mocktests', 'mistakes', 'tutor', 'upload', 'ask-ai', ...MORE_TABS];
+const MOBILE_MORE_TABS = ['quizzes', 'mocktests', 'mistakes', 'tutor', 'ask-ai', ...MORE_TABS];
 const MOBILE_MORE_ITEMS = [
     { value: 'quizzes',      icon: Brain,          label: 'Quizzes' },
     { value: 'mocktests',    icon: TestTube,        label: 'Mocks' },
     { value: 'mistakes',     icon: AlertCircle,     label: 'Review mistakes' },
-    { value: 'tutor',        icon: MessageCircle,   label: 'Tutor' },
-    { value: 'upload',       icon: Upload,          label: 'Upload' },
+    { value: 'tutor',        icon: MessageCircle,   label: 'AI Tutor' },
     { value: 'ask-ai',       icon: Sparkles,        label: 'Ask AI' },
     ...MORE_ITEMS,
 ];
@@ -64,6 +62,8 @@ const TAB_CLASS =
 function Dashboard() {
     const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState('plan');
+    // Which side of the merged AI Tutor tab is showing (chat, or upload material).
+    const [aiView, setAiView] = useState<AITutorView>('chat');
     const router = useRouter();
     const [idToken, setIdToken] = useState<string>("");
     const [loading, setLoading] = useState(false);
@@ -157,7 +157,14 @@ function Dashboard() {
 
     useEffect(() => {
         const tabParam = searchParams.get("tab");
-        if (tabParam) setActiveTab(tabParam);
+        if (tabParam === 'upload') {
+            // The Upload tab was merged into the AI Tutor tab: old links to ?tab=upload land on its upload side.
+            setActiveTab('tutor');
+            setAiView('upload');
+        } else if (tabParam) {
+            setActiveTab(tabParam);
+            if (tabParam === 'tutor') setAiView(searchParams.get('view') === 'upload' ? 'upload' : 'chat');
+        }
     }, [searchParams]);
 
     // No study packs yet? If the student already chose subjects in onboarding,
@@ -173,6 +180,12 @@ function Dashboard() {
         setActiveTab(value);
         setShowMoreDropdown(false);
         router.replace(`/dashboard?tab=${value}`);
+    };
+
+    // Switching between Chat and Upload inside the AI Tutor tab is kept in the address, so a refresh stays put.
+    const handleAiViewChange = (view: AITutorView) => {
+        setAiView(view);
+        router.replace(view === 'upload' ? '/dashboard?tab=tutor&view=upload' : '/dashboard?tab=tutor');
     };
 
     const handleLogout = async () => {
@@ -312,19 +325,8 @@ function Dashboard() {
                                     <span className="hidden sm:block w-px h-5 bg-gray-200 self-center mx-1.5" />
 
                                     <TabsTrigger value="tutor" className={`${TAB_CLASS} hidden sm:flex`}>
-                                        <MessageCircle className="w-4 h-4" /> AI Help
+                                        <MessageCircle className="w-4 h-4" /> AI Tutor
                                     </TabsTrigger>
-
-                                    <TabsTrigger value="ask-ai" className={`${TAB_CLASS} hidden sm:flex`}>
-                                        <Sparkles className="w-4 h-4" /> Ask AI
-                                    </TabsTrigger>
-
-                                    <span className="hidden sm:block w-px h-5 bg-gray-200 self-center mx-1.5" />
-
-                                    <TabsTrigger value="upload" className={`${TAB_CLASS} hidden sm:flex`}>
-                                        <Upload className="w-4 h-4" /> Upload
-                                    </TabsTrigger>
-
                                 </TabsList>
                             </div>
 
@@ -410,11 +412,7 @@ function Dashboard() {
                         </TabsContent>
 
                         <TabsContent value="tutor">
-                            <GatedFeature featureName="Tutors">
-                                <div className="w-[80%] mx-auto">
-                                    <StudentAIChat />
-                                </div>
-                            </GatedFeature>
+                            <AITutorTab view={aiView} onViewChange={handleAiViewChange} />
                         </TabsContent>
 
                         <TabsContent value="ask-ai">
@@ -428,12 +426,6 @@ function Dashboard() {
                                 <div className="w-full mx-auto">
                                     <MockTests initialPacks={dashboardData?.studyPacks} studyPack={dashboardData?.studyPacks.length} />
                                 </div>
-                            </GatedFeature>
-                        </TabsContent>
-
-                        <TabsContent value="upload">
-                            <GatedFeature featureName="Upload Material">
-                                <UploadTab />
                             </GatedFeature>
                         </TabsContent>
 
