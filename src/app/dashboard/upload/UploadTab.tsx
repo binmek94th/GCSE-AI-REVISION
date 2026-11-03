@@ -174,7 +174,11 @@ function BuyCreditsModal({ onClose, onPurchase, purchasing }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function UploadTab() {
+// When this is shown inside the dashboard's My Materials tab (above the list of saved materials):
+//  - onOpenSaved: the "Saved materials" button scrolls down to that list instead of leaving the
+//    dashboard for the separate page.
+//  - onSaved: called right after a material is saved, so the list below can update straight away.
+export default function UploadTab({ onOpenSaved, onSaved }: { onOpenSaved?: () => void; onSaved?: () => void }) {
     const [uid, setUid]               = useState<string | null>(null);
 
     const [file, setFile]              = useState<File | null>(null);
@@ -371,6 +375,7 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
             });
             setSavedId(ref.id);
             setShowAddToPlan(true);
+            onSaved?.();
         } catch (e: any) {
             console.error(e);
             setError('Failed to save — please try again.');
@@ -428,12 +433,22 @@ Return empty arrays for unused modes. Calibrate to ${DIFFICULTY_LABELS[difficult
                             <Upload className="w-5 h-5 text-blue-600" />
                             Generate from Notes
                         </CardTitle>
-                        <Link
-                            href="/dashboard/generated_material"
-                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-                        >
-                            My Materials
-                        </Link>
+                        {onOpenSaved ? (
+                            <button
+                                type="button"
+                                onClick={onOpenSaved}
+                                className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors cursor-pointer"
+                            >
+                                Saved materials
+                            </button>
+                        ) : (
+                            <Link
+                                href="/dashboard/generated_material"
+                                className="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                            >
+                                My Materials
+                            </Link>
+                        )}
                     </CardHeader>
 
                     <CardContent className="space-y-4">
