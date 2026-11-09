@@ -10,10 +10,15 @@ const MAX_TOKENS = 1000;
 const MAX_HISTORY_MESSAGES = 12;
 const MAX_MESSAGE_CHARS = 4000;
 
-// Daily per-user limits. Separate collection from the AI tutor and study-
-// generation limits — this is a distinct feature with its own usage pattern.
-const FREE_DAILY_LIMIT = 20;
-const PRO_DAILY_LIMIT = 60;
+// Rate limits, the same for every signed-in user (no free/pro tiers). Separate
+// from the AI tutor and study-generation limits — this is a distinct feature
+// with its own usage pattern.
+//  - Daily cap: bounds the total cost one account can run up in a day.
+//  - Burst limit: at most BURST_LIMIT messages in any BURST_WINDOW_MS, which stops
+//    a script (or a stuck retry loop) from spending the whole daily cap in seconds.
+const DAILY_LIMIT = 30;
+const BURST_LIMIT = 5;
+const BURST_WINDOW_MS = 60_000;
 
 const SYSTEM_PROMPT = `You are the StudyCedo support assistant — a friendly, knowledgeable helper for students aged 13–18 and their parents using the StudyCedo GCSE AI revision platform.
 
@@ -69,31 +74,53 @@ function todayKey(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-async function checkAndIncrementLimit(uid: string, isPro: boolean): Promise<{
-    allowed: boolean;
-    remaining: number;
-    limit: number;
-}> {
-    const limit = isPro ? PRO_DAILY_LIMIT : FREE_DAILY_LIMIT;
+// A string `status` (not a true/false field) so TypeScript can narrow the union however strict the project settings are.
+type LimitResult =
+    | { status: 'ok'; remaining: number; limit: number }
+    | { status: 'daily'; limit: number }
+    | { status: 'burst'; retryAfterSeconds: number };
+
+// One document per user per day holds both counters, and a transaction checks and
+// updates them together, so concurrent requests can't slip past either limit.
+// A blocked request never uses up any of the allowance.
+async function checkAndIncrementLimit(uid: string): Promise<LimitResult> {
     const limitRef = admin.firestore()
         .collection('users')
         .doc(uid)
         .collection('supportChatLimits')
         .doc(todayKey());
+    const now = Date.now();
 
-    return admin.firestore().runTransaction(async (tx) => {
+    return admin.firestore().runTransaction(async (tx): Promise<LimitResult> => {
         const snap = await tx.get(limitRef);
-        const used = snap.exists ? (snap.data()!.count as number) : 0;
+        const data = snap.exists ? snap.data()! : {};
+        const used = (data.count as number | undefined) ?? 0;
+        const windowStart = (data.windowStart as number | undefined) ?? 0;
+        const windowCount = (data.windowCount as number | undefined) ?? 0;
 
-        if (used >= limit) return { allowed: false, remaining: 0, limit };
+        if (used >= DAILY_LIMIT) {
+            return { status: 'daily', limit: DAILY_LIMIT };
+        }
+
+        // Fixed one-minute window: it starts with the first message and resets once it has passed.
+        const inWindow = now - windowStart < BURST_WINDOW_MS;
+        if (inWindow && windowCount >= BURST_LIMIT) {
+            const retryAfterSeconds = Math.max(1, Math.ceil((windowStart + BURST_WINDOW_MS - now) / 1000));
+            return { status: 'burst', retryAfterSeconds };
+        }
 
         tx.set(
             limitRef,
-            { count: FieldValue.increment(1), lastUsed: FieldValue.serverTimestamp() },
+            {
+                count: used + 1,
+                windowStart: inWindow ? windowStart : now,
+                windowCount: inWindow ? windowCount + 1 : 1,
+                lastUsed: FieldValue.serverTimestamp(),
+            },
             { merge: true }
         );
 
-        return { allowed: true, remaining: limit - used - 1, limit };
+        return { status: 'ok', remaining: DAILY_LIMIT - used - 1, limit: DAILY_LIMIT };
     });
 }
 
@@ -148,28 +175,31 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. Subscription tier
-    const userSnap = await admin.firestore().collection('users').doc(uid).get();
-    if (!userSnap.exists) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    const userData = userSnap.data()!;
-    const isPro = userData.subscriptionStatus === 'active';
-
-    // 3. Rate limit
-    const { allowed, remaining, limit } = await checkAndIncrementLimit(uid, isPro);
-    if (!allowed) {
+    // 2. Rate limit (same for everyone)
+    const result = await checkAndIncrementLimit(uid);
+    if (result.status === 'burst') {
         return NextResponse.json(
             {
-                error: `Daily support chat limit reached (${limit}/day). ${isPro ? 'Limit resets at midnight.' : 'Upgrade to Pro for more messages.'}`,
+                error: `You're sending messages too quickly. Please wait ${result.retryAfterSeconds} seconds and try again.`,
+                rateLimited: true,
+                retryAfterSeconds: result.retryAfterSeconds,
+            },
+            { status: 429, headers: { 'Retry-After': String(result.retryAfterSeconds) } }
+        );
+    }
+    if (result.status === 'daily') {
+        return NextResponse.json(
+            {
+                error: `Daily support chat limit reached (${result.limit}/day). Please try again tomorrow.`,
                 limitReached: true,
-                limit,
+                limit: result.limit,
             },
             { status: 429 }
         );
     }
+    const remaining = result.remaining;
 
-    // 4. Parse + validate body
+    // 3. Parse + validate body
     let body: { messages: unknown };
     try {
         body = await req.json();
@@ -187,7 +217,7 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    // 5. Call Claude
+    // 4. Call Claude
     try {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',

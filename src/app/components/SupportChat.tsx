@@ -1,15 +1,45 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import type { User } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 interface Message {
     role: 'user' | 'assistant';
     content: string;
+    /** Our own notices (rate limit, connection trouble). Shown in the chat but never sent back to the AI. */
+    error?: boolean;
 }
 
 interface Escalation {
     reason: string;
     contact: string;
+}
+
+// Resolves once Firebase has finished restoring any saved session. Until then `auth.currentUser` is null even
+// for a signed-in user, and signing in as a guest at that point would replace their real session.
+function waitForAuthReady(): Promise<User | null> {
+    let unsubscribe = () => {};
+    const ready = new Promise<User | null>(resolve => { unsubscribe = onAuthStateChanged(auth, resolve); });
+    return ready.finally(() => unsubscribe());
+}
+
+// The support API needs to know who is asking (it keeps a per-account daily limit), so every request carries the
+// Firebase ID token. Visitors who aren't signed in — including people who can't log in, who are exactly the ones
+// who need support — get a guest (anonymous) session the first time they send a message, not when the page opens.
+async function getIdToken(forceRefresh = false): Promise<string> {
+    let user = auth.currentUser ?? (await waitForAuthReady());
+    if (!user) user = (await signInAnonymously(auth)).user;
+    return user.getIdToken(forceRefresh);
+}
+
+function postMessages(history: { role: string; content: string }[], token: string) {
+    return fetch('/api/support-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ messages: history }),
+    });
 }
 
 function parseEscalation(text: string): Escalation | null {
@@ -76,20 +106,33 @@ export default function SupportChat() {
         setMessages(newMessages);
         setLoading(true);
 
-        try {
-            const res = await fetch('/api/support-chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: newMessages }),
-            });
-            const data = await res.json();
-            const reply: string = data.reply ?? "I'm having trouble connecting. Please email support@Studycedo.com.";
-            setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
-        } catch {
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: "I'm having trouble connecting right now. Please try again or email support@Studycedo.com.",
-            }]);
+        // Only the real conversation goes to the API — not our own "limit reached" / error notices.
+        const history = newMessages.filter(m => !m.error).map(({ role, content }) => ({ role, content }));
+        const fail = (content: string) => setMessages(prev => [...prev, { role: 'assistant', content, error: true }]);
+
+        const token = await getIdToken().catch((): string | null => null);
+        if (!token) {
+            fail("I couldn't start a chat session. Please check your connection and try again, or email support@Studycedo.com.");
+        } else {
+            try {
+                let res = await postMessages(history, token);
+                if (res.status === 401) {
+                    // The token can expire between getting it and using it: get a fresh one and try once more.
+                    res = await postMessages(history, await getIdToken(true));
+                }
+                const data = await res.json().catch(() => ({}));
+
+                if (res.ok && typeof data.reply === 'string') {
+                    setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+                } else if (res.status === 429 && typeof data.error === 'string') {
+                    // Too many messages (per minute or per day): the server's wording says which, and for how long.
+                    fail(data.error);
+                } else {
+                    fail("I'm having trouble connecting. Please try again or email support@Studycedo.com.");
+                }
+            } catch {
+                fail("I'm having trouble connecting right now. Please try again or email support@Studycedo.com.");
+            }
         }
 
         setLoading(false);
