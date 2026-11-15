@@ -26,6 +26,7 @@ import {
     Zap,
 } from "lucide-react";
 import { Brand, PrimaryButton, TUTOR_SIGNUP } from "./tutorShared";
+import JsonLd, { faqSchema } from "@/app/components/seo/JsonLd";
 
 // The top navigation lives in ./layout.tsx (TutorNav) so it wraps this page;
 // this file is just the page content and footer.
@@ -215,6 +216,7 @@ export default function TutorLandingPage() {
 
     return (
         <>
+            <JsonLd data={faqSchema(faqs.map(([question, answer]) => ({ question, answer })))} />
             {/* 1. Hero */}
             <section className="relative flex min-h-[92svh] items-center overflow-hidden bg-gradient-to-br from-blue-50 via-white to-violet-50 px-5 pb-20 pt-32 sm:px-6">
                 <div className="absolute left-[8%] top-24 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl" />

@@ -1,5 +1,13 @@
+import type { Metadata } from "next";
 import React from 'react';
 import Link from 'next/link';
+import CookieSettingsButton from '@/app/components/analytics/CookieSettingsButton';
+
+export const metadata: Metadata = {
+    title: "Cookie Policy",
+    description: "How StudyCedo uses cookies and how to manage your cookie choices.",
+    alternates: { canonical: "/cookies" },
+};
 
 const CookiePolicyPage = () => {
     const currentYear = new Date().getFullYear();
@@ -391,6 +399,9 @@ const CookiePolicyPage = () => {
                                 <p className="text-sm text-blue-900">
                                     <strong>You can change your preferences anytime</strong> by clicking &#34;Cookie Settings&#34; in the footer or visiting your account settings.
                                 </p>
+                                <CookieSettingsButton className="mt-3 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 cursor-pointer">
+                                    Change my cookie settings
+                                </CookieSettingsButton>
                             </div>
                         </div>
 

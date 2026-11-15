@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import React from 'react';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+    title: "Disclaimers",
+    description: "Important disclaimers about StudyCedo content, AI-generated material and exam results.",
+    alternates: { canonical: "/notice" },
+};
 
 const DisclaimersPage = () => {
     const currentYear = new Date().getFullYear();

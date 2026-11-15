@@ -34,8 +34,7 @@ export function Navigation({ currentPage }: NavigationProps) {
         { label: 'Free Planner', href: '/onboarding' },
         { label: 'Subjects', href: '/subjects' },
         { label: 'Support', href: '/support' },
-        { label: 'Plan', href: '/subscribe' },
-        { label: ' For Tutors', href: '/tutors' }
+        { label: 'Plan', href: '/subscribe' }
     ];
 
     const handleNavigate = (href: string) => {
@@ -68,40 +67,42 @@ export function Navigation({ currentPage }: NavigationProps) {
                             width={120}
                             height={26}
                             src="/StudyCedoLogo.png"
-                            alt="logo"
+                            alt="StudyCedo"
                         />
                     </Link>
 
                     <div className="hidden md:flex items-center gap-2">
                         {navLinks.map((link) => (
-                            <button
+                            <Link
                                 key={link.href}
-                                onClick={() => handleNavigate(link.href)}
-                                className={`px-4 py- text-sm hover:cursor-pointer font-medium transition-all duration-200 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded-xl ${
+                                href={link.href}
+                                className={`px-4 py-2 text-sm hover:cursor-pointer font-medium transition-all duration-200 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded-xl ${
                                     currentPage === link.href ? 'text-primary bg-primary/10' : 'text-text-muted hover:bg-bg-subtle'
                                 }`}
                             >
                                 {link.label}
-                            </button>
+                            </Link>
                         ))}
                         <div className="w-px h-6 bg-border mx-2"></div>
                         { !user ?
                             <div>
                                 <Button
+                                    asChild
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleNavigate('/auth/login')}
                                     className="text-text-muted hover:text-primary hover:cursor-pointer"
                                 >
-                                    <User className="w-4 h-4 mr-2" />
-                                    Login
+                                    <Link href="/auth/login">
+                                        <User className="w-4 h-4 mr-2" />
+                                        Login
+                                    </Link>
                                 </Button>
                                 <Button
+                                    asChild
                                     size="sm"
-                                    onClick={() => handleNavigate('/auth/register')}
                                     className="bg-primary hover:bg-primary-dark ml-2 px-6 rounded-xl hover:cursor-pointer"
                                 >
-                                    Get Started
+                                    <Link href="/auth/register">Get Started</Link>
                                 </Button>
                             </div> :
                             <div className={"flex gap-3"}>
@@ -140,15 +141,16 @@ export function Navigation({ currentPage }: NavigationProps) {
                             >
                                 <div className="flex flex-col gap-2 mt-8">
                                     {navLinks.map((link) => (
-                                        <button
+                                        <Link
                                             key={link.href}
-                                            onClick={() => handleNavigate(link.href)}
+                                            href={link.href}
+                                            onClick={() => setIsOpen(false)}
                                             className={`text-left text-lg font-medium transition-all duration-200 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary rounded-xl px-4 py-3 ${
                                                 currentPage === link.href ? 'text-primary bg-primary/10' : 'text-text-main hover:bg-bg-subtle'
                                             }`}
                                         >
                                             {link.label}
-                                        </button>
+                                        </Link>
                                     ))}
                                     <div className="h-px bg-border my-4"></div>
                                     <Button

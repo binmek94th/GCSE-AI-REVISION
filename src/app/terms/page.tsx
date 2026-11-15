@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import React from 'react';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+    title: "Terms of Service",
+    description: "The terms and conditions for using StudyCedo, including plans and payments.",
+    alternates: { canonical: "/terms" },
+};
 
 const TermsOfServicePage = () => {
     const currentYear = new Date().getFullYear();

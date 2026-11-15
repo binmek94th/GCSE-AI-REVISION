@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import React from "react";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+    title: "Privacy Policy",
+    description: "How StudyCedo collects, uses and protects your personal data.",
+    alternates: { canonical: "/privacy" },
+};
 
 const PrivacyPolicyPage = () => {
     const currentYear = new Date().getFullYear();

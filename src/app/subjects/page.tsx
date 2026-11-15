@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import SubjectExamDisplay from '@/app/components/SubjectExamDisplay';
 import {adminDb} from "@/lib/firebaseAdmin"; // adjust path to wherever you place the client component
+
+export const metadata: Metadata = {
+    title: "GCSE & A-Level Subjects and Exam Boards",
+    description: "Browse the GCSE and A-Level subjects, exam boards and tiers covered by StudyCedo study packs.",
+    alternates: { canonical: "/subjects" },
+};
 
 // Data barely changes — revalidate hourly instead of hitting Firestore on every request.
 // Bump this up (or drop it entirely for a fully static build) if it changes even less often.

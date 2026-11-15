@@ -27,6 +27,8 @@ import {
     Zap,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import CookieSettingsButton from '@/app/components/analytics/CookieSettingsButton';
+import JsonLd, { faqSchema } from '@/app/components/seo/JsonLd';
 
 function HomePage() {
     const router = useRouter();
@@ -148,6 +150,24 @@ function HomePage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white overflow-x-hidden" style={{ fontFamily: 'system-ui, sans-serif' }}>
+            <JsonLd
+                data={[
+                    faqSchema(faqs.map((f) => ({ question: f.q, answer: f.a }))),
+                    {
+                        '@context': 'https://schema.org',
+                        '@type': 'SoftwareApplication',
+                        name: 'StudyCedo',
+                        applicationCategory: 'EducationalApplication',
+                        operatingSystem: 'Web',
+                        description: 'AI revision platform for GCSE and A-Level students with personalised study plans, quizzes, mock exams and an AI tutor.',
+                        offers: [
+                            { '@type': 'Offer', name: 'Free study plan', price: '0', priceCurrency: 'GBP' },
+                            { '@type': 'Offer', name: 'Pro Monthly', price: '16.99', priceCurrency: 'GBP' },
+                            { '@type': 'Offer', name: 'Pro Annual', price: '89', priceCurrency: 'GBP' },
+                        ],
+                    },
+                ]}
+            />
 
             {/* ── HERO ── */}
             <section className="relative min-h-[100svh] flex items-center overflow-hidden">
@@ -1058,6 +1078,7 @@ function HomePage() {
                                 ].map((l, i) => (
                                     <li key={i}><a href={l.href} className="hover:text-white transition-colors">{l.label}</a></li>
                                 ))}
+                                <li><CookieSettingsButton className="hover:text-white transition-colors cursor-pointer">Cookie settings</CookieSettingsButton></li>
                             </ul>
                         </div>
                     </div>

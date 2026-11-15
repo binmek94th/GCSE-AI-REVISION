@@ -7,7 +7,6 @@ import Image from "next/image";
 // Where the tutor buttons go (real routes in the app).
 export const TUTOR_SIGNUP = "/tutors/signup";
 export const TUTOR_LOGIN = "/tutors/login";
-export const TUTOR_DASHBOARD = "/tutors/dashboard";
 
 export function Brand({ footer = false }: { footer?: boolean }) {
     return (
@@ -16,7 +15,7 @@ export function Brand({ footer = false }: { footer?: boolean }) {
                     width={120}
                     height={26}
                     src="/StudyCedoLogo.png"
-                    alt="logo"
+                    alt="StudyCedo"
                 />
                 <span className={`text-xl font-extrabold tracking-[-0.035em] ${footer ? "text-white" : "text-slate-950"}`}>
           </span>
